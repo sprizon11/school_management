@@ -110,22 +110,34 @@ model Class {
 }
 
 model Student {
-  id           String            @id @default(cuid())
-  studentCode  String            @unique
-  fullName     String
-  email        String?
-  gender       Gender
-  rollNumber   Int
-  dateOfBirth  DateTime?
-  status       StudentStatus     @default(ACTIVE)
-  avatarUrl    String?
-  classId      String
-  class        Class             @relation(fields: [classId], references: [id])
-  parents      ParentStudent[]
-  attendance   AttendanceRecord[]
-  marks        Mark[]
-  feeAssignments FeeAssignment[]
-  createdAt    DateTime          @default(now())
+  id                 String            @id @default(cuid())
+  studentCode        String            @unique
+  fullName           String
+  email              String?
+  phone              String?
+  gender             Gender
+  rollNumber         Int
+  dateOfBirth        DateTime?
+  bloodGroup         String?
+  address            String?
+  status             StudentStatus     @default(ACTIVE)
+  avatarUrl          String?
+  fatherName         String?
+  fatherPhone        String?
+  fatherOccupation   String?
+  motherName         String?
+  motherPhone        String?
+  motherOccupation   String?
+  parentAddress      String?
+  emergencyContact   String?
+  emergencyPhone     String?
+  classId            String
+  class              Class             @relation(fields: [classId], references: [id])
+  parents            ParentStudent[]
+  attendance         AttendanceRecord[]
+  marks              Mark[]
+  feeAssignments     FeeAssignment[]
+  createdAt          DateTime          @default(now())
 }
 
 model AttendanceRecord {
