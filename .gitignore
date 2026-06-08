@@ -7,3 +7,4 @@ mobile/.dart_tool/
 mobile/build/
 backend/node_modules/
 backend/dist/
+*.tsbuildinfo
