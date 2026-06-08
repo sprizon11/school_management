@@ -16,24 +16,43 @@ import { UpdateStudentDto } from './dto/update-student.dto';
 export class AdminService {
   constructor(private prisma: PrismaService) {}
 
+  private async resolveSchoolId() {
+    let school = await this.prisma.school.findFirst({
+      where: { isActive: true },
+      orderBy: { createdAt: 'asc' },
+    });
+    if (!school) {
+      school = await this.prisma.school.create({
+        data: {
+          name: 'My School',
+          code: `school-${Date.now()}`,
+          isActive: true,
+        },
+      });
+    }
+    return school.id;
+  }
+
   async dashboardSummary() {
-    const [students, teachers, classes, paid, totalFees] = await Promise.all([
+    const [students, teachers, classes, paid, totalFees, boys, girls, maleTeachers, femaleTeachers] =
+      await Promise.all([
       this.prisma.student.count({ where: { status: StudentStatus.ACTIVE } }),
       this.prisma.teacher.count(),
       this.prisma.class.count(),
       this.prisma.feePayment.aggregate({ _sum: { amount: true } }),
       this.prisma.feeStructure.aggregate({ _sum: { totalAmount: true } }),
+      this.prisma.student.count({
+        where: { status: StudentStatus.ACTIVE, gender: 'MALE' },
+      }),
+      this.prisma.student.count({
+        where: { status: StudentStatus.ACTIVE, gender: 'FEMALE' },
+      }),
+      this.prisma.teacher.count({ where: { gender: 'MALE' } }),
+      this.prisma.teacher.count({ where: { gender: 'FEMALE' } }),
     ]);
 
     const monthAgo = new Date();
     monthAgo.setMonth(monthAgo.getMonth() - 1);
-    const newStudents = await this.prisma.student.count({
-      where: { createdAt: { gte: monthAgo } },
-    });
-    const newTeachers = await this.prisma.teacher.count({
-      where: { user: { createdAt: { gte: monthAgo } } },
-    });
-
     const present = await this.prisma.attendanceRecord.count({
       where: {
         status: 'PRESENT',
@@ -55,13 +74,16 @@ export class AdminService {
     });
 
     return {
-      students: { count: students, trend: newStudents },
-      teachers: { count: teachers, trend: newTeachers },
-      classes: { count: classes, trend: 2 },
+      students: { count: students, boys, girls },
+      teachers: {
+        count: teachers,
+        male: maleTeachers,
+        female: femaleTeachers,
+      },
+      classes: { count: classes, students },
       feeCollection: {
         amount: paid._sum.amount ?? 0,
         total: (totalFees._sum.totalAmount ?? 0) * students,
-        percentChange: 18,
       },
       attendancePercent:
         totalAtt > 0 ? Math.round((present / totalAtt) * 100) : 0,
@@ -305,10 +327,8 @@ export class AdminService {
   async teacherStats() {
     const [total, male, female, newMonth] = await Promise.all([
       this.prisma.teacher.count(),
-      this.prisma.user.count({
-        where: { teacher: { isNot: null }, fullName: { contains: '' } },
-      }),
-      this.prisma.teacher.count(),
+      this.prisma.teacher.count({ where: { gender: 'MALE' } }),
+      this.prisma.teacher.count({ where: { gender: 'FEMALE' } }),
       this.prisma.teacher.count({
         where: {
           user: {
@@ -317,14 +337,12 @@ export class AdminService {
         },
       }),
     ]);
-    const maleCount = Math.round(total * 0.54);
-    const femaleCount = total - maleCount;
     return {
       total,
-      male: maleCount,
-      female: femaleCount,
-      malePercent: total ? Math.round((maleCount / total) * 1000) / 10 : 0,
-      femalePercent: total ? Math.round((femaleCount / total) * 1000) / 10 : 0,
+      male,
+      female,
+      malePercent: total ? Math.round((male / total) * 1000) / 10 : 0,
+      femalePercent: total ? Math.round((female / total) * 1000) / 10 : 0,
       newThisMonth: newMonth,
     };
   }
@@ -358,6 +376,7 @@ export class AdminService {
         employeeCode: t.employeeCode,
         department: t.department,
         subjects: t.subjects,
+        gender: t.gender,
         classes: t.classes.map((c) => c.grade).join(', '),
         status: 'ACTIVE',
         avatarUrl: t.user.avatarUrl,
@@ -366,6 +385,39 @@ export class AdminService {
       page,
       limit,
       totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  async getTeacher(id: string) {
+    const teacher = await this.prisma.teacher.findUnique({
+      where: { id },
+      include: {
+        user: true,
+        classes: { orderBy: [{ grade: 'asc' }, { section: 'asc' }] },
+      },
+    });
+    if (!teacher) throw new NotFoundException('Teacher not found');
+
+    return {
+      id: teacher.id,
+      fullName: teacher.user.fullName,
+      email: teacher.user.email,
+      phone: teacher.user.phone,
+      employeeCode: teacher.employeeCode,
+      department: teacher.department,
+      subjects: teacher.subjects,
+      gender: teacher.gender,
+      avatarUrl: teacher.user.avatarUrl,
+      status: 'ACTIVE',
+      classes: teacher.classes.map((c) => ({
+        id: c.id,
+        name: c.name,
+        grade: c.grade,
+        section: c.section,
+        category: c.category,
+        room: c.room,
+      })),
+      createdAt: teacher.user.createdAt,
     };
   }
 
@@ -414,12 +466,63 @@ export class AdminService {
       studentCount: c._count.students,
       classTeacher: c.classTeacher
         ? {
+            id: c.classTeacher.id,
             name: c.classTeacher.user.fullName,
             subject: c.classTeacher.subjects[0] ?? c.classTeacher.department,
             avatarUrl: c.classTeacher.user.avatarUrl,
           }
         : null,
     }));
+  }
+
+  async getClass(id: string) {
+    const cls = await this.prisma.class.findUnique({
+      where: { id },
+      include: {
+        school: true,
+        classTeacher: { include: { user: true } },
+        students: { orderBy: [{ rollNumber: 'asc' }, { fullName: 'asc' }] },
+      },
+    });
+    if (!cls) throw new NotFoundException('Class not found');
+
+    const boys = cls.students.filter((s) => s.gender === 'MALE').length;
+    const girls = cls.students.filter((s) => s.gender === 'FEMALE').length;
+
+    return {
+      id: cls.id,
+      grade: cls.grade,
+      section: cls.section,
+      name: cls.name,
+      category: cls.category,
+      room: cls.room,
+      academicYear: cls.academicYear,
+      schoolName: cls.school.name,
+      studentCount: cls.students.length,
+      boys,
+      girls,
+      classTeacher: cls.classTeacher
+        ? {
+            id: cls.classTeacher.id,
+            name: cls.classTeacher.user.fullName,
+            email: cls.classTeacher.user.email,
+            phone: cls.classTeacher.user.phone,
+            department: cls.classTeacher.department,
+            subjects: cls.classTeacher.subjects,
+            gender: cls.classTeacher.gender,
+            avatarUrl: cls.classTeacher.user.avatarUrl,
+          }
+        : null,
+      students: cls.students.map((s) => ({
+        id: s.id,
+        fullName: s.fullName,
+        studentCode: s.studentCode,
+        rollNumber: s.rollNumber,
+        gender: s.gender,
+        status: s.status,
+        avatarUrl: s.avatarUrl,
+      })),
+    };
   }
 
   async createStudent(dto: CreateStudentDto) {
@@ -474,8 +577,11 @@ export class AdminService {
   }
 
   async createTeacher(dto: CreateTeacherDto) {
+    const schoolId = await this.resolveSchoolId();
     const email = dto.email.trim().toLowerCase();
-    const existing = await this.prisma.user.findUnique({ where: { email } });
+    const existing = await this.prisma.user.findUnique({
+      where: { schoolId_email: { schoolId, email } },
+    });
     if (existing) throw new ConflictException('Email already registered');
 
     const count = await this.prisma.teacher.count();
@@ -484,6 +590,7 @@ export class AdminService {
 
     const user = await this.prisma.user.create({
       data: {
+        schoolId,
         email,
         passwordHash,
         role: UserRole.TEACHER,
@@ -497,6 +604,7 @@ export class AdminService {
       data: {
         userId: user.id,
         employeeCode,
+        gender: dto.gender ?? 'MALE',
         department: dto.department.trim(),
         subjects: dto.subjects,
       },
@@ -531,8 +639,7 @@ export class AdminService {
   }
 
   async createClass(dto: CreateClassDto) {
-    const school = await this.prisma.school.findFirst();
-    if (!school) throw new BadRequestException('School not configured');
+    const schoolId = await this.resolveSchoolId();
 
     const academicYear = dto.academicYear ?? '2025-26';
     const existing = await this.prisma.class.findFirst({
@@ -544,7 +651,7 @@ export class AdminService {
 
     const cls = await this.prisma.class.create({
       data: {
-        schoolId: school.id,
+        schoolId,
         grade: dto.grade,
         section: dto.section.toUpperCase(),
         name: dto.name.trim(),

@@ -44,14 +44,21 @@ enum FeeStructureType {
 model School {
   id        String   @id @default(cuid())
   name      String
+  code      String   @unique
   address   String?
+  city      String?
+  logoUrl   String?
+  isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   classes   Class[]
+  users     User[]
 }
 
 model User {
   id           String    @id @default(cuid())
-  email        String    @unique
+  schoolId     String
+  school       School    @relation(fields: [schoolId], references: [id])
+  email        String
   passwordHash String
   role         UserRole
   fullName     String
@@ -60,6 +67,8 @@ model User {
   createdAt    DateTime  @default(now())
   teacher      Teacher?
   parent       Parent?
+
+  @@unique([schoolId, email])
 }
 
 model Teacher {
@@ -67,6 +76,7 @@ model Teacher {
   userId       String   @unique
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   employeeCode String   @unique
+  gender       Gender   @default(MALE)
   department   String
   subjects     String[]
   classes      Class[]  @relation("ClassTeacher")

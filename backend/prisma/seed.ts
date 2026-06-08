@@ -45,9 +45,24 @@ async function seedMinimal() {
 
   const passwordHash = await hashPassword('Admin@123');
 
-  await prisma.user.upsert({
-    where: { email: 'admin@school.demo' },
+  const school = await prisma.school.upsert({
+    where: { code: 'greenfield' },
     create: {
+      name: 'Greenfield Public School',
+      code: 'greenfield',
+      address: 'Chennai, Tamil Nadu',
+      city: 'Chennai',
+      isActive: true,
+    },
+    update: { isActive: true },
+  });
+
+  await prisma.user.upsert({
+    where: {
+      schoolId_email: { schoolId: school.id, email: 'admin@school.demo' },
+    },
+    create: {
+      schoolId: school.id,
       email: 'admin@school.demo',
       passwordHash,
       role: UserRole.ADMIN,
@@ -56,16 +71,6 @@ async function seedMinimal() {
     },
     update: {},
   });
-
-  let school = await prisma.school.findFirst();
-  if (!school) {
-    school = await prisma.school.create({
-      data: {
-        name: 'Greenfield Public School',
-        address: 'Chennai, Tamil Nadu',
-      },
-    });
-  }
 
   for (const name of SUBJECTS) {
     await prisma.subject.upsert({
@@ -103,7 +108,10 @@ async function seedFullDemo() {
   const school = await prisma.school.create({
     data: {
       name: 'Greenfield Public School',
+      code: 'greenfield',
       address: 'Chennai, Tamil Nadu',
+      city: 'Chennai',
+      isActive: true,
     },
   });
 
@@ -116,6 +124,7 @@ async function seedFullDemo() {
 
   await prisma.user.create({
     data: {
+      schoolId: school.id,
       email: 'admin@school.demo',
       passwordHash,
       role: UserRole.ADMIN,
@@ -126,6 +135,7 @@ async function seedFullDemo() {
 
   await prisma.user.create({
     data: {
+      schoolId: school.id,
       email: 'admin2@school.demo',
       passwordHash: demoHash,
       role: UserRole.ADMIN,
@@ -180,6 +190,7 @@ async function seedFullDemo() {
 
     const user = await prisma.user.create({
       data: {
+        schoolId: school.id,
         email,
         passwordHash: t < 2 ? passwordHash : demoHash,
         role: UserRole.TEACHER,
@@ -265,6 +276,7 @@ async function seedFullDemo() {
 
   const parentUser = await prisma.user.create({
     data: {
+      schoolId: school.id,
       email: 'parent@school.demo',
       passwordHash,
       role: UserRole.PARENT,
@@ -293,6 +305,7 @@ async function seedFullDemo() {
 
     const pUser = await prisma.user.create({
       data: {
+        schoolId: school.id,
         email: `parent${String(i).padStart(4, '0')}@seed.demo`,
         passwordHash: demoHash,
         role: UserRole.PARENT,

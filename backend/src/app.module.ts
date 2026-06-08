@@ -5,6 +5,7 @@ import { AuthModule } from './auth/auth.module';
 import { HealthController } from './health.controller';
 import { ParentModule } from './parent/parent.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { SchoolsModule } from './schools/schools.module';
 import { TeacherModule } from './teacher/teacher.module';
 
 @Module({
@@ -13,6 +14,7 @@ import { TeacherModule } from './teacher/teacher.module';
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
     AuthModule,
+    SchoolsModule,
     AdminModule,
     TeacherModule,
     ParentModule,

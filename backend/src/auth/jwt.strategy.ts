@@ -5,6 +5,7 @@ import { UserRole } from '@prisma/client';
 
 export interface JwtPayload {
   sub: string;
+  schoolId: string;
   role: UserRole;
   teacherId?: string;
   parentId?: string;
@@ -23,6 +24,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   validate(payload: JwtPayload) {
     return {
       userId: payload.sub,
+      schoolId: payload.schoolId,
       role: payload.role,
       teacherId: payload.teacherId,
       parentId: payload.parentId,

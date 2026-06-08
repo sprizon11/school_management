@@ -17,9 +17,17 @@ export class AuthService {
   ) {}
 
   async login(dto: LoginDto) {
+    const school = await this.prisma.school.findFirst({
+      where: { id: dto.schoolId, isActive: true },
+    });
+    if (!school) {
+      throw new UnauthorizedException('School not found');
+    }
+
     const identifier = dto.identifier.trim().toLowerCase();
     const user = await this.prisma.user.findFirst({
       where: {
+        schoolId: dto.schoolId,
         OR: [{ email: identifier }, { phone: dto.identifier.trim() }],
       },
       include: {
@@ -45,6 +53,7 @@ export class AuthService {
 
     const payload = {
       sub: user.id,
+      schoolId: user.schoolId,
       role: user.role,
       teacherId: user.teacher?.id,
       parentId: user.parent?.id,
@@ -55,6 +64,8 @@ export class AuthService {
       accessToken: this.jwt.sign(payload),
       user: {
         id: user.id,
+        schoolId: user.schoolId,
+        schoolName: school.name,
         email: user.email,
         fullName: user.fullName,
         role: user.role,

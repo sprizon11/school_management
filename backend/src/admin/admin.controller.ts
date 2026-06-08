@@ -60,6 +60,11 @@ export class AdminController {
     return this.admin.teacherStats();
   }
 
+  @Get('teachers/:id')
+  getTeacher(@Param('id') id: string) {
+    return this.admin.getTeacher(id);
+  }
+
   @Get('teachers')
   listTeachers(
     @Query('page') page?: string,
@@ -76,6 +81,11 @@ export class AdminController {
   @Get('classes/stats')
   classStats() {
     return this.admin.classStats();
+  }
+
+  @Get('classes/:id')
+  getClass(@Param('id') id: string) {
+    return this.admin.getClass(id);
   }
 
   @Get('classes')

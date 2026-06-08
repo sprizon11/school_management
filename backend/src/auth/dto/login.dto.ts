@@ -3,6 +3,9 @@ import { UserRole } from '@prisma/client';
 
 export class LoginDto {
   @IsString()
+  schoolId: string;
+
+  @IsString()
   identifier: string;
 
   @IsString()
