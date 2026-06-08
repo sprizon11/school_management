@@ -10,6 +10,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateClassDto } from './dto/create-class.dto';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { CreateTeacherDto } from './dto/create-teacher.dto';
+import { UpdateStudentDto } from './dto/update-student.dto';
 
 @Injectable()
 export class AdminService {
@@ -202,6 +203,57 @@ export class AdminService {
         totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : null,
       createdAt: student.createdAt,
     };
+  }
+
+  async updateStudent(id: string, dto: UpdateStudentDto) {
+    const existing = await this.prisma.student.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Student not found');
+
+    if (dto.classId) {
+      const cls = await this.prisma.class.findUnique({ where: { id: dto.classId } });
+      if (!cls) throw new BadRequestException('Class not found');
+    }
+
+    const data: Prisma.StudentUpdateInput = {};
+    if (dto.fullName !== undefined) data.fullName = dto.fullName.trim();
+    if (dto.gender !== undefined) data.gender = dto.gender;
+    if (dto.classId !== undefined) data.class = { connect: { id: dto.classId } };
+    if (dto.email !== undefined) data.email = dto.email.trim().toLowerCase() || null;
+    if (dto.phone !== undefined) data.phone = dto.phone.trim() || null;
+    if (dto.rollNumber !== undefined) data.rollNumber = dto.rollNumber;
+    if (dto.dateOfBirth !== undefined) {
+      data.dateOfBirth = dto.dateOfBirth ? new Date(dto.dateOfBirth) : null;
+    }
+    if (dto.bloodGroup !== undefined) data.bloodGroup = dto.bloodGroup.trim() || null;
+    if (dto.address !== undefined) data.address = dto.address.trim() || null;
+    if (dto.avatarUrl !== undefined) data.avatarUrl = dto.avatarUrl || null;
+    if (dto.fatherName !== undefined) data.fatherName = dto.fatherName.trim() || null;
+    if (dto.fatherPhone !== undefined) data.fatherPhone = dto.fatherPhone.trim() || null;
+    if (dto.fatherOccupation !== undefined) {
+      data.fatherOccupation = dto.fatherOccupation.trim() || null;
+    }
+    if (dto.motherName !== undefined) data.motherName = dto.motherName.trim() || null;
+    if (dto.motherPhone !== undefined) data.motherPhone = dto.motherPhone.trim() || null;
+    if (dto.motherOccupation !== undefined) {
+      data.motherOccupation = dto.motherOccupation.trim() || null;
+    }
+    if (dto.parentAddress !== undefined) data.parentAddress = dto.parentAddress.trim() || null;
+    if (dto.emergencyContact !== undefined) {
+      data.emergencyContact = dto.emergencyContact.trim() || null;
+    }
+    if (dto.emergencyPhone !== undefined) data.emergencyPhone = dto.emergencyPhone.trim() || null;
+    if (dto.status !== undefined) data.status = dto.status;
+
+    await this.prisma.student.update({ where: { id }, data });
+
+    await this.prisma.activityLog.create({
+      data: {
+        action: `Updated student ${dto.fullName ?? existing.fullName}`,
+        actorName: 'Admin',
+      },
+    });
+
+    return this.getStudent(id);
   }
 
   async listStudents(params: {

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -7,6 +7,7 @@ import { AdminService } from './admin.service';
 import { CreateClassDto } from './dto/create-class.dto';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { CreateTeacherDto } from './dto/create-teacher.dto';
+import { UpdateStudentDto } from './dto/update-student.dto';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -85,6 +86,11 @@ export class AdminController {
   @Post('students')
   createStudent(@Body() dto: CreateStudentDto) {
     return this.admin.createStudent(dto);
+  }
+
+  @Patch('students/:id')
+  updateStudent(@Param('id') id: string, @Body() dto: UpdateStudentDto) {
+    return this.admin.updateStudent(id, dto);
   }
 
   @Post('teachers')
