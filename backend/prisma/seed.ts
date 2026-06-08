@@ -40,8 +40,47 @@ async function hashPassword(password: string) {
   return bcrypt.hash(password, 10);
 }
 
-async function main() {
-  console.log('Seeding database...');
+async function seedMinimal() {
+  console.log('Minimal seed (admin + school + subjects only)...');
+
+  const passwordHash = await hashPassword('Admin@123');
+
+  await prisma.user.upsert({
+    where: { email: 'admin@school.demo' },
+    create: {
+      email: 'admin@school.demo',
+      passwordHash,
+      role: UserRole.ADMIN,
+      fullName: 'Super Administrator',
+      phone: '+919876543210',
+    },
+    update: {},
+  });
+
+  let school = await prisma.school.findFirst();
+  if (!school) {
+    school = await prisma.school.create({
+      data: {
+        name: 'Greenfield Public School',
+        address: 'Chennai, Tamil Nadu',
+      },
+    });
+  }
+
+  for (const name of SUBJECTS) {
+    await prisma.subject.upsert({
+      where: { name },
+      create: { name },
+      update: {},
+    });
+  }
+
+  console.log('Minimal seed done. Login: admin@school.demo / Admin@123');
+  console.log('Add students and teachers from the app — no demo data inserted.');
+}
+
+async function seedFullDemo() {
+  console.log('Full demo seed (250 students, 70 teachers)...');
   await prisma.feePayment.deleteMany();
   await prisma.feeInstallment.deleteMany();
   await prisma.feeAssignment.deleteMany();
@@ -434,6 +473,14 @@ async function main() {
   console.log(`Classes: ${classes.length}`);
   console.log(`Teachers: ${teachers.length}`);
   console.log('Demo logins: admin@school.demo / teacher@school.demo / parent@school.demo (Admin@123)');
+}
+
+async function main() {
+  if (process.env.SEED_DEMO_DATA === 'true') {
+    await seedFullDemo();
+  } else {
+    await seedMinimal();
+  }
 }
 
 main()

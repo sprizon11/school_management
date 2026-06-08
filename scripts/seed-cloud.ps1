@@ -36,14 +36,13 @@ try {
     npx prisma migrate deploy
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-    Write-Host "Seeding demo data (~250 students)..." -ForegroundColor Cyan
+    Write-Host "Seeding admin account only (no demo students/teachers)..." -ForegroundColor Cyan
     npm run db:seed
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-    Write-Host "Done! Demo accounts:" -ForegroundColor Green
-    Write-Host "  admin@school.demo   / Admin@123"
-    Write-Host "  teacher@school.demo / Admin@123"
-    Write-Host "  parent@school.demo  / Admin@123"
+    Write-Host "Done! Admin login:" -ForegroundColor Green
+    Write-Host "  admin@school.demo / Admin@123"
+    Write-Host "Add students and teachers manually from the app."
 }
 finally {
     Pop-Location
