@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/auth_provider.dart';
@@ -17,30 +19,79 @@ class AdminShell extends StatefulWidget {
 
 class _AdminShellState extends State<AdminShell> {
   int _index = 0;
+  late final List<Widget> _screens;
 
-  final _screens = const [
-    AdminDashboardScreen(),
-    AdminStudentsScreen(),
-    AdminTeachersScreen(),
-    AdminClassesScreen(),
-    AdminMoreScreen(),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _screens = [
+      const AdminDashboardScreen(),
+      AdminStudentsScreen(onBack: () => setState(() => _index = 0)),
+      const AdminTeachersScreen(),
+      const AdminClassesScreen(),
+      const AdminMoreScreen(),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _screens[_index],
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Dashboard'),
-          NavigationDestination(icon: Icon(Icons.people_outline), selectedIcon: Icon(Icons.people), label: 'Students'),
-          NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'Teachers'),
-          NavigationDestination(icon: Icon(Icons.class_outlined), selectedIcon: Icon(Icons.class_), label: 'Classes'),
-          NavigationDestination(icon: Icon(Icons.grid_view), label: 'More'),
-        ],
-        indicatorColor: AppColors.primary.withValues(alpha: 0.15),
+      extendBody: true,
+      body: IndexedStack(
+        index: _index,
+        children: _screens,
+      ),
+      bottomNavigationBar: ClipRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.72),
+            ),
+            child: SafeArea(
+              top: false,
+              child: BottomNavigationBar(
+                type: BottomNavigationBarType.fixed,
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                currentIndex: _index,
+                selectedItemColor: AppColors.primary,
+                unselectedItemColor: const Color(0xFF5B6474),
+                selectedLabelStyle: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+                unselectedLabelStyle: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+                onTap: (i) => setState(() => _index = i),
+                items: const [
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.home_rounded),
+                    label: 'Dashboard',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.groups_rounded),
+                    label: 'Students',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.school_outlined),
+                    label: 'Teachers',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.menu_book_rounded),
+                    label: 'Classes',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.grid_view_rounded),
+                    label: 'More',
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -71,12 +122,24 @@ class AdminHeader extends StatelessWidget {
         ),
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
       ),
-      child: child ??
+      child:
+          child ??
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-              if (subtitle != null) Text(subtitle!, style: TextStyle(color: Colors.white.withValues(alpha: 0.85))),
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              if (subtitle != null)
+                Text(
+                  subtitle!,
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.85)),
+                ),
             ],
           ),
     );

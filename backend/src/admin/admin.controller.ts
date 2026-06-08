@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -32,6 +32,11 @@ export class AdminController {
   @Get('students/stats')
   studentStats() {
     return this.admin.studentStats();
+  }
+
+  @Get('students/:id')
+  getStudent(@Param('id') id: string) {
+    return this.admin.getStudent(id);
   }
 
   @Get('students')

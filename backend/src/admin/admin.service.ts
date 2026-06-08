@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  NotFoundException,
 } from '@nestjs/common';
 import { Prisma, StudentStatus, UserRole } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
@@ -133,6 +134,73 @@ export class AdminService {
       boysPercent: total ? Math.round((boys / total) * 1000) / 10 : 0,
       girlsPercent: total ? Math.round((girls / total) * 1000) / 10 : 0,
       newThisMonth: newMonth,
+    };
+  }
+
+  async getStudent(id: string) {
+    const student = await this.prisma.student.findUnique({
+      where: { id },
+      include: {
+        class: {
+          include: {
+            classTeacher: { include: { user: true } },
+          },
+        },
+      },
+    });
+    if (!student) throw new NotFoundException('Student not found');
+
+    const monthAgo = new Date();
+    monthAgo.setMonth(monthAgo.getMonth() - 1);
+    const [presentDays, totalDays] = await Promise.all([
+      this.prisma.attendanceRecord.count({
+        where: {
+          studentId: id,
+          status: 'PRESENT',
+          date: { gte: monthAgo },
+        },
+      }),
+      this.prisma.attendanceRecord.count({
+        where: { studentId: id, date: { gte: monthAgo } },
+      }),
+    ]);
+
+    return {
+      id: student.id,
+      fullName: student.fullName,
+      studentCode: student.studentCode,
+      email: student.email,
+      phone: student.phone,
+      gender: student.gender,
+      rollNumber: student.rollNumber,
+      dateOfBirth: student.dateOfBirth,
+      bloodGroup: student.bloodGroup,
+      address: student.address,
+      status: student.status,
+      avatarUrl: student.avatarUrl,
+      fatherName: student.fatherName,
+      fatherPhone: student.fatherPhone,
+      fatherOccupation: student.fatherOccupation,
+      motherName: student.motherName,
+      motherPhone: student.motherPhone,
+      motherOccupation: student.motherOccupation,
+      parentAddress: student.parentAddress,
+      emergencyContact: student.emergencyContact,
+      emergencyPhone: student.emergencyPhone,
+      classId: student.classId,
+      grade: student.class.grade,
+      section: student.class.section,
+      className: student.class.name,
+      classTeacher: student.class.classTeacher
+        ? {
+            name: student.class.classTeacher.user.fullName,
+            phone: student.class.classTeacher.user.phone,
+            department: student.class.classTeacher.department,
+          }
+        : null,
+      attendancePercent:
+        totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : null,
+      createdAt: student.createdAt,
     };
   }
 
