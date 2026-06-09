@@ -5,7 +5,6 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { UserRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 
@@ -32,7 +31,6 @@ export class AuthService {
       },
       include: {
         teacher: true,
-        parent: { include: { children: true } },
       },
     });
 
@@ -56,8 +54,6 @@ export class AuthService {
       schoolId: user.schoolId,
       role: user.role,
       teacherId: user.teacher?.id,
-      parentId: user.parent?.id,
-      studentIds: user.parent?.children.map((c) => c.studentId) ?? [],
     };
 
     return {
@@ -71,8 +67,6 @@ export class AuthService {
         role: user.role,
         avatarUrl: user.avatarUrl,
         teacherId: user.teacher?.id,
-        parentId: user.parent?.id,
-        studentIds: payload.studentIds,
       },
     };
   }
@@ -82,15 +76,6 @@ export class AuthService {
       where: { id: userId },
       include: {
         teacher: true,
-        parent: {
-          include: {
-            children: {
-              include: {
-                student: { include: { class: true } },
-              },
-            },
-          },
-        },
       },
     });
   }

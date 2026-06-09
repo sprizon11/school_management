@@ -8,8 +8,6 @@ export interface JwtPayload {
   schoolId: string;
   role: UserRole;
   teacherId?: string;
-  parentId?: string;
-  studentIds?: string[];
 }
 
 @Injectable()
@@ -27,8 +25,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       schoolId: payload.schoolId,
       role: payload.role,
       teacherId: payload.teacherId,
-      parentId: payload.parentId,
-      studentIds: payload.studentIds ?? [],
     };
   }
 }
