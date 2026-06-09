@@ -1,12 +1,15 @@
 import { Module } from '@nestjs/common';
-import { DevKeyGuard } from '../schools/dev-key.guard';
+import { AuthModule } from '../auth/auth.module';
 import { SchoolsModule } from '../schools/schools.module';
+import { DevAuthController } from './dev-auth.controller';
+import { DevPortalAuthService } from './dev-portal-auth.service';
+import { DevPortalGuard } from './dev-portal.guard';
 import { DevController } from './dev.controller';
 import { DevService } from './dev.service';
 
 @Module({
-  imports: [SchoolsModule],
-  controllers: [DevController],
-  providers: [DevService, DevKeyGuard],
+  imports: [AuthModule, SchoolsModule],
+  controllers: [DevAuthController, DevController],
+  providers: [DevService, DevPortalAuthService, DevPortalGuard],
 })
 export class DevModule {}

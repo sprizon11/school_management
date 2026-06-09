@@ -1,10 +1,10 @@
 import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
-import { DevKeyGuard } from '../schools/dev-key.guard';
 import { CreateSchoolDto } from '../schools/dto/create-school.dto';
+import { DevPortalGuard } from './dev-portal.guard';
 import { DevService } from './dev.service';
 
 @Controller('dev')
-@UseGuards(DevKeyGuard)
+@UseGuards(DevPortalGuard)
 export class DevController {
   constructor(private dev: DevService) {}
 

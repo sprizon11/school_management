@@ -1,8 +1,10 @@
 const STORAGE_KEY = 'school_dev_portal_session';
+const API_BASE = 'https://school-management-9yzh.onrender.com/api';
 
 const state = {
-  apiBase: '',
-  devKey: '',
+  apiBase: API_BASE,
+  token: '',
+  userEmail: '',
   overview: null,
   schools: [],
   schoolDetail: null,
@@ -17,9 +19,10 @@ function loadSession() {
     const raw = sessionStorage.getItem(STORAGE_KEY);
     if (!raw) return false;
     const data = JSON.parse(raw);
-    state.apiBase = data.apiBase || '';
-    state.devKey = data.devKey || '';
-    return Boolean(state.apiBase && state.devKey);
+    state.apiBase = data.apiBase || API_BASE;
+    state.token = data.token || '';
+    state.userEmail = data.userEmail || '';
+    return Boolean(state.token);
   } catch {
     return false;
   }
@@ -28,14 +31,18 @@ function loadSession() {
 function saveSession() {
   sessionStorage.setItem(
     STORAGE_KEY,
-    JSON.stringify({ apiBase: state.apiBase, devKey: state.devKey }),
+    JSON.stringify({
+      apiBase: state.apiBase,
+      token: state.token,
+      userEmail: state.userEmail,
+    }),
   );
 }
 
 function clearSession() {
   sessionStorage.removeItem(STORAGE_KEY);
-  state.apiBase = '';
-  state.devKey = '';
+  state.token = '';
+  state.userEmail = '';
 }
 
 function route() {
@@ -50,15 +57,16 @@ function navigate(path) {
 async function api(path, options = {}) {
   const base = state.apiBase.replace(/\/$/, '');
   const url = `${base}${path.startsWith('/') ? path : `/${path}`}`;
-  const res = await fetch(url, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      'x-dev-key': state.devKey,
-      ...(options.headers || {}),
-    },
-  });
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(options.headers || {}),
+  };
 
+  if (state.token) {
+    headers.Authorization = `Bearer ${state.token}`;
+  }
+
+  const res = await fetch(url, { ...options, headers });
   const text = await res.text();
   let data = null;
   try {
@@ -100,30 +108,55 @@ function statCard(label, value) {
   `;
 }
 
+function pageHero(title, subtitle, actionsHtml = '') {
+  return `
+    <div class="page-hero">
+      <div>
+        <span class="eyebrow">Private console</span>
+        <h1>${esc(title)}</h1>
+        <p>${subtitle}</p>
+      </div>
+      ${actionsHtml ? `<div class="actions">${actionsHtml}</div>` : ''}
+    </div>
+  `;
+}
+
 function renderLogin() {
   return `
-    <div class="login-wrap">
-      <div class="login-card">
-        <h1>Private platform console</h1>
-        <p>This site is for platform owners only. App users never see this page. Enter your API URL and developer key.</p>
-        ${state.error ? `<div class="error">${esc(state.error)}</div>` : ''}
-        <form id="login-form">
-          <div class="field">
-            <label for="apiBase">API base URL</label>
-            <input id="apiBase" name="apiBase" value="${esc(state.apiBase || 'https://school-management-9yzh.onrender.com/api')}" placeholder="https://your-api.onrender.com/api" required />
-          </div>
-          <div class="field">
-            <label for="devKey">Developer key</label>
-            <input id="devKey" name="devKey" type="password" value="${esc(state.devKey)}" placeholder="DEV_PLATFORM_KEY from server" required />
-          </div>
-          <button class="btn btn-primary" style="width:100%;margin-top:8px" type="submit">
-            Unlock console
-          </button>
-        </form>
-        <p class="muted-note" style="margin-top:16px">
-          Session stays in this browser tab only. Deploy this folder as a private static site and do not link it from the mobile app.
-        </p>
-      </div>
+    <div class="login-page">
+      <section class="login-visual">
+        <span class="eyebrow" style="background:rgba(255,255,255,0.14);color:white">Platform owner only</span>
+        <h1>Manage every school from one place</h1>
+        <p>Monitor registrations, review school performance, and onboard new institutions securely.</p>
+        <ul class="feature-list">
+          <li><span class="feature-dot"></span> School-wise students, teachers, and classes</li>
+          <li><span class="feature-dot"></span> Create new schools with admin accounts</li>
+          <li><span class="feature-dot"></span> Not visible to mobile app users</li>
+        </ul>
+      </section>
+      <section class="login-panel">
+        <div class="login-card">
+          <h2>Welcome back</h2>
+          <p class="sub">Sign in with your platform owner credentials.</p>
+          ${state.error ? `<div class="error">${esc(state.error)}</div>` : ''}
+          <form id="login-form">
+            <div class="field">
+              <label for="email">Email address</label>
+              <input id="email" name="email" type="email" autocomplete="username" placeholder="you@example.com" required />
+            </div>
+            <div class="field">
+              <label for="password">Password</label>
+              <input id="password" name="password" type="password" autocomplete="current-password" placeholder="Enter your password" required />
+            </div>
+            <button class="btn btn-primary" style="width:100%;margin-top:6px" type="submit">
+              Sign in to console
+            </button>
+          </form>
+          <p class="muted-note" style="margin-top:18px">
+            This website is private. Session stays in this browser tab only.
+          </p>
+        </div>
+      </section>
     </div>
   `;
 }
@@ -142,17 +175,15 @@ function renderDashboard() {
 
   return `
     <div class="shell">
-      <div class="topbar">
-        <div class="brand">
-          <h1>Platform overview</h1>
-          <p>All schools on ${esc(state.apiBase)}</p>
-        </div>
-        <div class="actions">
+      ${pageHero(
+        'Platform overview',
+        state.userEmail ? `Signed in as ${esc(state.userEmail)}` : 'All schools on your platform',
+        `
           <button class="btn btn-ghost" id="refresh-btn">Refresh</button>
           <button class="btn btn-primary" id="create-btn">Create school</button>
-          <button class="btn btn-danger" id="logout-btn">Lock</button>
-        </div>
-      </div>
+          <button class="btn btn-danger" id="logout-btn">Sign out</button>
+        `,
+      )}
 
       ${state.error ? `<div class="error">${esc(state.error)}</div>` : ''}
       ${state.success ? `<div class="success">${esc(state.success)}</div>` : ''}
@@ -170,7 +201,7 @@ function renderDashboard() {
       <div class="panel">
         <div class="panel-header">
           <h2>All schools</h2>
-          <input class="search" id="search" placeholder="Search school..." value="${esc(state.search)}" />
+          <input class="search" id="search" placeholder="Search by name, code, or city..." value="${esc(state.search)}" />
         </div>
         ${
           state.loading
@@ -219,16 +250,14 @@ function renderSchoolDetail() {
 
   return `
     <div class="shell">
-      <div class="topbar">
-        <div class="brand">
-          <h1>${esc(school.name)}</h1>
-          <p>${esc(school.code)}${school.city ? ` · ${esc(school.city)}` : ''}</p>
-        </div>
-        <div class="actions">
+      ${pageHero(
+        school.name,
+        `${school.code}${school.city ? ` · ${school.city}` : ''}`,
+        `
           <button class="btn btn-ghost" id="back-btn">All schools</button>
-          <button class="btn btn-danger" id="logout-btn">Lock</button>
-        </div>
-      </div>
+          <button class="btn btn-danger" id="logout-btn">Sign out</button>
+        `,
+      )}
 
       ${state.error ? `<div class="error">${esc(state.error)}</div>` : ''}
 
@@ -243,16 +272,14 @@ function renderSchoolDetail() {
       <div class="detail-grid">
         <div class="panel">
           <div class="panel-header"><h2>School details</h2></div>
-          <div style="padding: 8px 20px 18px">
-            <ul class="info-list">
-              <li><span>Status</span><span>${school.isActive ? 'Active' : 'Inactive'}</span></li>
-              <li><span>School ID</span><span>${esc(school.id)}</span></li>
-              <li><span>Code</span><span>${esc(school.code)}</span></li>
-              <li><span>City</span><span>${esc(school.city || '—')}</span></li>
-              <li><span>Address</span><span>${esc(school.address || '—')}</span></li>
-              <li><span>Created</span><span>${esc(formatDate(school.createdAt))}</span></li>
-            </ul>
-          </div>
+          <ul class="info-list">
+            <li><span>Status</span><span>${school.isActive ? 'Active' : 'Inactive'}</span></li>
+            <li><span>School ID</span><span>${esc(school.id)}</span></li>
+            <li><span>Code</span><span>${esc(school.code)}</span></li>
+            <li><span>City</span><span>${esc(school.city || '—')}</span></li>
+            <li><span>Address</span><span>${esc(school.address || '—')}</span></li>
+            <li><span>Created</span><span>${esc(formatDate(school.createdAt))}</span></li>
+          </ul>
         </div>
 
         <div class="panel">
@@ -319,21 +346,19 @@ function renderSchoolDetail() {
 function renderCreateSchool() {
   return `
     <div class="shell">
-      <div class="topbar">
-        <div class="brand">
-          <h1>Create school</h1>
-          <p>Register a new school and its first admin account</p>
-        </div>
-        <div class="actions">
+      ${pageHero(
+        'Create school',
+        'Register a new school and its first admin account',
+        `
           <button class="btn btn-ghost" id="back-btn">All schools</button>
-          <button class="btn btn-danger" id="logout-btn">Lock</button>
-        </div>
-      </div>
+          <button class="btn btn-danger" id="logout-btn">Sign out</button>
+        `,
+      )}
 
       ${state.error ? `<div class="error">${esc(state.error)}</div>` : ''}
       ${state.success ? `<div class="success">${esc(state.success)}</div>` : ''}
 
-      <div class="panel" style="padding:20px">
+      <div class="panel" style="padding:22px">
         <form id="create-form" class="form-grid">
           <div class="form-grid two">
             <div class="field">
@@ -385,7 +410,7 @@ function render() {
     return;
   }
 
-  if (path === '/login' || !state.apiBase || !state.devKey) {
+  if (path === '/login' || !state.token) {
     app.innerHTML = renderLogin();
     bindLogin();
     return;
@@ -400,9 +425,10 @@ function render() {
 
   const schoolMatch = path.match(/^\/school\/([^/]+)$/);
   if (schoolMatch) {
-    app.innerHTML = state.loading && !state.schoolDetail
-      ? '<div class="loading">Loading school...</div>'
-      : renderSchoolDetail();
+    app.innerHTML =
+      state.loading && !state.schoolDetail
+        ? '<div class="loading">Loading school...</div>'
+        : renderSchoolDetail();
     bindCommon();
     return;
   }
@@ -452,13 +478,18 @@ function bindLogin() {
     event.preventDefault();
     state.error = null;
     const data = new FormData(form);
-    state.apiBase = String(data.get('apiBase') || '').trim();
-    state.devKey = String(data.get('devKey') || '').trim();
-    saveSession();
 
     try {
-      await api('/dev/overview');
-      state.success = null;
+      const result = await api('/dev/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({
+          email: String(data.get('email') || '').trim(),
+          password: String(data.get('password') || ''),
+        }),
+      });
+      state.token = result.accessToken;
+      state.userEmail = result.user?.email || '';
+      saveSession();
       navigate('/');
       await loadDashboard();
     } catch (error) {
@@ -542,7 +573,7 @@ function bindCreateForm() {
 
 window.addEventListener('hashchange', async () => {
   const path = route();
-  if (!state.apiBase || !state.devKey) {
+  if (!state.token) {
     render();
     return;
   }

@@ -20,3 +20,7 @@ services:
         generateValue: true
       - key: DEV_PLATFORM_KEY
         sync: false
+      - key: DEV_PORTAL_EMAIL
+        sync: false
+      - key: DEV_PORTAL_PASSWORD
+        sync: false
