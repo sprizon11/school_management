@@ -283,35 +283,35 @@ export class DevService {
       });
     }
 
-    const allTeachers = await this.prisma.teacher.findMany({
-      include: { user: { select: { id: true, email: true } } },
+    const teacherUsers = await this.prisma.user.findMany({
+      where: { role: UserRole.TEACHER },
+      select: { id: true },
     });
+    const teacherUserIds = teacherUsers.map((u) => u.id);
 
-    const demoTeachers = allTeachers.filter(
-      (t) =>
-        this.isSeedTeacherEmail(t.user.email) ||
-        this.isSeedTeacherCode(t.employeeCode),
-    );
-    const demoTeacherIds = demoTeachers.map((t) => t.id);
-    const demoTeacherUserIds = demoTeachers.map((t) => t.user.id);
+    if (teacherUserIds.length > 0) {
+      const teacherProfiles = await this.prisma.teacher.findMany({
+        where: { userId: { in: teacherUserIds } },
+        select: { id: true },
+      });
+      const teacherIds = teacherProfiles.map((t) => t.id);
 
-    if (demoTeacherIds.length > 0) {
-      await this.prisma.homework.deleteMany({
-        where: { teacherId: { in: demoTeacherIds } },
-      });
-      await this.prisma.mark.updateMany({
-        where: { teacherId: { in: demoTeacherIds } },
-        data: { teacherId: null },
-      });
-      await this.prisma.class.updateMany({
-        where: { classTeacherId: { in: demoTeacherIds } },
-        data: { classTeacherId: null },
-      });
-      await this.prisma.teacher.deleteMany({
-        where: { id: { in: demoTeacherIds } },
-      });
+      if (teacherIds.length > 0) {
+        await this.prisma.homework.deleteMany({
+          where: { teacherId: { in: teacherIds } },
+        });
+        await this.prisma.mark.updateMany({
+          where: { teacherId: { in: teacherIds } },
+          data: { teacherId: null },
+        });
+        await this.prisma.class.updateMany({
+          where: { classTeacherId: { in: teacherIds } },
+          data: { classTeacherId: null },
+        });
+      }
+
       await this.prisma.user.deleteMany({
-        where: { id: { in: demoTeacherUserIds } },
+        where: { id: { in: teacherUserIds } },
       });
     }
 
@@ -355,7 +355,7 @@ export class DevService {
     return {
       removed: {
         students: demoStudentIds.length,
-        teachers: demoTeacherIds.length,
+        teachers: teacherUserIds.length,
         demoAdmins: demoAdminIds.length,
         classes: classesRemoved,
         announcements: announcements.count,

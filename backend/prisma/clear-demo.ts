@@ -73,38 +73,39 @@ async function main() {
 
   console.log(`Students removed: ${demoStudentIds.length}`);
 
-  const allTeachers = await prisma.teacher.findMany({
-    include: { user: { select: { id: true, email: true } } },
+  const teacherUsers = await prisma.user.findMany({
+    where: { role: UserRole.TEACHER },
+    select: { id: true },
   });
+  const teacherUserIds = teacherUsers.map((u) => u.id);
 
-  const demoTeachers = allTeachers.filter(
-    (t) =>
-      isSeedTeacherEmail(t.user.email) || isSeedTeacherCode(t.employeeCode),
-  );
-  const demoTeacherIds = demoTeachers.map((t) => t.id);
-  const demoTeacherUserIds = demoTeachers.map((t) => t.user.id);
+  if (teacherUserIds.length > 0) {
+    const teacherProfiles = await prisma.teacher.findMany({
+      where: { userId: { in: teacherUserIds } },
+      select: { id: true },
+    });
+    const teacherIds = teacherProfiles.map((t) => t.id);
 
-  if (demoTeacherIds.length > 0) {
-    await prisma.homework.deleteMany({
-      where: { teacherId: { in: demoTeacherIds } },
-    });
-    await prisma.mark.updateMany({
-      where: { teacherId: { in: demoTeacherIds } },
-      data: { teacherId: null },
-    });
-    await prisma.class.updateMany({
-      where: { classTeacherId: { in: demoTeacherIds } },
-      data: { classTeacherId: null },
-    });
-    await prisma.teacher.deleteMany({
-      where: { id: { in: demoTeacherIds } },
-    });
+    if (teacherIds.length > 0) {
+      await prisma.homework.deleteMany({
+        where: { teacherId: { in: teacherIds } },
+      });
+      await prisma.mark.updateMany({
+        where: { teacherId: { in: teacherIds } },
+        data: { teacherId: null },
+      });
+      await prisma.class.updateMany({
+        where: { classTeacherId: { in: teacherIds } },
+        data: { classTeacherId: null },
+      });
+    }
+
     await prisma.user.deleteMany({
-      where: { id: { in: demoTeacherUserIds } },
+      where: { id: { in: teacherUserIds } },
     });
   }
 
-  console.log(`Teachers removed: ${demoTeacherIds.length}`);
+  console.log(`Teachers removed: ${teacherUserIds.length}`);
 
   const demoAdmins = await prisma.user.findMany({
     where: { role: UserRole.ADMIN },
