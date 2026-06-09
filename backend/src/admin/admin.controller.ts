@@ -125,8 +125,8 @@ export class AdminController {
   }
 
   @Get('classes/stats')
-  classStats() {
-    return this.admin.classStats();
+  classStats(@CurrentUser() user: { schoolId: string }) {
+    return this.admin.classStats(user.schoolId);
   }
 
   @Get('classes/stream-groups')

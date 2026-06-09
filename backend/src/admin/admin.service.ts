@@ -645,13 +645,40 @@ export class AdminService {
     };
   }
 
-  async classStats() {
+  /** Move classes saved under the wrong school (legacy create bug) into the admin's school. */
+  private async reassignMisplacedClasses(targetSchoolId: string) {
+    const ownCount = await this.prisma.class.count({
+      where: { schoolId: targetSchoolId },
+    });
+    if (ownCount > 0) return;
+
+    const misplaced = await this.prisma.class.findMany({
+      where: { schoolId: { not: targetSchoolId } },
+      select: { schoolId: true },
+      take: 100,
+    });
+    if (misplaced.length === 0) return;
+
+    const sourceSchoolIds = [...new Set(misplaced.map((c) => c.schoolId))];
+    if (sourceSchoolIds.length !== 1) return;
+
+    await this.prisma.class.updateMany({
+      where: { schoolId: sourceSchoolIds[0] },
+      data: { schoolId: targetSchoolId },
+    });
+  }
+
+  async classStats(schoolId: string) {
+    await this.reassignMisplacedClasses(schoolId);
+
+    const schoolFilter = { schoolId };
     const [totalClasses, sections, students, newMonth] = await Promise.all([
-      this.prisma.class.count(),
-      this.prisma.class.count(),
-      this.prisma.student.count(),
+      this.prisma.class.count({ where: schoolFilter }),
+      this.prisma.class.count({ where: schoolFilter }),
+      this.prisma.student.count({ where: { class: { schoolId } } }),
       this.prisma.class.count({
         where: {
+          schoolId,
           createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
         },
       }),
@@ -665,6 +692,8 @@ export class AdminService {
   }
 
   async listClasses(schoolId: string, search?: string) {
+    await this.reassignMisplacedClasses(schoolId);
+
     const where: Prisma.ClassWhereInput = { schoolId };
     if (search) {
       where.OR = [
@@ -1259,7 +1288,7 @@ export class AdminService {
       await Promise.all([
         this.studentStats(),
         this.teacherStats(schoolId),
-        this.classStats(),
+        this.classStats(schoolId),
         this.prisma.activityLog.findMany({ orderBy: { createdAt: 'desc' }, take: 6 }),
         this.feeChart(),
       ]);

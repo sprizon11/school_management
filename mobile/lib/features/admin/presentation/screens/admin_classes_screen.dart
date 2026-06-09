@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/navigation/smooth_page_route.dart';
 import '../../../../core/network/api_client.dart';
+import '../../../../core/providers/admin_cache_providers.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/skeleton.dart';
 import 'admin_add_class_screen.dart';
@@ -56,7 +57,7 @@ class _AdminClassesScreenState extends ConsumerState<AdminClassesScreen> {
       final listRes = await listFuture;
       setState(() {
         _stats = statsRes.data as Map<String, dynamic>;
-        _items = listRes.data as List<dynamic>;
+        _items = parseClassesResponse(listRes.data);
         _loading = false;
       });
     } on DioException catch (e) {
