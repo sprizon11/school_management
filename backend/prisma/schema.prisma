@@ -107,7 +107,7 @@ model Class {
   homework       Homework[]
   createdAt      DateTime  @default(now())
 
-  @@unique([grade, section, streamGroup, academicYear])
+  @@unique([schoolId, grade, section, streamGroup, academicYear])
 }
 
 model Student {

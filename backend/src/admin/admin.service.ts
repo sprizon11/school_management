@@ -928,6 +928,24 @@ export class AdminService {
       ? `Class ${dto.grade}-${section} · ${streamGroup}`
       : `Class ${dto.grade}-${section}`;
 
+    const category = isSeniorGrade(dto.grade)
+      ? streamGroup
+      : (dto.category?.trim() || 'General');
+
+    let classTeacherId: string | undefined;
+    if (dto.classTeacherId?.trim()) {
+      const teacher = await this.prisma.teacher.findUnique({
+        where: { id: dto.classTeacherId.trim() },
+        include: { user: true },
+      });
+      if (!teacher || teacher.user.schoolId !== schoolId) {
+        throw new BadRequestException(
+          'Selected class teacher is invalid or no longer available',
+        );
+      }
+      classTeacherId = teacher.id;
+    }
+
     const cls = await this.prisma.class.create({
       data: {
         schoolId,
@@ -935,10 +953,10 @@ export class AdminService {
         section,
         streamGroup,
         name: dto.name.trim() || defaultName,
-        category: isSeniorGrade(dto.grade) ? streamGroup : dto.category.trim(),
+        category,
         room: dto.room?.trim(),
         academicYear,
-        classTeacherId: dto.classTeacherId,
+        classTeacherId,
       },
     });
 

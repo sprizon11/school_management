@@ -63,6 +63,10 @@ class _AdminAddClassScreenState extends ConsumerState<AdminAddClassScreen> {
       if (!mounted) return;
       setState(() {
         _teachers = (res.data as Map)['items'] as List<dynamic>? ?? [];
+        if (_teacherId != null &&
+            !_teachers.any((t) => t['id'] == _teacherId)) {
+          _teacherId = null;
+        }
         _loadingTeachers = false;
       });
     } catch (_) {
@@ -83,6 +87,11 @@ class _AdminAddClassScreenState extends ConsumerState<AdminAddClassScreen> {
     });
     try {
       final section = _section.text.trim().toUpperCase();
+      final teacherId = _teacherId != null &&
+              _teachers.any((t) => t['id'] == _teacherId)
+          ? _teacherId
+          : null;
+
       final payload = <String, dynamic>{
         'grade': _grade,
         'section': section,
@@ -91,10 +100,13 @@ class _AdminAddClassScreenState extends ConsumerState<AdminAddClassScreen> {
                 ? 'Class $_grade-$section · $_streamGroup'
                 : 'Class $_grade-$section')
             : _name.text.trim(),
-        'category': _isSenior ? _streamGroup : _category.text.trim(),
+        if (!_isSenior) 'category': _category.text.trim(),
+        if (_isSenior) ...{
+          'category': _streamGroup,
+          'streamGroup': _streamGroup,
+        },
         if (_room.text.trim().isNotEmpty) 'room': _room.text.trim(),
-        if (_teacherId != null) 'classTeacherId': _teacherId,
-        if (_isSenior) 'streamGroup': _streamGroup,
+        if (teacherId != null) 'classTeacherId': teacherId,
       };
 
       await ref.read(dioProvider).post('/admin/classes', data: payload);
@@ -111,8 +123,17 @@ class _AdminAddClassScreenState extends ConsumerState<AdminAddClassScreen> {
         Navigator.of(context).pop(true);
       }
     } on DioException catch (e) {
-      final msg = e.response?.data?['message'];
-      setState(() => _error = msg?.toString() ?? 'Failed to create class');
+      final data = e.response?.data;
+      final msg = data?['message'];
+      final text = msg is List
+          ? msg.map((m) => '$m').join('\n')
+          : msg?.toString();
+      setState(() {
+        _error = text ??
+            (e.response?.statusCode == 500
+                ? 'Server error — check class teacher and try again'
+                : 'Failed to create class');
+      });
     } catch (e) {
       setState(() => _error = e.toString());
     } finally {

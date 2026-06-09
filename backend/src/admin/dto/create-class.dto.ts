@@ -13,8 +13,9 @@ export class CreateClassDto {
   @MinLength(2)
   name: string;
 
+  @IsOptional()
   @IsString()
-  category: string;
+  category?: string;
 
   @IsOptional()
   @IsString()
