@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { wipeAllClassesAndTeachers } from '../common/wipe-classes-and-teachers';
 import { PrismaService } from '../prisma/prisma.service';
 import { SchoolsService } from '../schools/schools.service';
 import { CreateSchoolDto } from '../schools/dto/create-school.dto';
@@ -423,6 +424,17 @@ export class DevService {
 
   private isDemoAdminEmail(email: string) {
     return email === 'admin2@school.demo' || email.endsWith('@seed.demo');
+  }
+
+  async clearAllClassesAndTeachers() {
+    const removed = await wipeAllClassesAndTeachers(this.prisma);
+    await this.prisma.activityLog.create({
+      data: {
+        action: 'Cleared all classes and teachers (dev portal)',
+        actorName: 'Dev',
+      },
+    });
+    return { removed };
   }
 
   async clearDemoData() {

@@ -63,4 +63,9 @@ export class DevController {
   clearDemo() {
     return this.dev.clearDemoData();
   }
+
+  @Post('clear-all-classes-teachers')
+  clearAllClassesAndTeachers() {
+    return this.dev.clearAllClassesAndTeachers();
+  }
 }
