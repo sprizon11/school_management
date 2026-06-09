@@ -11,6 +11,20 @@ export class DevService {
     private schools: SchoolsService,
   ) {}
 
+  private guardianWhere(schoolIds: string[]) {
+    return {
+      class: { schoolId: { in: schoolIds } },
+      OR: [{ fatherName: { not: null } }, { motherName: { not: null } }],
+    };
+  }
+
+  private async countGuardianProfiles(schoolIds: string[]) {
+    if (schoolIds.length === 0) return 0;
+    return this.prisma.student.count({
+      where: this.guardianWhere(schoolIds),
+    });
+  }
+
   private async schoolStats(schoolId: string) {
     const [students, teachers, admins, parents, classes] = await Promise.all([
       this.prisma.student.count({
@@ -22,8 +36,8 @@ export class DevService {
       this.prisma.user.count({
         where: { schoolId, role: UserRole.ADMIN },
       }),
-      this.prisma.user.count({
-        where: { schoolId, role: UserRole.PARENT },
+      this.prisma.student.count({
+        where: this.guardianWhere([schoolId]),
       }),
       this.prisma.class.count({ where: { schoolId } }),
     ]);
@@ -53,11 +67,7 @@ export class DevService {
         : this.prisma.user.count({
             where: { schoolId: { in: schoolIds }, role: UserRole.ADMIN },
           }),
-      schoolIds.length === 0
-        ? 0
-        : this.prisma.user.count({
-            where: { schoolId: { in: schoolIds }, role: UserRole.PARENT },
-          }),
+      this.countGuardianProfiles(schoolIds),
       schoolIds.length === 0
         ? 0
         : this.prisma.class.count({
@@ -123,7 +133,7 @@ export class DevService {
 
     const stats = await this.schoolStats(id);
 
-    const [admins, classes] = await Promise.all([
+    const [admins, classes, students] = await Promise.all([
       this.prisma.user.findMany({
         where: { schoolId: id, role: UserRole.ADMIN },
         orderBy: { fullName: 'asc' },
@@ -147,12 +157,50 @@ export class DevService {
           _count: { select: { students: true } },
         },
       }),
+      this.prisma.student.findMany({
+        where: { class: { schoolId: id } },
+        orderBy: { fullName: 'asc' },
+        select: {
+          id: true,
+          fullName: true,
+          rollNumber: true,
+          fatherName: true,
+          fatherPhone: true,
+          fatherOccupation: true,
+          motherName: true,
+          motherPhone: true,
+          motherOccupation: true,
+          parentAddress: true,
+          emergencyContact: true,
+          emergencyPhone: true,
+          class: { select: { name: true, grade: true, section: true } },
+        },
+      }),
     ]);
+
+    const guardians = students
+      .filter((s) => s.fatherName?.trim() || s.motherName?.trim())
+      .map((s) => ({
+        studentId: s.id,
+        studentName: s.fullName,
+        rollNumber: s.rollNumber,
+        classLabel: `${s.class.name} · ${s.class.grade}${s.class.section}`,
+        fatherName: s.fatherName,
+        fatherPhone: s.fatherPhone,
+        fatherOccupation: s.fatherOccupation,
+        motherName: s.motherName,
+        motherPhone: s.motherPhone,
+        motherOccupation: s.motherOccupation,
+        address: s.parentAddress,
+        emergencyContact: s.emergencyContact,
+        emergencyPhone: s.emergencyPhone,
+      }));
 
     return {
       school,
       stats,
       admins,
+      guardians,
       classes: classes.map((c) => ({
         id: c.id,
         name: c.name,
