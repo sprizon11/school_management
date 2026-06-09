@@ -24,3 +24,13 @@ services:
         sync: false
       - key: DEV_PORTAL_PASSWORD
         sync: false
+
+  - type: web
+    name: school-dev-portal
+    runtime: static
+    rootDir: dev-portal
+    buildCommand: npm run build
+    staticPublishPath: .
+    envVars:
+      - key: PORTAL_API_BASE
+        value: https://school-management-9yzh.onrender.com/api

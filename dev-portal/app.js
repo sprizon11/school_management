@@ -1,5 +1,7 @@
 const STORAGE_KEY = 'school_dev_portal_session';
-const API_BASE = 'https://school-management-9yzh.onrender.com/api';
+const API_BASE =
+  window.PORTAL_CONFIG?.apiBase ||
+  'https://school-management-9yzh.onrender.com/api';
 
 const state = {
   apiBase: API_BASE,
@@ -99,20 +101,67 @@ function formatDate(value) {
   return new Date(value).toLocaleString();
 }
 
-function statCard(label, value) {
+function initials(text) {
+  return String(text || '?')
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || '')
+    .join('');
+}
+
+const icons = {
+  school: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10l9-6 9 6"/><path d="M5 10v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8"/><path d="M9 20v-6h6v6"/></svg>',
+  active: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>',
+  students: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+  teachers: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 14l9-5-9-5-9 5 9 5z"/><path d="M12 14l6.16-3.422A12.083 12.083 0 0 1 21 13.5c0 2.485-4.03 4.5-9 4.5s-9-2.015-9-4.5c0-1.042.39-2.016 1.16-2.878L12 14z"/></svg>',
+  admins: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l2.2 4.5 5 .7-3.6 3.5.9 5-4.5-2.4-4.5 2.4.9-5L4.8 8.2l5-.7L12 3z"/></svg>',
+  parents: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+  classes: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10"/><path d="M7 12h10"/><path d="M7 16h6"/></svg>',
+  search: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
+  arrow: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>',
+  logo: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10l9-6 9 6"/><path d="M5 10v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8"/></svg>',
+};
+
+function statCard(label, value, icon, tone = 'blue') {
   return `
-    <div class="stat-card">
-      <div class="label">${esc(label)}</div>
-      <div class="value">${esc(value)}</div>
+    <div class="stat-card tone-${tone}">
+      <div class="stat-icon">${icon}</div>
+      <div class="stat-body">
+        <div class="label">${esc(label)}</div>
+        <div class="value">${esc(value)}</div>
+      </div>
     </div>
   `;
 }
 
-function pageHero(title, subtitle, actionsHtml = '') {
+function appNav() {
+  const email = state.userEmail || 'Owner';
   return `
-    <div class="page-hero">
+    <header class="top-nav">
+      <div class="top-nav-inner">
+        <div class="brand-lockup">
+          <div class="brand-mark">${icons.logo}</div>
+          <div>
+            <strong>School Platform</strong>
+            <span>Private owner console</span>
+          </div>
+        </div>
+        <div class="user-chip">
+          <div class="user-avatar">${esc(initials(email))}</div>
+          <div>
+            <small>Signed in</small>
+            <strong>${esc(email)}</strong>
+          </div>
+        </div>
+      </div>
+    </header>
+  `;
+}
+
+function pageToolbar(title, subtitle, actionsHtml = '') {
+  return `
+    <div class="page-toolbar">
       <div>
-        <span class="eyebrow">Private console</span>
         <h1>${esc(title)}</h1>
         <p>${subtitle}</p>
       </div>
@@ -174,68 +223,100 @@ function renderDashboard() {
   });
 
   return `
-    <div class="shell">
-      ${pageHero(
-        'Platform overview',
-        state.userEmail ? `Signed in as ${esc(state.userEmail)}` : 'All schools on your platform',
-        `
-          <button class="btn btn-ghost" id="refresh-btn">Refresh</button>
-          <button class="btn btn-primary" id="create-btn">Create school</button>
-          <button class="btn btn-danger" id="logout-btn">Sign out</button>
-        `,
-      )}
+    <div class="app-layout">
+      ${appNav()}
+      <main class="shell">
+        <section class="welcome-banner">
+          <div class="welcome-banner-inner">
+            <div>
+              <span class="eyebrow" style="background:rgba(255,255,255,0.16);color:white">Platform overview</span>
+              <h1>Your schools at a glance</h1>
+              <p>Track registrations, monitor growth, and manage every institution from one premium control center.</p>
+            </div>
+            <div class="banner-actions">
+              <button class="btn btn-ghost" id="refresh-btn">Refresh</button>
+              <button class="btn btn-primary" id="create-btn">+ Create school</button>
+              <button class="btn btn-ghost" id="logout-btn">Sign out</button>
+            </div>
+          </div>
+        </section>
 
-      ${state.error ? `<div class="error">${esc(state.error)}</div>` : ''}
-      ${state.success ? `<div class="success">${esc(state.success)}</div>` : ''}
+        ${state.error ? `<div class="error">${esc(state.error)}</div>` : ''}
+        ${state.success ? `<div class="success">${esc(state.success)}</div>` : ''}
 
-      <div class="grid-stats">
-        ${statCard('Schools', overview.schools?.total ?? 0)}
-        ${statCard('Active schools', overview.schools?.active ?? 0)}
-        ${statCard('Students', overview.students ?? 0)}
-        ${statCard('Teachers', overview.teachers ?? 0)}
-        ${statCard('Admins', overview.admins ?? 0)}
-        ${statCard('Parents', overview.parents ?? 0)}
-        ${statCard('Classes', overview.classes ?? 0)}
-      </div>
-
-      <div class="panel">
-        <div class="panel-header">
-          <h2>All schools</h2>
-          <input class="search" id="search" placeholder="Search by name, code, or city..." value="${esc(state.search)}" />
+        <div class="section-head">
+          <div>
+            <h2>Platform metrics</h2>
+            <p>Live totals across all registered schools</p>
+          </div>
         </div>
-        ${
-          state.loading
-            ? '<div class="loading">Loading schools...</div>'
-            : schools.length === 0
-              ? '<div class="empty">No schools found.</div>'
-              : `<ul class="school-list">
-                  ${schools
-                    .map(
-                      (school) => `
-                    <li class="school-item" data-school-id="${esc(school.id)}">
-                      <div>
-                        <div class="school-name">${esc(school.name)}</div>
-                        <div class="school-meta">
-                          Code: ${esc(school.code)}
-                          ${school.city ? ` · ${esc(school.city)}` : ''}
-                          · Created ${esc(formatDate(school.createdAt))}
+
+        <div class="grid-stats">
+          ${statCard('Schools', overview.schools?.total ?? 0, icons.school, 'blue')}
+          ${statCard('Active schools', overview.schools?.active ?? 0, icons.active, 'green')}
+          ${statCard('Students', overview.students ?? 0, icons.students, 'violet')}
+          ${statCard('Teachers', overview.teachers ?? 0, icons.teachers, 'teal')}
+        </div>
+        <div class="grid-stats secondary">
+          ${statCard('Admins', overview.admins ?? 0, icons.admins, 'amber')}
+          ${statCard('Parent profiles', overview.parents ?? 0, icons.parents, 'slate')}
+          ${statCard('Classes', overview.classes ?? 0, icons.classes, 'blue')}
+        </div>
+
+        <div class="section-head">
+          <div>
+            <h2>Registered schools</h2>
+            <p>${schools.length} school${schools.length === 1 ? '' : 's'} on your platform</p>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Browse schools</h2>
+            <div class="search-wrap">
+              ${icons.search}
+              <input class="search" id="search" placeholder="Search by name, code, or city..." value="${esc(state.search)}" />
+            </div>
+          </div>
+          ${
+            state.loading
+              ? '<div class="loading">Loading schools...</div>'
+              : schools.length === 0
+                ? '<div class="empty">No schools found.</div>'
+                : `<ul class="school-list">
+                    ${schools
+                      .map(
+                        (school) => `
+                      <li class="school-item" data-school-id="${esc(school.id)}">
+                        <div class="school-avatar">${esc(initials(school.name))}</div>
+                        <div>
+                          <div class="school-name">${esc(school.name)}</div>
+                          <div class="school-meta">
+                            <span class="badge ${school.isActive ? 'badge-active' : 'badge-inactive'}">
+                              ${school.isActive ? 'Active' : 'Inactive'}
+                            </span>
+                            · Code <strong>${esc(school.code)}</strong>
+                            ${school.city ? ` · ${esc(school.city)}` : ''}
+                            <br />Created ${esc(formatDate(school.createdAt))}
+                          </div>
                         </div>
-                      </div>
-                      <div class="pill-row">
-                        <span class="badge ${school.isActive ? 'badge-active' : 'badge-inactive'}">
-                          ${school.isActive ? 'Active' : 'Inactive'}
-                        </span>
-                        <span class="pill"><strong>${school.stats?.students ?? 0}</strong> students</span>
-                        <span class="pill"><strong>${school.stats?.teachers ?? 0}</strong> teachers</span>
-                        <span class="pill"><strong>${school.stats?.classes ?? 0}</strong> classes</span>
-                      </div>
-                    </li>
-                  `,
-                    )
-                    .join('')}
-                </ul>`
-        }
-      </div>
+                        <div>
+                          <div class="pill-row">
+                            <span class="pill"><strong>${school.stats?.students ?? 0}</strong> students</span>
+                            <span class="pill"><strong>${school.stats?.teachers ?? 0}</strong> teachers</span>
+                            <span class="pill"><strong>${school.stats?.parents ?? 0}</strong> parents</span>
+                            <span class="pill"><strong>${school.stats?.classes ?? 0}</strong> classes</span>
+                          </div>
+                          <div class="school-arrow" style="text-align:right;margin-top:10px">${icons.arrow}</div>
+                        </div>
+                      </li>
+                    `,
+                      )
+                      .join('')}
+                  </ul>`
+          }
+        </div>
+      </main>
     </div>
   `;
 }
@@ -246,27 +327,31 @@ function renderSchoolDetail() {
     return '<div class="loading">Loading school...</div>';
   }
 
-  const { school, stats, admins, classes } = detail;
+  const { school, stats, admins, classes, guardians = [] } = detail;
 
   return `
-    <div class="shell">
-      ${pageHero(
+    <div class="app-layout">
+      ${appNav()}
+      <main class="shell">
+      ${pageToolbar(
         school.name,
         `${school.code}${school.city ? ` · ${school.city}` : ''}`,
         `
-          <button class="btn btn-ghost" id="back-btn">All schools</button>
+          <button class="btn btn-ghost-light" id="back-btn">← All schools</button>
           <button class="btn btn-danger" id="logout-btn">Sign out</button>
         `,
       )}
 
       ${state.error ? `<div class="error">${esc(state.error)}</div>` : ''}
 
-      <div class="grid-stats">
-        ${statCard('Students', stats.students)}
-        ${statCard('Teachers', stats.teachers)}
-        ${statCard('Admins', stats.admins)}
-        ${statCard('Parents', stats.parents)}
-        ${statCard('Classes', stats.classes)}
+      <div class="grid-stats" style="margin-bottom:24px">
+        ${statCard('Students', stats.students, icons.students, 'violet')}
+        ${statCard('Teachers', stats.teachers, icons.teachers, 'teal')}
+        ${statCard('Admins', stats.admins, icons.admins, 'amber')}
+        ${statCard('Parent profiles', stats.parents, icons.parents, 'slate')}
+      </div>
+      <div class="grid-stats secondary" style="margin-bottom:24px">
+        ${statCard('Classes', stats.classes, icons.classes, 'blue')}
       </div>
 
       <div class="detail-grid">
@@ -307,6 +392,42 @@ function renderSchoolDetail() {
       </div>
 
       <div class="panel" style="margin-top:18px">
+        <div class="panel-header">
+          <h2>Parent / guardian details</h2>
+        </div>
+        ${
+          guardians.length === 0
+            ? '<div class="empty">No parent or guardian details added for students yet.</div>'
+            : `<div class="table-wrap"><table>
+                <thead>
+                  <tr>
+                    <th>Student</th>
+                    <th>Class</th>
+                    <th>Father</th>
+                    <th>Mother</th>
+                    <th>Contact</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${guardians
+                    .map(
+                      (g) => `
+                    <tr>
+                      <td>${esc(g.studentName)}</td>
+                      <td>${esc(g.classLabel)}</td>
+                      <td>${esc(g.fatherName || '—')}${g.fatherPhone ? `<br><span class="muted-note">${esc(g.fatherPhone)}</span>` : ''}</td>
+                      <td>${esc(g.motherName || '—')}${g.motherPhone ? `<br><span class="muted-note">${esc(g.motherPhone)}</span>` : ''}</td>
+                      <td>${esc(g.emergencyPhone || g.fatherPhone || g.motherPhone || '—')}</td>
+                    </tr>
+                  `,
+                    )
+                    .join('')}
+                </tbody>
+              </table></div>`
+        }
+      </div>
+
+      <div class="panel" style="margin-top:18px">
         <div class="panel-header"><h2>Classes</h2></div>
         ${
           classes.length === 0
@@ -339,18 +460,21 @@ function renderSchoolDetail() {
               </table></div>`
         }
       </div>
+      </main>
     </div>
   `;
 }
 
 function renderCreateSchool() {
   return `
-    <div class="shell">
-      ${pageHero(
+    <div class="app-layout">
+      ${appNav()}
+      <main class="shell">
+      ${pageToolbar(
         'Create school',
         'Register a new school and its first admin account',
         `
-          <button class="btn btn-ghost" id="back-btn">All schools</button>
+          <button class="btn btn-ghost-light" id="back-btn">← All schools</button>
           <button class="btn btn-danger" id="logout-btn">Sign out</button>
         `,
       )}
@@ -394,9 +518,10 @@ function renderCreateSchool() {
             <label>Admin password</label>
             <input name="adminPassword" type="password" minlength="6" required />
           </div>
-          <button class="btn btn-primary" type="submit">Create school</button>
+          <button class="btn btn-primary" type="submit" style="background:linear-gradient(135deg,#1b5fff,#3d7bff);color:white;border:none">Create school</button>
         </form>
       </div>
+      </main>
     </div>
   `;
 }

@@ -3,6 +3,7 @@
   "private": true,
   "description": "Private platform console — not for app users",
   "scripts": {
-    "start": "npx --yes serve . -p 5199"
+    "build": "node scripts/generate-config.js",
+    "start": "npm run build && npx --yes serve . -p 5199"
   }
 }
