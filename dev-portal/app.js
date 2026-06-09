@@ -374,6 +374,7 @@ function renderSchoolDetail() {
             <li><span>School ID</span><span>${esc(school.id)}</span></li>
             <li><span>Code</span><span>${esc(school.code)}</span></li>
             <li><span>City</span><span>${esc(school.city || '—')}</span></li>
+            <li><span>Phone</span><span>${esc(school.phone || '—')}</span></li>
             <li><span>Address</span><span>${esc(school.address || '—')}</span></li>
             <li><span>Created</span><span>${esc(formatDate(school.createdAt))}</span></li>
           </ul>

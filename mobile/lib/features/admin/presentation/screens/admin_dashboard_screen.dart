@@ -15,6 +15,7 @@ import 'admin_examinations_screen.dart';
 import 'admin_fee_collection_screen.dart';
 import 'admin_reports_screen.dart';
 import 'admin_timetable_screen.dart';
+import 'admin_profile_screen.dart';
 import '../widgets/admin_sidebar.dart';
 
 class AdminDashboardScreen extends ConsumerStatefulWidget {
@@ -228,8 +229,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              _profileAvatar(),
-              const SizedBox(width: 12),
+              IconButton(
+                onPressed: _openSidebar,
+                icon: const Icon(Icons.menu_rounded, color: Colors.white),
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.white.withValues(alpha: 0.14),
+                ),
+              ),
+              const SizedBox(width: 4),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -258,7 +265,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '$fullName 👋',
+                      fullName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -271,8 +278,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-              _notificationButton(),
+              _profileAvatar(fullName),
             ],
           ),
         ],
@@ -280,69 +286,33 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     );
   }
 
-  Widget _profileAvatar() {
-    return Material(
-      color: Colors.white,
-      shape: const CircleBorder(),
-      elevation: 3,
-      shadowColor: Colors.black.withValues(alpha: 0.18),
-      child: InkWell(
-        onTap: _openSidebar,
-        customBorder: const CircleBorder(),
-        child: const SizedBox(
-          height: 44,
-          width: 44,
-          child: Icon(
-            Icons.person_rounded,
-            color: AppColors.primary,
-            size: 24,
+  Widget _profileAvatar(String fullName) {
+    final initials = fullName
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((p) => p.isNotEmpty)
+        .take(2)
+        .map((p) => p[0].toUpperCase())
+        .join();
+
+    return GestureDetector(
+      onTap: () => openSmoothPage(context, const AdminProfileScreen()),
+      child: CircleAvatar(
+        radius: 22,
+        backgroundColor: Colors.white.withValues(alpha: 0.2),
+        child: CircleAvatar(
+          radius: 20,
+          backgroundColor: Colors.white,
+          child: Text(
+            initials.isEmpty ? 'A' : initials,
+            style: const TextStyle(
+              color: AppColors.primary,
+              fontWeight: FontWeight.w800,
+              fontSize: 14,
+            ),
           ),
         ),
       ),
-    );
-  }
-
-  Widget _notificationButton() {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Container(
-          height: 44,
-          width: 44,
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.16),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
-          ),
-          child: const Icon(
-            Icons.notifications_none_rounded,
-            color: Colors.white,
-            size: 22,
-          ),
-        ),
-        Positioned(
-          right: 0,
-          top: 0,
-          child: Container(
-            height: 17,
-            width: 17,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: const Color(0xFFFF3B58),
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 1.5),
-            ),
-            child: const Text(
-              '3',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 9,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-        ),
-      ],
     );
   }
 

@@ -206,6 +206,30 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   void setError(String? e) => state = state.copyWith(error: e, loading: false);
 
+  Future<void> updateLocalProfile({
+    String? schoolName,
+    String? fullName,
+  }) async {
+    final user = state.user;
+    if (user == null) return;
+
+    final map = {
+      'id': user.id,
+      'schoolId': user.schoolId,
+      'schoolName': schoolName ?? user.schoolName,
+      'email': user.email,
+      'fullName': fullName ?? user.fullName,
+      'role': user.role,
+      if (user.teacherId != null) 'teacherId': user.teacherId,
+    };
+
+    await _storage.write(key: _userKey, value: jsonEncode(map));
+    state = AuthState(
+      token: state.token,
+      user: AuthUser.fromJson(map),
+    );
+  }
+
 }
 
 

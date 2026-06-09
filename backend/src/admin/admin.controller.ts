@@ -1,12 +1,15 @@
 import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
+import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { AdminService } from './admin.service';
+import { CreateAnnouncementDto } from './dto/create-announcement.dto';
 import { CreateClassDto } from './dto/create-class.dto';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { CreateTeacherDto } from './dto/create-teacher.dto';
+import { UpdateSchoolProfileDto } from './dto/update-school-profile.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
 
 @Controller('admin')
@@ -16,8 +19,39 @@ export class AdminController {
   constructor(private admin: AdminService) {}
 
   @Get('dashboard/summary')
-  dashboardSummary() {
-    return this.admin.dashboardSummary();
+  dashboardSummary(@CurrentUser() user: { schoolId: string }) {
+    return this.admin.dashboardSummary(user.schoolId);
+  }
+
+  @Get('profile')
+  getProfile(@CurrentUser() user: { schoolId: string; userId: string }) {
+    return this.admin.getProfile(user.schoolId, user.userId);
+  }
+
+  @Patch('profile')
+  updateProfile(
+    @CurrentUser() user: { schoolId: string; userId: string },
+    @Body() dto: UpdateSchoolProfileDto,
+  ) {
+    return this.admin.updateProfile(user.schoolId, user.userId, dto);
+  }
+
+  @Get('announcements')
+  listAnnouncements(@CurrentUser() user: { schoolId: string }) {
+    return this.admin.listAnnouncements(user.schoolId);
+  }
+
+  @Post('announcements')
+  createAnnouncement(
+    @CurrentUser() user: { schoolId: string; userId: string },
+    @Body() dto: CreateAnnouncementDto,
+  ) {
+    return this.admin.createAnnouncement(
+      user.schoolId,
+      user.userId,
+      'Admin',
+      dto,
+    );
   }
 
   @Get('dashboard/attendance-chart')

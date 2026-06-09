@@ -4,12 +4,19 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, StudentStatus, UserRole } from '@prisma/client';
+import {
+  AnnouncementAudience,
+  Prisma,
+  StudentStatus,
+  UserRole,
+} from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateClassDto } from './dto/create-class.dto';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { CreateTeacherDto } from './dto/create-teacher.dto';
+import { CreateAnnouncementDto } from './dto/create-announcement.dto';
+import { UpdateSchoolProfileDto } from './dto/update-school-profile.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
 
 @Injectable()
@@ -33,7 +40,7 @@ export class AdminService {
     return school.id;
   }
 
-  async dashboardSummary() {
+  async dashboardSummary(schoolId: string) {
     const [students, teachers, classes, paid, totalFees, boys, girls, maleTeachers, femaleTeachers] =
       await Promise.all([
       this.prisma.student.count({ where: { status: StudentStatus.ACTIVE } }),
@@ -64,6 +71,7 @@ export class AdminService {
     });
 
     const announcements = await this.prisma.announcement.findMany({
+      where: { schoolId },
       orderBy: { createdAt: 'desc' },
       take: 5,
     });
@@ -856,6 +864,149 @@ export class AdminService {
         })),
       })),
     };
+  }
+
+  async getProfile(schoolId: string, userId: string) {
+    const [school, user] = await Promise.all([
+      this.prisma.school.findUnique({
+        where: { id: schoolId },
+        select: {
+          id: true,
+          name: true,
+          code: true,
+          phone: true,
+          address: true,
+          city: true,
+          logoUrl: true,
+        },
+      }),
+      this.prisma.user.findFirst({
+        where: { id: userId, schoolId },
+        select: {
+          id: true,
+          fullName: true,
+          email: true,
+          phone: true,
+          role: true,
+        },
+      }),
+    ]);
+
+    if (!school || !user) {
+      throw new NotFoundException('Profile not found');
+    }
+
+    return { school, user };
+  }
+
+  async updateProfile(
+    schoolId: string,
+    userId: string,
+    dto: UpdateSchoolProfileDto,
+  ) {
+    const schoolData: {
+      name?: string;
+      phone?: string | null;
+      address?: string | null;
+      city?: string | null;
+    } = {};
+
+    if (dto.name !== undefined) schoolData.name = dto.name.trim();
+    if (dto.phone !== undefined) schoolData.phone = dto.phone.trim() || null;
+    if (dto.address !== undefined) schoolData.address = dto.address.trim() || null;
+    if (dto.city !== undefined) schoolData.city = dto.city.trim() || null;
+
+    const userData: { fullName?: string; phone?: string | null } = {};
+    if (dto.fullName !== undefined) userData.fullName = dto.fullName.trim();
+    if (dto.adminPhone !== undefined) {
+      userData.phone = dto.adminPhone.trim() || null;
+    }
+
+    const [school, user] = await this.prisma.$transaction([
+      this.prisma.school.update({
+        where: { id: schoolId },
+        data: schoolData,
+        select: {
+          id: true,
+          name: true,
+          code: true,
+          phone: true,
+          address: true,
+          city: true,
+          logoUrl: true,
+        },
+      }),
+      this.prisma.user.update({
+        where: { id: userId },
+        data: userData,
+        select: {
+          id: true,
+          fullName: true,
+          email: true,
+          phone: true,
+          role: true,
+        },
+      }),
+    ]);
+
+    return { school, user };
+  }
+
+  async listAnnouncements(schoolId: string) {
+    return this.prisma.announcement.findMany({
+      where: { schoolId },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  async createAnnouncement(
+    schoolId: string,
+    userId: string,
+    _authorName: string,
+    dto: CreateAnnouncementDto,
+  ) {
+    const author = await this.prisma.user.findFirst({
+      where: { id: userId, schoolId },
+      select: { fullName: true },
+    });
+    const postedBy = author?.fullName ?? 'Admin';
+
+    const announcement = await this.prisma.announcement.create({
+      data: {
+        schoolId,
+        authorId: userId,
+        title: dto.title.trim(),
+        body: dto.body.trim(),
+        postedBy,
+        audience: dto.audience,
+        eventDate: dto.eventDate ? new Date(dto.eventDate) : null,
+      },
+    });
+
+    const teachers = await this.prisma.user.findMany({
+      where: { schoolId, role: UserRole.TEACHER },
+      select: { id: true },
+    });
+
+    if (teachers.length > 0) {
+      await this.prisma.appNotification.createMany({
+        data: teachers.map((teacher) => ({
+          userId: teacher.id,
+          announcementId: announcement.id,
+          title: `New announcement: ${announcement.title}`,
+          body: announcement.body.slice(0, 200),
+        })),
+      });
+    }
+
+    await this.prisma.activityLog.create({
+      data: {
+        action: `Published announcement (${dto.audience === AnnouncementAudience.TEACHERS ? 'teachers' : 'teachers & parents'})`,
+        actorName: postedBy,
+      },
+    });
+
+    return announcement;
   }
 
   async reportsOverview() {

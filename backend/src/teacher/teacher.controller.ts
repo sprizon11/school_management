@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Param,
+  Patch,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -69,5 +70,33 @@ export class TeacherController {
   @Get('reports/performance-chart')
   performanceChart(@Query('classId') classId: string) {
     return this.teacher.performanceChart(classId);
+  }
+
+  @Get('announcements')
+  announcements(@CurrentUser() user: { schoolId: string }) {
+    return this.teacher.listAnnouncements(user.schoolId);
+  }
+
+  @Get('notifications')
+  notifications(@CurrentUser() user: { userId: string }) {
+    return this.teacher.listNotifications(user.userId);
+  }
+
+  @Get('notifications/unread-count')
+  unreadNotifications(@CurrentUser() user: { userId: string }) {
+    return this.teacher.unreadNotificationCount(user.userId);
+  }
+
+  @Patch('notifications/:id/read')
+  markNotificationRead(
+    @Param('id') id: string,
+    @CurrentUser() user: { userId: string },
+  ) {
+    return this.teacher.markNotificationRead(user.userId, id);
+  }
+
+  @Patch('notifications/read-all')
+  markAllNotificationsRead(@CurrentUser() user: { userId: string }) {
+    return this.teacher.markAllNotificationsRead(user.userId);
   }
 }

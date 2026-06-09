@@ -132,4 +132,45 @@ export class TeacherService {
       lowest: 40 + Math.floor(Math.random() * 15),
     }));
   }
+
+  async listAnnouncements(schoolId: string) {
+    return this.prisma.announcement.findMany({
+      where: { schoolId },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  async listNotifications(userId: string) {
+    return this.prisma.appNotification.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+  }
+
+  async unreadNotificationCount(userId: string) {
+    return this.prisma.appNotification.count({
+      where: { userId, readAt: null },
+    });
+  }
+
+  async markNotificationRead(userId: string, id: string) {
+    const note = await this.prisma.appNotification.findFirst({
+      where: { id, userId },
+    });
+    if (!note) throw new NotFoundException('Notification not found');
+
+    return this.prisma.appNotification.update({
+      where: { id },
+      data: { readAt: new Date() },
+    });
+  }
+
+  async markAllNotificationsRead(userId: string) {
+    await this.prisma.appNotification.updateMany({
+      where: { userId, readAt: null },
+      data: { readAt: new Date() },
+    });
+    return { ok: true };
+  }
 }

@@ -40,17 +40,24 @@ enum FeeStructureType {
   QUARTERLY
 }
 
+enum AnnouncementAudience {
+  TEACHERS
+  TEACHERS_AND_PARENTS
+}
+
 model School {
-  id        String   @id @default(cuid())
-  name      String
-  code      String   @unique
-  address   String?
-  city      String?
-  logoUrl   String?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  classes   Class[]
-  users     User[]
+  id            String         @id @default(cuid())
+  name          String
+  code          String         @unique
+  address       String?
+  city          String?
+  phone         String?
+  logoUrl       String?
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  classes       Class[]
+  users         User[]
+  announcements Announcement[]
 }
 
 model User {
@@ -63,8 +70,9 @@ model User {
   fullName     String
   phone        String?
   avatarUrl    String?
-  createdAt    DateTime  @default(now())
-  teacher      Teacher?
+  createdAt     DateTime          @default(now())
+  teacher       Teacher?
+  notifications AppNotification[]
 
   @@unique([schoolId, email])
 }
@@ -175,12 +183,31 @@ model Homework {
 }
 
 model Announcement {
-  id        String   @id @default(cuid())
-  title     String
-  body      String
-  postedBy  String
-  eventDate DateTime?
-  createdAt DateTime @default(now())
+  id            String               @id @default(cuid())
+  schoolId      String
+  school        School               @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  authorId      String?
+  title         String
+  body          String
+  postedBy      String
+  audience      AnnouncementAudience @default(TEACHERS)
+  eventDate     DateTime?
+  createdAt     DateTime             @default(now())
+  notifications AppNotification[]
+}
+
+model AppNotification {
+  id             String        @id @default(cuid())
+  userId         String
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  announcementId String?
+  announcement   Announcement? @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  title          String
+  body           String
+  readAt         DateTime?
+  createdAt      DateTime      @default(now())
+
+  @@index([userId, readAt])
 }
 
 model Event {

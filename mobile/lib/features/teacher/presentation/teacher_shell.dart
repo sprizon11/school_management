@@ -3,6 +3,7 @@ import '../../../core/theme/app_colors.dart';
 import 'screens/teacher_dashboard_screen.dart';
 import 'screens/teacher_students_screen.dart';
 import 'screens/teacher_reports_screen.dart';
+import 'screens/teacher_more_screen.dart';
 
 class TeacherShell extends StatefulWidget {
   const TeacherShell({super.key});
@@ -19,7 +20,7 @@ class _TeacherShellState extends State<TeacherShell> {
     Center(child: Text('Classes')),
     TeacherStudentsScreen(),
     TeacherReportsScreen(),
-    Center(child: Text('More')),
+    TeacherMoreScreen(),
   ];
 
   @override

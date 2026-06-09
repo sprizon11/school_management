@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/router/app_router.dart';
+import 'core/services/notification_poller.dart';
 import 'core/theme/app_theme.dart';
 
 void main() {
@@ -19,6 +20,8 @@ class SmartSchoolApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       routerConfig: router,
+      builder: (context, child) =>
+          NotificationPoller(child: child ?? const SizedBox.shrink()),
     );
   }
 }

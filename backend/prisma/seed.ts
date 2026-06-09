@@ -398,7 +398,9 @@ async function seedFullDemo() {
   ];
 
   for (const a of announcements) {
-    await prisma.announcement.create({ data: a });
+    await prisma.announcement.create({
+      data: { ...a, schoolId: school.id },
+    });
   }
 
   await prisma.event.createMany({
