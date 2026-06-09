@@ -235,6 +235,7 @@ function renderDashboard() {
             </div>
             <div class="banner-actions">
               <button class="btn btn-ghost" id="refresh-btn">Refresh</button>
+              <button class="btn btn-ghost" id="clear-demo-btn">Clear demo data</button>
               <button class="btn btn-primary" id="create-btn">+ Create school</button>
               <button class="btn btn-ghost" id="logout-btn">Sign out</button>
             </div>
@@ -641,8 +642,36 @@ function bindCommon() {
   });
 }
 
+async function clearDemoData() {
+  const ok = confirm(
+    'Remove all seeded demo teachers, students, classes, and demo announcements?\n\nYour main admin account (admin@school.demo) will be kept.',
+  );
+  if (!ok) return;
+
+  state.error = null;
+  state.success = null;
+  state.loading = true;
+  render();
+  bindCommon();
+  bindDashboard();
+
+  try {
+    const result = await api('/dev/clear-demo', { method: 'POST' });
+    const r = result.removed;
+    state.success = `Demo cleared: ${r.teachers} teachers, ${r.students} students, ${r.classes} classes removed.`;
+    await loadDashboard();
+  } catch (error) {
+    state.error = error.message;
+    state.loading = false;
+    render();
+    bindCommon();
+    bindDashboard();
+  }
+}
+
 function bindDashboard() {
   document.getElementById('refresh-btn')?.addEventListener('click', loadDashboard);
+  document.getElementById('clear-demo-btn')?.addEventListener('click', clearDemoData);
   document.getElementById('create-btn')?.addEventListener('click', () => {
     state.error = null;
     state.success = null;

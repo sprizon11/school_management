@@ -1,13 +1,13 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, UserRole } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-function isSeedStudentCode(code: string): boolean {
+function isSeedStudentCode(code: string) {
   if (code === 'ARU24001') return true;
   return /^STU\d{5}$/.test(code);
 }
 
-function isSeedTeacherEmail(email: string): boolean {
+function isSeedTeacherEmail(email: string) {
   return (
     email.endsWith('@seed.demo') ||
     email === 'teacher@school.demo' ||
@@ -15,16 +15,16 @@ function isSeedTeacherEmail(email: string): boolean {
   );
 }
 
-function isSeedTeacherCode(code: string): boolean {
+function isSeedTeacherCode(code: string) {
   return /^TCH24\d{3}$/.test(code);
 }
 
-function isSeedParentEmail(email: string): boolean {
-  return email === 'parent@school.demo' || /^parent\d+@seed\.demo$/.test(email);
+function isDemoAdminEmail(email: string) {
+  return email === 'admin2@school.demo' || email.endsWith('@seed.demo');
 }
 
 async function main() {
-  console.log('Removing demo students, teachers, and related data...');
+  console.log('Removing all demo data...');
 
   const allStudents = await prisma.student.findMany({
     select: { id: true, studentCode: true, email: true, fullName: true },
@@ -38,13 +38,6 @@ async function main() {
         (s.email?.includes('@student.demo') ?? false),
     )
     .map((s) => s.id);
-
-  const keptStudents = allStudents.filter((s) => !demoStudentIds.includes(s.id));
-  console.log(`Students to remove: ${demoStudentIds.length}`);
-  console.log(`Students to keep: ${keptStudents.length}`);
-  keptStudents.forEach((s) =>
-    console.log(`  keep: ${s.fullName} (${s.studentCode})`),
-  );
 
   if (demoStudentIds.length > 0) {
     const assignments = await prisma.feeAssignment.findMany({
@@ -73,31 +66,23 @@ async function main() {
       });
     }
 
-    await prisma.parentStudent.deleteMany({
-      where: { studentId: { in: demoStudentIds } },
-    });
     await prisma.student.deleteMany({
       where: { id: { in: demoStudentIds } },
     });
   }
 
+  console.log(`Students removed: ${demoStudentIds.length}`);
+
   const allTeachers = await prisma.teacher.findMany({
-    include: { user: { select: { email: true } } },
+    include: { user: { select: { id: true, email: true } } },
   });
 
-  const demoTeacherIds = allTeachers
-    .filter(
-      (t) =>
-        isSeedTeacherEmail(t.user.email) || isSeedTeacherCode(t.employeeCode),
-    )
-    .map((t) => t.id);
-
-  const keptTeachers = allTeachers.filter((t) => !demoTeacherIds.includes(t.id));
-  console.log(`Teachers to remove: ${demoTeacherIds.length}`);
-  console.log(`Teachers to keep: ${keptTeachers.length}`);
-  keptTeachers.forEach((t) =>
-    console.log(`  keep: ${t.user.email} (${t.employeeCode})`),
+  const demoTeachers = allTeachers.filter(
+    (t) =>
+      isSeedTeacherEmail(t.user.email) || isSeedTeacherCode(t.employeeCode),
   );
+  const demoTeacherIds = demoTeachers.map((t) => t.id);
+  const demoTeacherUserIds = demoTeachers.map((t) => t.user.id);
 
   if (demoTeacherIds.length > 0) {
     await prisma.homework.deleteMany({
@@ -114,24 +99,35 @@ async function main() {
     await prisma.teacher.deleteMany({
       where: { id: { in: demoTeacherIds } },
     });
+    await prisma.user.deleteMany({
+      where: { id: { in: demoTeacherUserIds } },
+    });
   }
 
-  const demoParents = await prisma.parent.findMany({
-    include: { user: { select: { email: true } } },
+  console.log(`Teachers removed: ${demoTeacherIds.length}`);
+
+  const demoAdmins = await prisma.user.findMany({
+    where: { role: UserRole.ADMIN },
+    select: { id: true, email: true },
   });
+  const demoAdminIds = demoAdmins
+    .filter((u) => isDemoAdminEmail(u.email))
+    .map((u) => u.id);
 
-  const demoParentIds = demoParents
-    .filter((p) => isSeedParentEmail(p.user.email))
-    .map((p) => p.id);
+  if (demoAdminIds.length > 0) {
+    await prisma.user.deleteMany({
+      where: { id: { in: demoAdminIds } },
+    });
+  }
 
-  if (demoParentIds.length > 0) {
-    await prisma.parentStudent.deleteMany({
-      where: { parentId: { in: demoParentIds } },
-    });
-    await prisma.parent.deleteMany({
-      where: { id: { in: demoParentIds } },
-    });
-    console.log(`Parents removed: ${demoParentIds.length}`);
+  console.log(`Demo admins removed: ${demoAdminIds.length}`);
+
+  const remainingStudents = await prisma.student.count();
+  if (remainingStudents === 0) {
+    await prisma.homework.deleteMany();
+    await prisma.class.updateMany({ data: { classTeacherId: null } });
+    const classesRemoved = await prisma.class.deleteMany();
+    console.log(`Classes removed: ${classesRemoved.count}`);
   }
 
   const orphanFeeStructures = await prisma.feeStructure.findMany({
@@ -148,7 +144,7 @@ async function main() {
   await prisma.activityLog.deleteMany();
 
   console.log('Demo cleanup completed.');
-  console.log('Admin login (kept): admin@school.demo / Admin@123');
+  console.log('Kept admin login: admin@school.demo / Admin@123');
 }
 
 main()

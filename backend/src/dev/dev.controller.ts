@@ -27,4 +27,9 @@ export class DevController {
   createSchool(@Body() dto: CreateSchoolDto) {
     return this.dev.createSchool(dto);
   }
+
+  @Post('clear-demo')
+  clearDemo() {
+    return this.dev.clearDemoData();
+  }
 }
