@@ -70,16 +70,20 @@ export class AdminService {
       where: { date: { gte: monthAgo } },
     });
 
-    const announcements = await this.prisma.announcement.findMany({
-      where: { schoolId },
-      orderBy: { createdAt: 'desc' },
-      take: 5,
-    });
-
-    const activities = await this.prisma.activityLog.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 10,
-    });
+    const [announcements, activities, recentTransactions, topStudents] =
+      await Promise.all([
+        this.prisma.announcement.findMany({
+          where: { schoolId },
+          orderBy: { createdAt: 'desc' },
+          take: 5,
+        }),
+        this.prisma.activityLog.findMany({
+          orderBy: { createdAt: 'desc' },
+          take: 10,
+        }),
+        this.recentFeeTransactions(schoolId),
+        this.topStudentsByGrade(schoolId),
+      ]);
 
     return {
       students: { count: students, boys, girls },
@@ -97,7 +101,106 @@ export class AdminService {
         totalAtt > 0 ? Math.round((present / totalAtt) * 100) : 0,
       announcements,
       activities,
+      recentTransactions,
+      topStudents,
     };
+  }
+
+  private async recentFeeTransactions(schoolId: string) {
+    const payments = await this.prisma.feePayment.findMany({
+      take: 6,
+      orderBy: { paidAt: 'desc' },
+      where: {
+        installment: {
+          assignment: {
+            student: {
+              class: { schoolId },
+            },
+          },
+        },
+      },
+      include: {
+        installment: {
+          include: {
+            assignment: {
+              include: {
+                student: {
+                  include: { class: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return payments.map((p) => {
+      const student = p.installment.assignment.student;
+      const method = p.method || 'Online Payment';
+      return {
+        id: p.id,
+        studentName: student.fullName,
+        className: student.class.name,
+        grade: student.class.grade,
+        amount: p.amount,
+        method,
+        paidAt: p.paidAt,
+        description: `${student.fullName} paid fee online via ${method}`,
+      };
+    });
+  }
+
+  private async topStudentsByGrade(schoolId: string) {
+    const grades = [10, 11, 12];
+    const labels: Record<number, string> = {
+      10: '10th Standard',
+      11: '11th Standard',
+      12: '12th Standard',
+    };
+
+    const blocks = await Promise.all(
+      grades.map(async (grade) => {
+        const students = await this.prisma.student.findMany({
+          where: {
+            status: StudentStatus.ACTIVE,
+            class: { grade, schoolId },
+          },
+          include: {
+            class: { select: { grade: true, section: true, name: true } },
+            marks: { select: { marks: true, maxMarks: true } },
+          },
+        });
+
+        const ranked = students
+          .map((s) => {
+            if (s.marks.length === 0) return null;
+            const scored = s.marks.reduce((sum, m) => sum + m.marks, 0);
+            const maxTotal = s.marks.reduce((sum, m) => sum + m.maxMarks, 0);
+            const averagePercent =
+              maxTotal > 0 ? Math.round((scored / maxTotal) * 1000) / 10 : 0;
+            return {
+              studentId: s.id,
+              fullName: s.fullName,
+              rollNumber: s.rollNumber,
+              classLabel: `${s.class.name} · ${grade}${s.class.section}`,
+              grade,
+              averagePercent,
+            };
+          })
+          .filter((s): s is NonNullable<typeof s> => s !== null)
+          .sort((a, b) => b.averagePercent - a.averagePercent)
+          .slice(0, 5)
+          .map((s, index) => ({ ...s, rank: index + 1 }));
+
+        return {
+          grade,
+          label: labels[grade],
+          students: ranked,
+        };
+      }),
+    );
+
+    return blocks;
   }
 
   async attendanceChart() {

@@ -56,8 +56,9 @@ class _TeacherAnnouncementsScreenState extends ConsumerState<TeacherAnnouncement
           : RefreshIndicator(
               onRefresh: _load,
               child: _items.isEmpty
-                  ? const ListView(
-                      children: [
+                  ? ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      children: const [
                         SizedBox(height: 80),
                         Center(child: Text('No announcements from admin yet.')),
                       ],

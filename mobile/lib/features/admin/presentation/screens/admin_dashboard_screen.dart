@@ -1,6 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../../../../core/navigation/smooth_page_route.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/providers/auth_provider.dart';
@@ -15,6 +16,7 @@ import 'admin_examinations_screen.dart';
 import 'admin_fee_collection_screen.dart';
 import 'admin_reports_screen.dart';
 import 'admin_timetable_screen.dart';
+import 'admin_announcements_screen.dart';
 import 'admin_profile_screen.dart';
 import '../widgets/admin_sidebar.dart';
 
@@ -56,6 +58,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         'attendancePercent': 0,
         'announcements': <dynamic>[],
         'activities': <dynamic>[],
+        'recentTransactions': <dynamic>[],
+        'topStudents': <dynamic>[],
       };
 
   Map<String, dynamic> _emptyFeeChart() => {
@@ -109,17 +113,19 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         ? schoolName
         : (selectedSchool?.name ?? 'Your School');
     final hasSummary = _summary != null;
+    final bottomInset = MediaQuery.paddingOf(context).bottom + 96;
 
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: const Color(0xFFF4F6FB),
       drawer: AdminSidebar(onTabSelect: widget.onTabSelect),
+      drawerEnableOpenDragGesture: false,
       body: RefreshIndicator(
         color: AppColors.primary,
         onRefresh: _load,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.zero,
+          padding: EdgeInsets.only(bottom: bottomInset),
           children: [
             _headerSection(displaySchool, fullName),
             _sectionTitle('Quick Access'),
@@ -136,6 +142,16 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             else
               _announcementsSkeleton(),
             const SizedBox(height: 20),
+            if (hasSummary)
+              FadeInContent(child: _recentTransactionsSection())
+            else
+              const SizedBox.shrink(),
+            const SizedBox(height: 20),
+            if (hasSummary)
+              FadeInContent(child: _topStudentsSection())
+            else
+              const SizedBox.shrink(),
+            const SizedBox(height: 12),
           ],
         ),
       ),
@@ -229,59 +245,83 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              IconButton(
-                onPressed: _openSidebar,
-                icon: const Icon(Icons.menu_rounded, color: Colors.white),
-                style: IconButton.styleFrom(
-                  backgroundColor: Colors.white.withValues(alpha: 0.14),
-                ),
-              ),
-              const SizedBox(width: 4),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Welcome back',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.85),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onHorizontalDragEnd: (details) {
+                    if ((details.primaryVelocity ?? 0) > 300) {
+                      _openSidebar();
+                    }
+                  },
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Welcome back',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.85),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      schoolName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        height: 1.15,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.2,
+                      const SizedBox(height: 2),
+                      Text(
+                        schoolName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          height: 1.15,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.2,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      fullName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.92),
-                        fontSize: 14,
-                        height: 1.15,
-                        fontWeight: FontWeight.w600,
+                      const SizedBox(height: 2),
+                      Text(
+                        fullName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.92),
+                          fontSize: 14,
+                          height: 1.15,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
+              _headerIconButton(
+                icon: Icons.campaign_rounded,
+                onTap: () => openSmoothPage(context, const AdminAnnouncementsScreen()),
+              ),
+              const SizedBox(width: 10),
               _profileAvatar(fullName),
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _headerIconButton({
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 44,
+        width: 44,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.16),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+        ),
+        child: Icon(icon, color: Colors.white, size: 22),
       ),
     );
   }
@@ -469,7 +509,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     );
   }
 
-  Widget _sectionTitle(String title, {String? trailing}) {
+  Widget _sectionTitle(
+    String title, {
+    String? trailing,
+    VoidCallback? onTrailingTap,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: _hPad),
       child: Row(
@@ -494,18 +538,21 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           ),
           const Spacer(),
           if (trailing != null)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                trailing,
-                style: const TextStyle(
-                  color: AppColors.primary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
+            GestureDetector(
+              onTap: onTrailingTap,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  trailing,
+                  style: const TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ),
@@ -994,7 +1041,12 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     final items = (_summary?['announcements'] as List<dynamic>? ?? []);
     return Column(
       children: [
-        _sectionTitle('Recent Announcements', trailing: 'View All'),
+        _sectionTitle(
+          'Recent Announcements',
+          trailing: 'View All',
+          onTrailingTap: () =>
+              openSmoothPage(context, const AdminAnnouncementsScreen()),
+        ),
         const SizedBox(height: 12),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: _hPad),
@@ -1060,7 +1112,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                         ),
                                         const SizedBox(height: 3),
                                         Text(
-                                          '${item['content'] ?? ''}',
+                                          '${item['body'] ?? item['content'] ?? ''}',
                                           maxLines: 2,
                                           overflow: TextOverflow.ellipsis,
                                           style: const TextStyle(
@@ -1074,7 +1126,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
-                                    '1 day ago',
+                                    _formatRelativeDate(item['createdAt']),
                                     style: TextStyle(
                                       fontSize: 11,
                                       fontWeight: FontWeight.w500,
@@ -1100,6 +1152,264 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         ),
       ],
     );
+  }
+
+  Widget _recentTransactionsSection() {
+    final items = (_summary?['recentTransactions'] as List<dynamic>? ?? []);
+
+    return Column(
+      children: [
+        _sectionTitle(
+          'Recent Transactions',
+          trailing: 'View All',
+          onTrailingTap: () =>
+              openSmoothPage(context, const AdminFeeCollectionScreen()),
+        ),
+        const SizedBox(height: 12),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: _hPad),
+          child: Container(
+            decoration: _overviewCardDecoration(),
+            child: items.isEmpty
+                ? const Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Text(
+                      'No fee payments recorded yet.',
+                      style: TextStyle(color: AppColors.textMuted),
+                    ),
+                  )
+                : Column(
+                    children: List.generate(
+                      items.length > 5 ? 5 : items.length,
+                      (i) {
+                        final item = items[i] as Map<String, dynamic>;
+                        final isLast = i == (items.length > 5 ? 4 : items.length - 1);
+                        return Column(
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    height: 42,
+                                    width: 42,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFE8F2FF),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: const Icon(
+                                      Icons.payments_rounded,
+                                      color: AppColors.primary,
+                                      size: 22,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          '${item['description'] ?? '${item['studentName']} paid fee online'}',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 13,
+                                            color: Color(0xFF1F2937),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Grade ${item['grade'] ?? '—'} · ${item['className'] ?? 'Class'}',
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            color: AppColors.textMuted,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Text(
+                                        _formatCurrency(item['amount']),
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 13,
+                                          color: Color(0xFF16A34A),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        _formatRelativeDate(item['paidAt']),
+                                        style: const TextStyle(
+                                          fontSize: 10,
+                                          color: AppColors.textMuted,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (!isLast)
+                              const Divider(
+                                height: 1,
+                                indent: 68,
+                                endIndent: 14,
+                                color: Color(0xFFEEF1F6),
+                              ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _topStudentsSection() {
+    final blocks = (_summary?['topStudents'] as List<dynamic>? ?? []);
+
+    return Column(
+      children: [
+        _sectionTitle('Top 5 Students (Academic)'),
+        const SizedBox(height: 12),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: _hPad),
+          child: Column(
+            children: blocks.map((raw) {
+              final block = raw as Map<String, dynamic>;
+              final label = '${block['label'] ?? 'Standard'}';
+              final students = block['students'] as List<dynamic>? ?? [];
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 14),
+                child: Container(
+                  width: double.infinity,
+                  decoration: _overviewCardDecoration(),
+                  padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              label,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 12,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      if (students.isEmpty)
+                        const Text(
+                          'No exam marks recorded for this standard yet.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textMuted,
+                          ),
+                        )
+                      else
+                        ...students.map((rawStudent) {
+                          final s = rawStudent as Map<String, dynamic>;
+                          final rank = _toInt(s['rank']);
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: Row(
+                              children: [
+                                Container(
+                                  height: 32,
+                                  width: 32,
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    color: _rankColor(rank).withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    '#$rank',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 11,
+                                      color: _rankColor(rank),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        '${s['fullName'] ?? 'Student'}',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                      Text(
+                                        '${s['classLabel'] ?? ''} · Roll ${s['rollNumber'] ?? '—'}',
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          color: AppColors.textMuted,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Text(
+                                  '${s['averagePercent'] ?? 0}%',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 13,
+                                    color: Color(0xFF16A34A),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Color _rankColor(int rank) {
+    if (rank == 1) return const Color(0xFFF5A623);
+    if (rank == 2) return const Color(0xFF94A3B8);
+    if (rank == 3) return const Color(0xFFCD7F32);
+    return AppColors.primary;
+  }
+
+  String _formatRelativeDate(dynamic value) {
+    final dt = DateTime.tryParse('$value');
+    if (dt == null) return '';
+    final diff = DateTime.now().difference(dt);
+    if (diff.inDays == 0) return 'Today';
+    if (diff.inDays == 1) return 'Yesterday';
+    if (diff.inDays < 7) return '${diff.inDays} days ago';
+    return DateFormat('d MMM').format(dt.toLocal());
   }
 
   BoxDecoration _overviewCardDecoration() {
