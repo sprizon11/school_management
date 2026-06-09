@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/navigation/smooth_page_route.dart';
@@ -5,12 +7,11 @@ import '../../../../core/network/api_client.dart';
 import '../../../../core/providers/admin_cache_providers.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/skeleton.dart';
+import 'admin_add_student_flow_screen.dart';
 import 'admin_student_detail_screen.dart';
 
 class AdminStudentsScreen extends ConsumerStatefulWidget {
-  const AdminStudentsScreen({super.key, this.onBack});
-
-  final VoidCallback? onBack;
+  const AdminStudentsScreen({super.key});
 
   @override
   ConsumerState<AdminStudentsScreen> createState() =>
@@ -24,6 +25,7 @@ class _AdminStudentsScreenState extends ConsumerState<AdminStudentsScreen> {
   static const _allStudentsLimit = 1000;
   bool _loading = true;
   String? _classFilter;
+  String? _genderFilter;
   final _search = TextEditingController();
 
   @override
@@ -78,7 +80,29 @@ class _AdminStudentsScreenState extends ConsumerState<AdminStudentsScreen> {
   }
 
   bool get _isFiltered =>
-      _classFilter != null || _search.text.trim().isNotEmpty;
+      _classFilter != null ||
+      _search.text.trim().isNotEmpty ||
+      _genderFilter != null;
+
+  List<dynamic> get _visibleItems {
+    if (_genderFilter == null) return _items;
+    return _items
+        .where((i) => '${(i as Map)['gender']}' == _genderFilter)
+        .toList();
+  }
+
+  ImageProvider? _studentAvatar(String? url) {
+    if (url == null || url.isEmpty) return null;
+    if (url.startsWith('data:image')) {
+      try {
+        return MemoryImage(base64Decode(url.split(',').last));
+      } catch (_) {
+        return null;
+      }
+    }
+    if (url.startsWith('http')) return NetworkImage(url);
+    return null;
+  }
 
   Map<String, dynamic> get _displayStats {
     if (!_isFiltered && _stats != null) return _stats!;
@@ -100,6 +124,13 @@ class _AdminStudentsScreenState extends ConsumerState<AdminStudentsScreen> {
     final id = student['id'] as String?;
     if (id == null) return;
     openSmoothPage(context, AdminStudentDetailScreen(studentId: id));
+  }
+
+  Future<void> _openAddStudent() async {
+    final added = await Navigator.of(context).push<bool>(
+      SmoothPageRoute(page: const AdminAddStudentFlowScreen()),
+    );
+    if (added == true) _load();
   }
 
   String _formatNum(int n) {
@@ -159,24 +190,28 @@ class _AdminStudentsScreenState extends ConsumerState<AdminStudentsScreen> {
                                 ? const Center(
                                     child: CircularProgressIndicator(),
                                   )
-                                : _items.isEmpty
-                                ? const Center(
+                                : _visibleItems.isEmpty
+                                ? Center(
                                     child: Text(
-                                      'No students found',
-                                      style: TextStyle(
+                                      _genderFilter == 'MALE'
+                                          ? 'No boys found'
+                                          : _genderFilter == 'FEMALE'
+                                          ? 'No girls found'
+                                          : 'No students found',
+                                      style: const TextStyle(
                                         color: AppColors.textMuted,
                                       ),
                                     ),
                                   )
                                 : ListView.separated(
                                     padding: const EdgeInsets.only(bottom: 88),
-                                    itemCount: _items.length,
+                                    itemCount: _visibleItems.length,
                                     separatorBuilder: (_, __) => const Divider(
                                       height: 1,
                                       color: Color(0xFFF0F2F5),
                                     ),
                                     itemBuilder: (_, i) =>
-                                        _studentRow(_items[i]),
+                                        _studentRow(_visibleItems[i]),
                                   ),
                           ),
                         ],
@@ -203,11 +238,6 @@ class _AdminStudentsScreenState extends ConsumerState<AdminStudentsScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _headerIconButton(
-            Icons.arrow_back_ios_new_rounded,
-            onTap: widget.onBack,
-          ),
-          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -216,24 +246,24 @@ class _AdminStudentsScreenState extends ConsumerState<AdminStudentsScreen> {
                   'Students',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 24,
+                    fontSize: 28,
                     fontWeight: FontWeight.w800,
                     height: 1.1,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 4),
                 Text(
                   'Manage and view all student details',
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.9),
-                    fontSize: 12,
+                    fontSize: 13,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
             ),
           ),
-          _headerIconButton(Icons.tune_rounded, onTap: _load),
+          _headerIconButton(Icons.refresh_rounded, onTap: () => _load(showOverlay: true)),
         ],
       ),
     );
@@ -275,6 +305,8 @@ class _AdminStudentsScreenState extends ConsumerState<AdminStudentsScreen> {
               label: 'Total',
               value: _formatNum(total),
               badge: 'All',
+              selected: _genderFilter == null,
+              onTap: () => setState(() => _genderFilter = null),
             ),
           ),
           const SizedBox(width: 8),
@@ -286,6 +318,8 @@ class _AdminStudentsScreenState extends ConsumerState<AdminStudentsScreen> {
               label: 'Boys',
               value: _formatNum(boys),
               badge: '$boysPct%',
+              selected: _genderFilter == 'MALE',
+              onTap: () => setState(() => _genderFilter = 'MALE'),
             ),
           ),
           const SizedBox(width: 8),
@@ -297,6 +331,8 @@ class _AdminStudentsScreenState extends ConsumerState<AdminStudentsScreen> {
               label: 'Girls',
               value: _formatNum(girls),
               badge: '$girlsPct%',
+              selected: _genderFilter == 'FEMALE',
+              onTap: () => setState(() => _genderFilter = 'FEMALE'),
             ),
           ),
         ],
@@ -311,16 +347,26 @@ class _AdminStudentsScreenState extends ConsumerState<AdminStudentsScreen> {
     required String label,
     required String value,
     required String badge,
+    bool selected = false,
+    VoidCallback? onTap,
   }) {
-    return Container(
+    return Material(
+      color: selected ? accentLight : Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
       padding: const EdgeInsets.fromLTRB(10, 10, 8, 10),
       decoration: BoxDecoration(
-        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: accentLight),
+        border: Border.all(
+          color: selected ? accent : accentLight,
+          width: selected ? 2 : 1,
+        ),
         boxShadow: [
           BoxShadow(
-            color: accent.withValues(alpha: 0.1),
+            color: accent.withValues(alpha: selected ? 0.18 : 0.1),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -387,6 +433,8 @@ class _AdminStudentsScreenState extends ConsumerState<AdminStudentsScreen> {
           ),
         ],
       ),
+        ),
+      ),
     );
   }
 
@@ -400,7 +448,7 @@ class _AdminStudentsScreenState extends ConsumerState<AdminStudentsScreen> {
             child: _primaryAction(
               'Add Student',
               Icons.add_rounded,
-              onTap: () {},
+              onTap: _openAddStudent,
             ),
           ),
           const SizedBox(width: 6),
@@ -653,7 +701,6 @@ class _AdminStudentsScreenState extends ConsumerState<AdminStudentsScreen> {
               ),
             ),
           ),
-          SizedBox(width: 24),
         ],
       ),
     );
@@ -670,6 +717,7 @@ class _AdminStudentsScreenState extends ConsumerState<AdminStudentsScreen> {
     final avatarIconColor = gender == 'FEMALE'
         ? const Color(0xFFDB2777)
         : const Color(0xFF2563EB);
+    final avatar = _studentAvatar(s['avatarUrl'] as String?);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -689,10 +737,8 @@ class _AdminStudentsScreenState extends ConsumerState<AdminStudentsScreen> {
                       CircleAvatar(
                         radius: 16,
                         backgroundColor: avatarColor,
-                        backgroundImage: s['avatarUrl'] != null
-                            ? NetworkImage('${s['avatarUrl']}')
-                            : null,
-                        child: s['avatarUrl'] == null
+                        backgroundImage: avatar,
+                        child: avatar == null
                             ? Icon(Icons.person, size: 18, color: avatarIconColor)
                             : null,
                       ),
@@ -780,16 +826,6 @@ class _AdminStudentsScreenState extends ConsumerState<AdminStudentsScreen> {
                 ),
               ),
             ),
-          ),
-          IconButton(
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-            icon: const Icon(
-              Icons.more_vert,
-              size: 18,
-              color: Color(0xFF9CA3AF),
-            ),
-            onPressed: () {},
           ),
         ],
       ),

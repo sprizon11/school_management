@@ -63,7 +63,7 @@ git push -u origin main
 | Name | `school-api-demo` |
 | Root Directory | `backend` |
 | Runtime | Node |
-| Build Command | `npm install && npx prisma generate && npm run build` |
+| Build Command | `npm install --include=dev && npm run build` |
 | Start Command | `npx prisma migrate deploy && npm run start:prod` |
 | Instance type | Free |
 
@@ -149,7 +149,7 @@ Should return JSON with `"accessToken"`.
 
 | Issue | Fix |
 |-------|-----|
-| Render build fails | Root Directory must be `backend` |
+| Render build fails (exit 127) | Build Command must be `npm install --include=dev && npm run build` (Root Directory: `backend`) |
 | Database error on deploy | `DATABASE_URL` must include `?sslmode=require` |
 | Login: cannot reach server | URL must be `https://...` and end with `/api` |
 | Render 502 / slow | Free tier waking up — wait 60s and retry |

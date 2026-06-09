@@ -93,11 +93,9 @@ async function seedFullDemo() {
   await prisma.mark.deleteMany();
   await prisma.attendanceRecord.deleteMany();
   await prisma.homework.deleteMany();
-  await prisma.parentStudent.deleteMany();
   await prisma.student.deleteMany();
   await prisma.class.deleteMany();
   await prisma.teacher.deleteMany();
-  await prisma.parent.deleteMany();
   await prisma.user.deleteMany();
   await prisma.announcement.deleteMany();
   await prisma.event.deleteMany();
@@ -274,51 +272,6 @@ async function seedFullDemo() {
 
   console.log(`Created ${allStudents.length} students`);
 
-  const parentUser = await prisma.user.create({
-    data: {
-      schoolId: school.id,
-      email: 'parent@school.demo',
-      passwordHash,
-      role: UserRole.PARENT,
-      fullName: 'Rakesh Kumar',
-      phone: '+919887766554',
-    },
-  });
-
-  const parent = await prisma.parent.create({
-    data: { userId: parentUser.id },
-  });
-
-  const aryan = await prisma.student.findFirst({
-    where: { studentCode: 'ARU24001' },
-  });
-
-  if (aryan) {
-    await prisma.parentStudent.create({
-      data: { parentId: parent.id, studentId: aryan.id },
-    });
-  }
-
-  for (let i = 0; i < allStudents.length; i++) {
-    if (allStudents[i].id === aryan?.id) continue;
-    if (i % 10 === 0) continue;
-
-    const pUser = await prisma.user.create({
-      data: {
-        schoolId: school.id,
-        email: `parent${String(i).padStart(4, '0')}@seed.demo`,
-        passwordHash: demoHash,
-        role: UserRole.PARENT,
-        fullName: faker.person.fullName(),
-        phone: faker.phone.number({ style: 'international' }),
-      },
-    });
-    const p = await prisma.parent.create({ data: { userId: pUser.id } });
-    await prisma.parentStudent.create({
-      data: { parentId: p.id, studentId: allStudents[i].id },
-    });
-  }
-
   const feeStructure = await prisma.feeStructure.create({
     data: {
       type: FeeStructureType.TERM,
@@ -451,7 +404,7 @@ async function seedFullDemo() {
   await prisma.event.createMany({
     data: [
       {
-        title: 'Parent Teacher Meeting',
+        title: 'Teacher Meeting',
         startAt: new Date('2024-05-24T10:00:00'),
         endAt: new Date('2024-05-24T11:00:00'),
         location: 'School Auditorium',
@@ -485,7 +438,7 @@ async function seedFullDemo() {
   console.log(`Students: ${allStudents.length}`);
   console.log(`Classes: ${classes.length}`);
   console.log(`Teachers: ${teachers.length}`);
-  console.log('Demo logins: admin@school.demo / teacher@school.demo / parent@school.demo (Admin@123)');
+  console.log('Demo logins: admin@school.demo / teacher@school.demo (Admin@123)');
 }
 
 async function main() {

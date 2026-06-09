@@ -339,11 +339,19 @@ function renderSchoolDetail() {
         `${school.code}${school.city ? ` · ${school.city}` : ''}`,
         `
           <button class="btn btn-ghost-light" id="back-btn">← All schools</button>
+          <button class="btn btn-ghost-light" id="edit-school-btn">Edit</button>
+          ${
+            school.isActive
+              ? '<button class="btn btn-warning" id="stop-service-btn">Stop service</button>'
+              : '<button class="btn btn-success" id="resume-service-btn">Resume service</button>'
+          }
+          <button class="btn btn-danger" id="delete-school-btn">Delete</button>
           <button class="btn btn-danger" id="logout-btn">Sign out</button>
         `,
       )}
 
       ${state.error ? `<div class="error">${esc(state.error)}</div>` : ''}
+      ${state.success ? `<div class="success">${esc(state.success)}</div>` : ''}
 
       <div class="grid-stats" style="margin-bottom:24px">
         ${statCard('Students', stats.students, icons.students, 'violet')}
@@ -357,9 +365,12 @@ function renderSchoolDetail() {
 
       <div class="detail-grid">
         <div class="panel">
-          <div class="panel-header"><h2>School details</h2></div>
+          <div class="panel-header">
+            <h2>School details</h2>
+            <button class="btn btn-ghost-light btn-sm" id="edit-school-btn-2" type="button">Edit</button>
+          </div>
           <ul class="info-list">
-            <li><span>Status</span><span>${school.isActive ? 'Active' : 'Inactive'}</span></li>
+            <li><span>Status</span><span class="badge ${school.isActive ? 'badge-active' : 'badge-inactive'}">${school.isActive ? 'Active' : 'Service stopped'}</span></li>
             <li><span>School ID</span><span>${esc(school.id)}</span></li>
             <li><span>Code</span><span>${esc(school.code)}</span></li>
             <li><span>City</span><span>${esc(school.city || '—')}</span></li>
@@ -374,7 +385,7 @@ function renderSchoolDetail() {
             admins.length === 0
               ? '<div class="empty">No admin users yet.</div>'
               : `<div class="table-wrap"><table>
-                  <thead><tr><th>Name</th><th>Email</th></tr></thead>
+                  <thead><tr><th>Name</th><th>Email</th><th></th></tr></thead>
                   <tbody>
                     ${admins
                       .map(
@@ -382,6 +393,14 @@ function renderSchoolDetail() {
                       <tr>
                         <td>${esc(admin.fullName)}</td>
                         <td>${esc(admin.email)}</td>
+                        <td>
+                          <button
+                            class="btn btn-ghost-light btn-sm change-password-btn"
+                            type="button"
+                            data-admin-id="${esc(admin.id)}"
+                            data-admin-name="${esc(admin.fullName)}"
+                          >Change password</button>
+                        </td>
                       </tr>
                     `,
                       )
@@ -461,9 +480,110 @@ function renderSchoolDetail() {
               </table></div>`
         }
       </div>
+
+      <div id="modal-root"></div>
       </main>
     </div>
   `;
+}
+
+function renderEditSchoolModal(school) {
+  return `
+    <div class="modal-backdrop" id="modal-backdrop">
+      <div class="modal" role="dialog" aria-labelledby="edit-school-title">
+        <div class="modal-header">
+          <h2 id="edit-school-title">Edit school</h2>
+          <button class="modal-close" type="button" id="modal-close-btn" aria-label="Close">×</button>
+        </div>
+        <form id="edit-school-form" class="form-grid">
+          <div class="field">
+            <label>School name</label>
+            <input name="name" required value="${esc(school.name)}" />
+          </div>
+          <div class="field">
+            <label>City</label>
+            <input name="city" value="${esc(school.city || '')}" />
+          </div>
+          <div class="field">
+            <label>Address</label>
+            <input name="address" value="${esc(school.address || '')}" />
+          </div>
+          <p class="muted-note">School code <strong>${esc(school.code)}</strong> cannot be changed.</p>
+          <div class="modal-actions">
+            <button class="btn btn-ghost-light" type="button" id="modal-cancel-btn">Cancel</button>
+            <button class="btn btn-primary" type="submit" style="background:linear-gradient(135deg,#1b5fff,#3d7bff);color:white;border:none">Save changes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+}
+
+function renderPasswordModal(adminId, adminName) {
+  return `
+    <div class="modal-backdrop" id="modal-backdrop">
+      <div class="modal" role="dialog" aria-labelledby="password-modal-title">
+        <div class="modal-header">
+          <h2 id="password-modal-title">Change password</h2>
+          <button class="modal-close" type="button" id="modal-close-btn" aria-label="Close">×</button>
+        </div>
+        <p class="muted-note" style="margin:0 0 14px">Set a new password for <strong>${esc(adminName)}</strong>.</p>
+        <form id="password-form" class="form-grid" data-admin-id="${esc(adminId)}">
+          <div class="field">
+            <label>New password</label>
+            <input name="newPassword" type="password" minlength="6" required placeholder="At least 6 characters" />
+          </div>
+          <div class="modal-actions">
+            <button class="btn btn-ghost-light" type="button" id="modal-cancel-btn">Cancel</button>
+            <button class="btn btn-primary" type="submit" style="background:linear-gradient(135deg,#1b5fff,#3d7bff);color:white;border:none">Update password</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+}
+
+function renderDeleteSchoolModal(school) {
+  return `
+    <div class="modal-backdrop" id="modal-backdrop">
+      <div class="modal modal-danger" role="dialog" aria-labelledby="delete-school-title">
+        <div class="modal-header">
+          <h2 id="delete-school-title">Delete school</h2>
+          <button class="modal-close" type="button" id="modal-close-btn" aria-label="Close">×</button>
+        </div>
+        <p class="muted-note" style="margin:0 0 14px">
+          This permanently removes <strong>${esc(school.name)}</strong>, all users, classes, and student data.
+          Type the school code <strong>${esc(school.code)}</strong> to confirm.
+        </p>
+        <form id="delete-school-form" class="form-grid">
+          <div class="field">
+            <label>Confirm school code</label>
+            <input name="confirmCode" required placeholder="${esc(school.code)}" autocomplete="off" />
+          </div>
+          <div class="modal-actions">
+            <button class="btn btn-ghost-light" type="button" id="modal-cancel-btn">Cancel</button>
+            <button class="btn btn-danger" type="submit">Delete permanently</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+}
+
+function closeModal() {
+  const root = document.getElementById('modal-root');
+  if (root) root.innerHTML = '';
+}
+
+function openModal(html) {
+  const root = document.getElementById('modal-root');
+  if (!root) return;
+  root.innerHTML = html;
+  document.getElementById('modal-close-btn')?.addEventListener('click', closeModal);
+  document.getElementById('modal-cancel-btn')?.addEventListener('click', closeModal);
+  document.getElementById('modal-backdrop')?.addEventListener('click', (event) => {
+    if (event.target?.id === 'modal-backdrop') closeModal();
+  });
 }
 
 function renderCreateSchool() {
@@ -556,6 +676,7 @@ function render() {
         ? '<div class="loading">Loading school...</div>'
         : renderSchoolDetail();
     bindCommon();
+    bindSchoolDetail();
     return;
   }
 
@@ -691,6 +812,140 @@ function bindDashboard() {
       const id = item.getAttribute('data-school-id');
       navigate(`/school/${id}`);
       loadSchoolDetail(id);
+    });
+  });
+}
+
+function bindSchoolDetail() {
+  const school = state.schoolDetail?.school;
+  if (!school) return;
+
+  const openEdit = () => {
+    openModal(renderEditSchoolModal(school));
+    const form = document.getElementById('edit-school-form');
+    form?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const data = new FormData(form);
+      try {
+        await api(`/dev/schools/${school.id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({
+            name: String(data.get('name') || '').trim(),
+            city: String(data.get('city') || '').trim(),
+            address: String(data.get('address') || '').trim(),
+          }),
+        });
+        closeModal();
+        state.success = 'School details updated.';
+        state.error = null;
+        await loadSchoolDetail(school.id);
+      } catch (error) {
+        state.error = error.message;
+        render();
+        bindCommon();
+        bindSchoolDetail();
+      }
+    });
+  };
+
+  document.getElementById('edit-school-btn')?.addEventListener('click', openEdit);
+  document.getElementById('edit-school-btn-2')?.addEventListener('click', openEdit);
+
+  document.getElementById('stop-service-btn')?.addEventListener('click', async () => {
+    const ok = confirm(
+      `Stop service for "${school.name}"?\n\nUsers of this school will not be able to log in to the mobile app until you resume service.`,
+    );
+    if (!ok) return;
+    try {
+      await api(`/dev/schools/${school.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ isActive: false }),
+      });
+      state.success = 'Service stopped. School users cannot log in.';
+      state.error = null;
+      await loadSchoolDetail(school.id);
+    } catch (error) {
+      state.error = error.message;
+      render();
+      bindCommon();
+      bindSchoolDetail();
+    }
+  });
+
+  document.getElementById('resume-service-btn')?.addEventListener('click', async () => {
+    try {
+      await api(`/dev/schools/${school.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ isActive: true }),
+      });
+      state.success = 'Service resumed. School users can log in again.';
+      state.error = null;
+      await loadSchoolDetail(school.id);
+    } catch (error) {
+      state.error = error.message;
+      render();
+      bindCommon();
+      bindSchoolDetail();
+    }
+  });
+
+  document.getElementById('delete-school-btn')?.addEventListener('click', () => {
+    openModal(renderDeleteSchoolModal(school));
+    const form = document.getElementById('delete-school-form');
+    form?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const data = new FormData(form);
+      try {
+        await api(`/dev/schools/${school.id}`, {
+          method: 'DELETE',
+          body: JSON.stringify({
+            confirmCode: String(data.get('confirmCode') || '').trim(),
+          }),
+        });
+        closeModal();
+        state.schoolDetail = null;
+        state.success = `School "${school.name}" deleted.`;
+        state.error = null;
+        navigate('/');
+        await loadDashboard();
+      } catch (error) {
+        state.error = error.message;
+        render();
+        bindCommon();
+        bindSchoolDetail();
+      }
+    });
+  });
+
+  document.querySelectorAll('.change-password-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const adminId = btn.getAttribute('data-admin-id');
+      const adminName = btn.getAttribute('data-admin-name') || 'Admin';
+      openModal(renderPasswordModal(adminId, adminName));
+      const form = document.getElementById('password-form');
+      form?.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const data = new FormData(form);
+        try {
+          await api(`/dev/schools/${school.id}/admins/${adminId}/password`, {
+            method: 'PATCH',
+            body: JSON.stringify({
+              newPassword: String(data.get('newPassword') || ''),
+            }),
+          });
+          closeModal();
+          state.success = `Password updated for ${adminName}.`;
+          state.error = null;
+          render();
+          bindCommon();
+          bindSchoolDetail();
+        } catch (error) {
+          state.error = error.message;
+          render();
+          bindCommon();
+          bindSchoolDetail();
+        }
+      });
     });
   });
 }

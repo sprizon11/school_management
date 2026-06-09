@@ -17,7 +17,7 @@ class SmartSchoolApp extends ConsumerWidget {
     return MaterialApp.router(
       title: 'Smart School',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.light(),
+      theme: AppTheme.light,
       routerConfig: router,
     );
   }

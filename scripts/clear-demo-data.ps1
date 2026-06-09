@@ -18,6 +18,19 @@ if ($DatabaseUrl -notmatch '^(postgresql|postgres)://') {
     exit 1
 }
 
+if ($DatabaseUrl -match '\.\.\.|your_|PASSWORD|ep-xxx|neondb_owner:PASSWORD') {
+    Write-Host "ERROR: You used the example placeholder, not your real DATABASE_URL." -ForegroundColor Red
+    Write-Host ""
+    Write-Host "Get the real value from:"
+    Write-Host "  Render dashboard -> school-management-api -> Environment -> DATABASE_URL"
+    Write-Host "  OR Neon dashboard -> Connection string"
+    Write-Host ""
+    Write-Host "Then run (paste the full URL inside quotes):"
+    Write-Host '  $env:DATABASE_URL="postgresql://neondb_owner:YOUR_PASS@ep-xxxx.neon.tech/neondb?sslmode=require"'
+    Write-Host '  .\scripts\clear-demo-data.ps1'
+    exit 1
+}
+
 $env:DATABASE_URL = $DatabaseUrl
 
 $backend = Join-Path $PSScriptRoot "..\backend"

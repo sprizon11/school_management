@@ -132,7 +132,7 @@ You should get JSON with `accessToken`.
 
 1. https://render.com → **New Web Service** → connect GitHub repo.
 2. **Root Directory:** `backend`
-3. **Build:** `npm install && npx prisma generate && npm run build`
+3. **Build:** `npm install --include=dev && npm run build`
 4. **Start:** `npx prisma migrate deploy && npm run start:prod`
 5. Add same env vars as Railway.
 6. Use Render URL in Flutter `--dart-define=API_BASE_URL=...`

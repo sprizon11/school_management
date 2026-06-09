@@ -4,11 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/network/cloud_api.dart';
 import '../../../core/providers/auth_provider.dart';
+import '../../../core/providers/school_provider.dart';
 import '../../../core/theme/app_colors.dart';
 
 /// Login uses [assets/images/login_background.png] for branding/header/footer.
-/// Only the form card, role shortcuts, and OR divider are drawn on top.
+/// User enters email + password; API role routes to admin or teacher home.
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
@@ -24,12 +26,90 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordCtrl = TextEditingController();
   bool _obscure = true;
   bool _remember = true;
-  String? _selectedRole;
+  bool _loggingIn = false;
+  bool _wakingServer = false;
+  bool _loadingSchools = true;
+  String? _statusMessage;
+  String? _schoolsError;
+  List<SelectedSchool> _schools = [];
 
   @override
   void initState() {
     super.initState();
     _loadRemembered();
+    _prefetch();
+    _loadSchools();
+    if (isCloudHosted) _startServerWake();
+  }
+
+  Future<void> _loadSchools() async {
+    setState(() {
+      _loadingSchools = true;
+      _schoolsError = null;
+    });
+
+    try {
+      await ref.read(schoolReadyProvider.future);
+      final dio = ref.read(dioProvider);
+      final res = await getWithCloudRetry(dio, '/schools/public');
+      final list = (res.data as List<dynamic>)
+          .map((e) => SelectedSchool.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+      if (!mounted) return;
+
+      final saved = ref.read(selectedSchoolProvider);
+      if (saved != null && list.any((s) => s.id == saved.id)) {
+        // keep saved selection
+      } else if (list.length == 1) {
+        await ref.read(selectedSchoolProvider.notifier).select(list.first);
+      }
+
+      setState(() {
+        _schools = list;
+        _loadingSchools = false;
+      });
+    } on DioException catch (e) {
+      if (!mounted) return;
+      final status = e.response?.statusCode;
+      setState(() {
+        _loadingSchools = false;
+        _schoolsError = status == 404
+            ? 'School list not available yet. Deploy the latest backend, then retry.'
+            : friendlyCloudError(e);
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loadingSchools = false;
+        _schoolsError = 'Could not load schools. Try again.';
+      });
+    }
+  }
+
+  void _prefetch() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      precacheImage(const AssetImage(_bgAsset), context);
+    });
+  }
+
+  Future<void> _startServerWake() async {
+    setState(() {
+      _wakingServer = true;
+      _statusMessage = 'Connecting to server (first time may take 60s)...';
+    });
+    final ok = await wakeCloudServer();
+    if (!mounted) return;
+    setState(() {
+      _wakingServer = false;
+      _statusMessage = ok ? 'Server ready. You can log in.' : null;
+    });
+    if (ok) {
+      Future<void>.delayed(const Duration(seconds: 4), () {
+        if (mounted) setState(() => _statusMessage = null);
+      });
+    }
   }
 
   @override
@@ -47,21 +127,49 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
-    ref.read(authProvider.notifier).setLoading(true);
-    ref.read(authProvider.notifier).setError(null);
+
+    FocusScope.of(context).unfocus();
+    setState(() => _loggingIn = true);
+
+    final authNotifier = ref.read(authProvider.notifier);
+    authNotifier.setError(null);
+
+    await ref.read(schoolReadyProvider.future);
+    final school = ref.read(selectedSchoolProvider);
+    if (school == null || school.id.trim().isEmpty) {
+      authNotifier.setError('Please select your school.');
+      setState(() => _loggingIn = false);
+      return;
+    }
 
     try {
       final dio = ref.read(dioProvider);
       final body = {
+        'schoolId': school.id.trim(),
         'identifier': _identifierCtrl.text.trim(),
         'password': _passwordCtrl.text,
-        if (_selectedRole != null) 'expectedRole': _selectedRole,
       };
-      final res = await dio.post('/auth/login', data: body);
+      if (isCloudHosted) {
+        setState(() {
+          _statusMessage = 'Logging in — server may take up to 60s...';
+        });
+      }
+      final res = await postWithCloudRetry(
+        dio,
+        '/auth/login',
+        data: body,
+        onRetry: (attempt) {
+          if (!mounted) return;
+          setState(() {
+            _statusMessage = 'Server waking up... retry $attempt/3';
+          });
+        },
+      );
       final data = res.data as Map<String, dynamic>;
-      await ref
-          .read(authProvider.notifier)
-          .saveSession(data['accessToken'] as String, data);
+      await authNotifier.saveSession(
+        data['accessToken'] as String,
+        data,
+      );
 
       if (_remember) {
         final prefs = await SharedPreferences.getInstance();
@@ -72,27 +180,36 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       }
 
       if (!mounted) return;
-      final role = data['user']['role'] as String;
-      if (role == 'ADMIN') context.go('/admin');
-      if (role == 'TEACHER') context.go('/teacher');
-      if (role == 'PARENT') context.go('/parent');
+
+      final role = (data['user'] as Map<String, dynamic>)['role'] as String;
+      final route = switch (role) {
+        'ADMIN' => '/admin',
+        'TEACHER' => '/teacher',
+        _ => null,
+      };
+      setState(() => _statusMessage = null);
+      if (route != null) context.go(route);
     } on DioException catch (e) {
-      final msg = e.response?.data?['message'];
-      ref.read(authProvider.notifier).setError(
-            msg is List ? msg.join(', ') : msg?.toString() ?? 'Login failed',
-          );
-    } catch (_) {
-      ref.read(authProvider.notifier).setError(
-            'Cannot reach server. Start API & database.',
-          );
+      if (!mounted) return;
+      setState(() => _statusMessage = null);
+      authNotifier.setError(friendlyCloudError(e));
+    } catch (e, st) {
+      debugPrint('Login error: $e\n$st');
+      if (!mounted) return;
+      authNotifier.setError(
+        e is TypeError
+            ? 'Unexpected server response. Try again.'
+            : 'Login failed: $e',
+      );
     } finally {
-      ref.read(authProvider.notifier).setLoading(false);
+      if (mounted) setState(() => _loggingIn = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final auth = ref.watch(authProvider);
+    final authError = ref.watch(authProvider.select((a) => a.error));
+    final selectedSchool = ref.watch(selectedSchoolProvider);
     final media = MediaQuery.of(context);
     final screenH = media.size.height;
     final keyboardH = media.viewInsets.bottom;
@@ -100,7 +217,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final bottomSafe = media.padding.bottom;
 
     return Scaffold(
-      // Keep background fixed; only scroll the form when keyboard opens.
       resizeToAvoidBottomInset: false,
       body: SizedBox(
         height: screenH,
@@ -108,7 +224,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         child: Stack(
           clipBehavior: Clip.hardEdge,
           children: [
-            // Background never scrolls or resizes with keyboard.
             Positioned(
               top: 0,
               left: 0,
@@ -118,12 +233,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 _bgAsset,
                 fit: BoxFit.cover,
                 alignment: Alignment.topCenter,
-                errorBuilder: (_, __, ___) => ColoredBox(color: AppColors.surface),
+                cacheWidth: (media.size.width * media.devicePixelRatio).round(),
+                errorBuilder: (_, __, ___) =>
+                    const ColoredBox(color: AppColors.surface),
               ),
             ),
             Positioned.fill(
               child: SingleChildScrollView(
-                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: EdgeInsets.fromLTRB(
                   20,
                   topSafe + 8,
@@ -133,7 +251,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Clear logo + illustration in the background image.
                     SizedBox(height: screenH * 0.13),
                     const _BrandHeader(),
                     SizedBox(height: screenH * 0.018),
@@ -143,51 +260,35 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       passwordCtrl: _passwordCtrl,
                       obscure: _obscure,
                       remember: _remember,
-                      loading: auth.loading,
-                      error: auth.error,
-                      onToggleObscure: () => setState(() => _obscure = !_obscure),
-                      onRememberChanged: (v) => setState(() => _remember = v ?? true),
+                      loading: _loggingIn || _wakingServer,
+                      status: _statusMessage,
+                      error: authError,
+                      schools: _schools,
+                      schoolsLoading: _loadingSchools,
+                      schoolsError: _schoolsError,
+                      selectedSchool: selectedSchool,
+                      onSchoolChanged: (school) async {
+                        if (school == null) {
+                          await ref
+                              .read(selectedSchoolProvider.notifier)
+                              .clear();
+                        } else {
+                          await ref
+                              .read(selectedSchoolProvider.notifier)
+                              .select(school);
+                        }
+                      },
+                      onRetrySchools: _loadSchools,
+                      onToggleObscure: () =>
+                          setState(() => _obscure = !_obscure),
+                      onRememberChanged: (v) =>
+                          setState(() => _remember = v ?? true),
                       onLogin: _login,
                     ),
                     const SizedBox(height: 14),
-                    _OrDivider(),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _RoleCard(
-                            selected: _selectedRole == 'ADMIN',
-                            title: 'Admin Login',
-                            subtitle: 'Manage everything',
-                            color: AppColors.primary,
-                            icon: Icons.shield_outlined,
-                            onTap: () => setState(() => _selectedRole = 'ADMIN'),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _RoleCard(
-                            selected: _selectedRole == 'TEACHER',
-                            title: 'Teacher Login',
-                            subtitle: 'Manage your classes',
-                            color: AppColors.success,
-                            icon: Icons.menu_book_outlined,
-                            onTap: () => setState(() => _selectedRole = 'TEACHER'),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _RoleCard(
-                            selected: _selectedRole == 'PARENT',
-                            title: 'Parent Login',
-                            subtitle: 'Stay updated',
-                            color: AppColors.parentPurple,
-                            icon: Icons.family_restroom_outlined,
-                            onTap: () => setState(() => _selectedRole = 'PARENT'),
-                          ),
-                        ),
-                      ],
-                    ),
+                    const _OrDivider(),
+                    const SizedBox(height: 12),
+                    const _GoogleSignInButton(),
                   ],
                 ),
               ),
@@ -247,7 +348,7 @@ class _BrandHeader extends StatelessWidget {
               children: [
                 TextSpan(text: 'Connecting ', style: TextStyle(color: AppColors.primaryDark)),
                 TextSpan(
-                  text: 'Schools, Teachers,\nStudents & Parents',
+                  text: 'Schools, Teachers\n& Students',
                   style: TextStyle(color: AppColors.primary),
                 ),
               ],
@@ -293,7 +394,14 @@ class _LoginCard extends StatelessWidget {
     required this.obscure,
     required this.remember,
     required this.loading,
+    this.status,
     required this.error,
+    required this.schools,
+    required this.schoolsLoading,
+    this.schoolsError,
+    required this.selectedSchool,
+    required this.onSchoolChanged,
+    required this.onRetrySchools,
     required this.onToggleObscure,
     required this.onRememberChanged,
     required this.onLogin,
@@ -305,10 +413,28 @@ class _LoginCard extends StatelessWidget {
   final bool obscure;
   final bool remember;
   final bool loading;
+  final String? status;
   final String? error;
+  final List<SelectedSchool> schools;
+  final bool schoolsLoading;
+  final String? schoolsError;
+  final SelectedSchool? selectedSchool;
+  final ValueChanged<SelectedSchool?> onSchoolChanged;
+  final VoidCallback onRetrySchools;
   final VoidCallback onToggleObscure;
   final ValueChanged<bool?> onRememberChanged;
   final VoidCallback onLogin;
+
+  static SelectedSchool? _resolveSchoolValue(
+    List<SelectedSchool> schools,
+    SelectedSchool? selected,
+  ) {
+    if (selected == null || schools.isEmpty) return null;
+    for (final school in schools) {
+      if (school.id == selected.id) return school;
+    }
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -359,15 +485,79 @@ class _LoginCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
+            if (schoolsLoading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Center(
+                  child: SizedBox(
+                    height: 22,
+                    width: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+              )
+            else if (schoolsError != null)
+              Column(
+                children: [
+                  Text(
+                    schoolsError!,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.red, fontSize: 12),
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: onRetrySchools,
+                    child: const Text('Retry schools'),
+                  ),
+                ],
+              )
+            else
+              DropdownButtonFormField<SelectedSchool>(
+                value: _resolveSchoolValue(schools, selectedSchool),
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  labelText: 'Select School',
+                  prefixIcon: Icon(
+                    Icons.school_rounded,
+                    color: AppColors.primary,
+                    size: 20,
+                  ),
+                  isDense: true,
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                ),
+                hint: const Text('Choose your school'),
+                items: schools
+                    .map(
+                      (s) => DropdownMenuItem(
+                        value: s,
+                        child: Text(
+                          s.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      ),
+                    )
+                    .toList(),
+                onChanged: loading ? null : onSchoolChanged,
+                validator: (v) => v == null ? 'Select your school' : null,
+              ),
+            const SizedBox(height: 10),
             TextFormField(
               controller: identifierCtrl,
               keyboardType: TextInputType.emailAddress,
               style: const TextStyle(fontSize: 14),
               decoration: const InputDecoration(
-                prefixIcon: Icon(Icons.person_outline, color: AppColors.primary, size: 20),
-                hintText: 'Mobile Number / Email',
+                prefixIcon: Icon(
+                  Icons.person_outline,
+                  color: AppColors.primary,
+                  size: 20,
+                ),
+                hintText: 'Email',
                 isDense: true,
-                contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 14, vertical: 13),
               ),
               validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
             ),
@@ -375,15 +565,26 @@ class _LoginCard extends StatelessWidget {
             TextFormField(
               controller: passwordCtrl,
               obscureText: obscure,
+              textInputAction: TextInputAction.done,
+              onFieldSubmitted: (_) {
+                if (!loading) onLogin();
+              },
               style: const TextStyle(fontSize: 14),
               decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.lock_outline, color: AppColors.primary, size: 20),
+                prefixIcon: const Icon(
+                  Icons.lock_outline,
+                  color: AppColors.primary,
+                  size: 20,
+                ),
                 hintText: 'Password',
                 isDense: true,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
                 suffixIcon: IconButton(
                   icon: Icon(
-                    obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                    obscure
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
                     color: AppColors.textMuted,
                     size: 20,
                   ),
@@ -416,56 +617,94 @@ class _LoginCard extends StatelessWidget {
                     minimumSize: const Size(0, 32),
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
-                  child: const Text('Forgot Password?', style: TextStyle(fontSize: 12.5)),
+                  child: const Text(
+                    'Forgot Password?',
+                    style: TextStyle(fontSize: 12.5),
+                  ),
                 ),
               ],
             ),
+            if (status != null) ...[
+              const SizedBox(height: 6),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (loading)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 2, right: 8),
+                      child: SizedBox(
+                        height: 14,
+                        width: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  Expanded(
+                    child: Text(
+                      status!,
+                      style: const TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
             if (error != null) ...[
-              const SizedBox(height: 2),
-              Text(error!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+              const SizedBox(height: 6),
+              Text(
+                error!,
+                style: const TextStyle(color: Colors.red, fontSize: 12),
+              ),
             ],
             const SizedBox(height: 10),
-            DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [AppColors.primary, AppColors.primaryLight],
+            Material(
+              color: Colors.transparent,
+              child: Ink(
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [AppColors.primary, AppColors.primaryLight],
+                  ),
+                  borderRadius: BorderRadius.circular(14),
                 ),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: ElevatedButton(
-                onPressed: loading ? null : onLogin,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.transparent,
-                  shadowColor: Colors.transparent,
-                  padding: const EdgeInsets.symmetric(vertical: 13),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+                child: InkWell(
+                  onTap: loading ? null : onLogin,
+                  borderRadius: BorderRadius.circular(14),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    alignment: Alignment.center,
+                    child: loading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Login',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              SizedBox(width: 8),
+                              Icon(
+                                Icons.arrow_forward,
+                                color: Colors.white,
+                                size: 18,
+                              ),
+                            ],
+                          ),
                   ),
                 ),
-                child: loading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'Login',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          SizedBox(width: 8),
-                          Icon(Icons.arrow_forward, color: Colors.white, size: 18),
-                        ],
-                      ),
               ),
             ),
           ],
@@ -476,6 +715,8 @@ class _LoginCard extends StatelessWidget {
 }
 
 class _OrDivider extends StatelessWidget {
+  const _OrDivider();
+
   @override
   Widget build(BuildContext context) {
     return Row(
@@ -498,80 +739,104 @@ class _OrDivider extends StatelessWidget {
   }
 }
 
-class _RoleCard extends StatelessWidget {
-  const _RoleCard({
-    required this.selected,
-    required this.title,
-    required this.subtitle,
-    required this.color,
-    required this.icon,
-    required this.onTap,
-  });
-
-  final bool selected;
-  final String title;
-  final String subtitle;
-  final Color color;
-  final IconData icon;
-  final VoidCallback onTap;
+class _GoogleSignInButton extends StatelessWidget {
+  const _GoogleSignInButton();
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.95),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: selected ? color : AppColors.border,
-            width: selected ? 1.5 : 1,
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: () {},
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFDADCE0)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 26),
-            const SizedBox(height: 6),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                color: color,
-                height: 1.2,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const _GoogleLogo(),
+              const SizedBox(width: 10),
+              const Text(
+                'Sign in with Google',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF3C4043),
+                ),
               ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              subtitle,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 8,
-                color: AppColors.textMuted,
-                height: 1.2,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Container(
-              height: 3,
-              width: 28,
-              decoration: BoxDecoration(
-                color: selected ? color : Colors.transparent,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 }
+
+class _GoogleLogo extends StatelessWidget {
+  const _GoogleLogo();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 18,
+      height: 18,
+      child: CustomPaint(painter: _GoogleLogoPainter()),
+    );
+  }
+}
+
+class _GoogleLogoPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final stroke = w * 0.22;
+
+    void arc(Color color, double start, double sweep) {
+      final paint = Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = stroke
+        ..strokeCap = StrokeCap.butt;
+      canvas.drawArc(
+        Rect.fromLTWH(stroke / 2, stroke / 2, w - stroke, h - stroke),
+        start,
+        sweep,
+        false,
+        paint,
+      );
+    }
+
+    arc(const Color(0xFFEA4335), 3.65, 1.9);
+    arc(const Color(0xFFFBBC05), 5.55, 1.45);
+    arc(const Color(0xFF34A853), 0.95, 1.75);
+    arc(const Color(0xFF4285F4), 2.7, 1.75);
+
+    final bar = Paint()
+      ..color = const Color(0xFF4285F4)
+      ..strokeWidth = stroke
+      ..strokeCap = StrokeCap.butt;
+    canvas.drawLine(
+      Offset(w * 0.52, h * 0.48),
+      Offset(w * 0.88, h * 0.48),
+      bar,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+

@@ -25,8 +25,8 @@ class _AdminShellState extends State<AdminShell> {
   void initState() {
     super.initState();
     _screens = [
-      const AdminDashboardScreen(),
-      AdminStudentsScreen(onBack: () => setState(() => _index = 0)),
+      AdminDashboardScreen(onTabSelect: (i) => setState(() => _index = i)),
+      const AdminStudentsScreen(),
       const AdminTeachersScreen(),
       const AdminClassesScreen(),
       const AdminMoreScreen(),

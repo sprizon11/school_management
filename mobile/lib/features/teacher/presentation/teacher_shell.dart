@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import 'screens/teacher_dashboard_screen.dart';
 import 'screens/teacher_students_screen.dart';
@@ -15,18 +14,21 @@ class TeacherShell extends StatefulWidget {
 class _TeacherShellState extends State<TeacherShell> {
   int _index = 0;
 
+  static const _screens = [
+    TeacherDashboardScreen(),
+    Center(child: Text('Classes')),
+    TeacherStudentsScreen(),
+    TeacherReportsScreen(),
+    Center(child: Text('More')),
+  ];
+
   @override
   Widget build(BuildContext context) {
-    final screens = [
-      const TeacherDashboardScreen(),
-      const Center(child: Text('Classes')),
-      const TeacherStudentsScreen(),
-      const TeacherReportsScreen(),
-      const Center(child: Text('More')),
-    ];
-
     return Scaffold(
-      body: screens[_index],
+      body: IndexedStack(
+        index: _index,
+        children: _screens,
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() => _index = i),

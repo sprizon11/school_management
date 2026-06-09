@@ -16,11 +16,14 @@ export class AuthService {
   ) {}
 
   async login(dto: LoginDto) {
-    const school = await this.prisma.school.findFirst({
-      where: { id: dto.schoolId, isActive: true },
+    const school = await this.prisma.school.findUnique({
+      where: { id: dto.schoolId },
     });
     if (!school) {
       throw new UnauthorizedException('School not found');
+    }
+    if (!school.isActive) {
+      throw new UnauthorizedException('Service has been stopped for this school');
     }
 
     const identifier = dto.identifier.trim().toLowerCase();

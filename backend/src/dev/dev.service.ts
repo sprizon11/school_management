@@ -1,8 +1,14 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { UserRole } from '@prisma/client';
+import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { SchoolsService } from '../schools/schools.service';
 import { CreateSchoolDto } from '../schools/dto/create-school.dto';
+import { UpdateSchoolDto } from './dto/update-school.dto';
 
 @Injectable()
 export class DevService {
@@ -214,6 +220,186 @@ export class DevService {
 
   createSchool(dto: CreateSchoolDto) {
     return this.schools.createWithAdmin(dto);
+  }
+
+  async updateSchool(id: string, dto: UpdateSchoolDto) {
+    const school = await this.prisma.school.findUnique({ where: { id } });
+    if (!school) {
+      throw new NotFoundException('School not found');
+    }
+
+    const data: {
+      name?: string;
+      city?: string | null;
+      address?: string | null;
+      logoUrl?: string | null;
+      isActive?: boolean;
+    } = {};
+    if (dto.name !== undefined) data.name = dto.name.trim();
+    if (dto.city !== undefined) data.city = dto.city.trim() || null;
+    if (dto.address !== undefined) data.address = dto.address.trim() || null;
+    if (dto.logoUrl !== undefined) data.logoUrl = dto.logoUrl.trim() || null;
+    if (dto.isActive !== undefined) data.isActive = dto.isActive;
+
+    if (Object.keys(data).length === 0) {
+      throw new BadRequestException('No fields to update');
+    }
+
+    return this.prisma.school.update({
+      where: { id },
+      data,
+      select: {
+        id: true,
+        name: true,
+        code: true,
+        city: true,
+        address: true,
+        logoUrl: true,
+        isActive: true,
+        createdAt: true,
+      },
+    });
+  }
+
+  async resetAdminPassword(
+    schoolId: string,
+    adminId: string,
+    newPassword: string,
+  ) {
+    const admin = await this.prisma.user.findFirst({
+      where: { id: adminId, schoolId, role: UserRole.ADMIN },
+      select: { id: true, email: true, fullName: true },
+    });
+
+    if (!admin) {
+      throw new NotFoundException('Admin account not found for this school');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await this.prisma.user.update({
+      where: { id: admin.id },
+      data: { passwordHash },
+    });
+
+    return {
+      id: admin.id,
+      email: admin.email,
+      fullName: admin.fullName,
+      message: 'Password updated',
+    };
+  }
+
+  async deleteSchool(id: string, confirmCode: string) {
+    const school = await this.prisma.school.findUnique({ where: { id } });
+    if (!school) {
+      throw new NotFoundException('School not found');
+    }
+
+    if (confirmCode.trim().toLowerCase() !== school.code.toLowerCase()) {
+      throw new BadRequestException(
+        'School code does not match. Type the exact code to confirm deletion.',
+      );
+    }
+
+    const classIds = (
+      await this.prisma.class.findMany({
+        where: { schoolId: id },
+        select: { id: true },
+      })
+    ).map((c) => c.id);
+
+    const studentIds =
+      classIds.length === 0
+        ? []
+        : (
+            await this.prisma.student.findMany({
+              where: { classId: { in: classIds } },
+              select: { id: true },
+            })
+          ).map((s) => s.id);
+
+    if (studentIds.length > 0) {
+      const assignments = await this.prisma.feeAssignment.findMany({
+        where: { studentId: { in: studentIds } },
+        select: { id: true },
+      });
+      const assignmentIds = assignments.map((a) => a.id);
+
+      if (assignmentIds.length > 0) {
+        const installments = await this.prisma.feeInstallment.findMany({
+          where: { assignmentId: { in: assignmentIds } },
+          select: { id: true },
+        });
+        const installmentIds = installments.map((i) => i.id);
+
+        if (installmentIds.length > 0) {
+          await this.prisma.feePayment.deleteMany({
+            where: { installmentId: { in: installmentIds } },
+          });
+        }
+        await this.prisma.feeInstallment.deleteMany({
+          where: { assignmentId: { in: assignmentIds } },
+        });
+        await this.prisma.feeAssignment.deleteMany({
+          where: { id: { in: assignmentIds } },
+        });
+      }
+
+      await this.prisma.student.deleteMany({
+        where: { id: { in: studentIds } },
+      });
+    }
+
+    const teacherUsers = await this.prisma.user.findMany({
+      where: { schoolId: id, role: UserRole.TEACHER },
+      select: { id: true },
+    });
+    const teacherUserIds = teacherUsers.map((u) => u.id);
+
+    if (teacherUserIds.length > 0) {
+      const teacherProfiles = await this.prisma.teacher.findMany({
+        where: { userId: { in: teacherUserIds } },
+        select: { id: true },
+      });
+      const teacherIds = teacherProfiles.map((t) => t.id);
+
+      if (teacherIds.length > 0) {
+        await this.prisma.homework.deleteMany({
+          where: {
+            OR: [
+              { teacherId: { in: teacherIds } },
+              ...(classIds.length > 0
+                ? [{ classId: { in: classIds } }]
+                : []),
+            ],
+          },
+        });
+        await this.prisma.mark.updateMany({
+          where: { teacherId: { in: teacherIds } },
+          data: { teacherId: null },
+        });
+      }
+    }
+
+    if (classIds.length > 0) {
+      await this.prisma.class.updateMany({
+        where: { id: { in: classIds } },
+        data: { classTeacherId: null },
+      });
+      await this.prisma.homework.deleteMany({
+        where: { classId: { in: classIds } },
+      });
+      await this.prisma.class.deleteMany({ where: { schoolId: id } });
+    }
+
+    await this.prisma.user.deleteMany({ where: { schoolId: id } });
+
+    await this.prisma.school.delete({ where: { id } });
+
+    return {
+      deleted: true,
+      school: { id: school.id, name: school.name, code: school.code },
+    };
   }
 
   private isSeedStudentCode(code: string) {

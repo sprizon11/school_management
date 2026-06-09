@@ -33,9 +33,6 @@ async function deleteAllStudents() {
     });
   }
 
-  await prisma.parentStudent.deleteMany({
-    where: { studentId: { in: studentIds } },
-  });
   await prisma.student.deleteMany({
     where: { id: { in: studentIds } },
   });
