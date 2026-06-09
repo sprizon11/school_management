@@ -498,14 +498,19 @@ export class AdminService {
     };
   }
 
-  async teacherStats() {
+  async teacherStats(schoolId: string) {
+    const schoolFilter = { user: { schoolId } };
     const [total, male, female, newMonth] = await Promise.all([
-      this.prisma.teacher.count(),
-      this.prisma.teacher.count({ where: { gender: 'MALE' } }),
-      this.prisma.teacher.count({ where: { gender: 'FEMALE' } }),
+      this.prisma.teacher.count({ where: schoolFilter }),
+      this.prisma.teacher.count({ where: { ...schoolFilter, gender: 'MALE' } }),
+      this.prisma.teacher.count({
+        where: { ...schoolFilter, gender: 'FEMALE' },
+      }),
       this.prisma.teacher.count({
         where: {
+          ...schoolFilter,
           user: {
+            schoolId,
             createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
           },
         },
@@ -521,13 +526,20 @@ export class AdminService {
     };
   }
 
-  async listTeachers(params: { page?: number; limit?: number; search?: string }) {
+  async listTeachers(
+    schoolId: string,
+    params: { page?: number; limit?: number; search?: string },
+  ) {
     const page = params.page ?? 1;
     const limit = params.limit ?? 10;
-    const where: Prisma.TeacherWhereInput = {};
+    const where: Prisma.TeacherWhereInput = { user: { schoolId } };
     if (params.search) {
       where.OR = [
-        { user: { fullName: { contains: params.search, mode: 'insensitive' } } },
+        {
+          user: {
+            fullName: { contains: params.search, mode: 'insensitive' },
+          },
+        },
         { department: { contains: params.search, mode: 'insensitive' } },
         { employeeCode: { contains: params.search, mode: 'insensitive' } },
       ];
@@ -567,7 +579,7 @@ export class AdminService {
       where: { id },
       include: { user: true },
     });
-    if (!teacher || teacher.user.schoolId !== schoolId) {
+    if (!teacher) {
       throw new NotFoundException('Teacher not found');
     }
 
@@ -595,15 +607,20 @@ export class AdminService {
     return { ok: true };
   }
 
-  async getTeacher(id: string) {
+  async getTeacher(schoolId: string, id: string) {
     const teacher = await this.prisma.teacher.findUnique({
       where: { id },
       include: {
         user: true,
-        classes: { orderBy: [{ grade: 'asc' }, { section: 'asc' }] },
+        classes: {
+          where: { schoolId },
+          orderBy: [{ grade: 'asc' }, { section: 'asc' }],
+        },
       },
     });
-    if (!teacher) throw new NotFoundException('Teacher not found');
+    if (!teacher || teacher.user.schoolId !== schoolId) {
+      throw new NotFoundException('Teacher not found');
+    }
 
     return {
       id: teacher.id,
@@ -1237,10 +1254,11 @@ export class AdminService {
   }
 
   async reportsOverview() {
+    const schoolId = await this.resolveSchoolId();
     const [students, teachers, classes, activities, feeChart] =
       await Promise.all([
         this.studentStats(),
-        this.teacherStats(),
+        this.teacherStats(schoolId),
         this.classStats(),
         this.prisma.activityLog.findMany({ orderBy: { createdAt: 'desc' }, take: 6 }),
         this.feeChart(),

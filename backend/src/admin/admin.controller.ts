@@ -90,13 +90,16 @@ export class AdminController {
   }
 
   @Get('teachers/stats')
-  teacherStats() {
-    return this.admin.teacherStats();
+  teacherStats(@CurrentUser() user: { schoolId: string }) {
+    return this.admin.teacherStats(user.schoolId);
   }
 
   @Get('teachers/:id')
-  getTeacher(@Param('id') id: string) {
-    return this.admin.getTeacher(id);
+  getTeacher(
+    @CurrentUser() user: { schoolId: string },
+    @Param('id') id: string,
+  ) {
+    return this.admin.getTeacher(user.schoolId, id);
   }
 
   @Delete('teachers/:id')
@@ -109,11 +112,12 @@ export class AdminController {
 
   @Get('teachers')
   listTeachers(
+    @CurrentUser() user: { schoolId: string },
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('search') search?: string,
   ) {
-    return this.admin.listTeachers({
+    return this.admin.listTeachers(user.schoolId, {
       page: page ? +page : 1,
       limit: limit ? +limit : 10,
       search,
