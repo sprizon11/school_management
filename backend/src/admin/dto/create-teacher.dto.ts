@@ -17,8 +17,9 @@ export class CreateTeacherDto {
   @IsEnum(Gender)
   gender?: Gender;
 
+  @IsOptional()
   @IsString()
-  department: string;
+  department?: string;
 
   @IsArray()
   @IsString({ each: true })

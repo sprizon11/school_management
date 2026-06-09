@@ -212,7 +212,7 @@ class _AdminSubscriptionScreenState extends ConsumerState<AdminSubscriptionScree
               borderRadius: BorderRadius.circular(8),
             ),
             child: const Text(
-              'SMART SCHOOL PLAN',
+              'SMARTUP PLAN',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 10,
@@ -435,7 +435,7 @@ class _CheckoutSheet extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           const Text(
-            'You are subscribing to the Smart School Management app for 30 days.',
+            'You are subscribing to the SmartUp School Management app for 30 days.',
             style: TextStyle(fontSize: 13, color: AppColors.textMuted, height: 1.4),
           ),
           const SizedBox(height: 18),

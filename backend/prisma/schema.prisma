@@ -96,6 +96,7 @@ model Class {
   school         School    @relation(fields: [schoolId], references: [id])
   grade          Int
   section        String
+  streamGroup    String    @default("")
   name           String
   category       String
   room           String?
@@ -106,7 +107,7 @@ model Class {
   homework       Homework[]
   createdAt      DateTime  @default(now())
 
-  @@unique([grade, section, academicYear])
+  @@unique([grade, section, streamGroup, academicYear])
 }
 
 model Student {

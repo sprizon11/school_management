@@ -27,4 +27,9 @@ export class CreateClassDto {
   @IsOptional()
   @IsString()
   academicYear?: string;
+
+  /** Required for grade 11 and 12 (e.g. Accounts, Business Maths). */
+  @IsOptional()
+  @IsString()
+  streamGroup?: string;
 }

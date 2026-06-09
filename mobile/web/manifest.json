@@ -1,6 +1,6 @@
 {
-    "name": "smart_school",
-    "short_name": "smart_school",
+    "name": "SmartUp",
+    "short_name": "SmartUp",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

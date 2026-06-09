@@ -16,6 +16,12 @@ import { CreateClassDto } from './dto/create-class.dto';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { CreateTeacherDto } from './dto/create-teacher.dto';
 import { CreateAnnouncementDto } from './dto/create-announcement.dto';
+import {
+  isSeniorGrade,
+  normalizeStreamGroup,
+  SENIOR_STREAM_GROUPS,
+  validateStreamGroupForGrade,
+} from './senior-stream-groups';
 import { UpdateSchoolProfileDto } from './dto/update-school-profile.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
 
@@ -150,55 +156,112 @@ export class AdminService {
     });
   }
 
-  private async topStudentsByGrade(schoolId: string) {
-    const grades = [10, 11, 12];
-    const labels: Record<number, string> = {
-      10: '10th Standard',
-      11: '11th Standard',
-      12: '12th Standard',
-    };
+  getSeniorStreamGroups() {
+    return SENIOR_STREAM_GROUPS;
+  }
 
-    const blocks = await Promise.all(
-      grades.map(async (grade) => {
+  private rankStudents(
+    students: Array<{
+      id: string;
+      fullName: string;
+      rollNumber: number;
+      marks: { marks: number; maxMarks: number }[];
+      class: {
+        grade: number;
+        section: string;
+        name: string;
+        streamGroup: string;
+      };
+    }>,
+    grade: number,
+  ) {
+    return students
+      .map((s) => {
+        if (s.marks.length === 0) return null;
+        const scored = s.marks.reduce((sum, m) => sum + m.marks, 0);
+        const maxTotal = s.marks.reduce((sum, m) => sum + m.maxMarks, 0);
+        const averagePercent =
+          maxTotal > 0 ? Math.round((scored / maxTotal) * 1000) / 10 : 0;
+        const groupSuffix =
+          s.class.streamGroup && s.class.streamGroup.length > 0
+            ? ` · ${s.class.streamGroup}`
+            : '';
+        return {
+          studentId: s.id,
+          fullName: s.fullName,
+          rollNumber: s.rollNumber,
+          classLabel: `${s.class.name} · ${grade}${s.class.section}${groupSuffix}`,
+          grade,
+          streamGroup: s.class.streamGroup || null,
+          averagePercent,
+        };
+      })
+      .filter((s): s is NonNullable<typeof s> => s !== null)
+      .sort((a, b) => b.averagePercent - a.averagePercent)
+      .slice(0, 5)
+      .map((s, index) => ({ ...s, rank: index + 1 }));
+  }
+
+  private async topStudentsByGrade(schoolId: string) {
+    const grade10Students = await this.prisma.student.findMany({
+      where: {
+        status: StudentStatus.ACTIVE,
+        class: { grade: 10, schoolId },
+      },
+      include: {
+        class: {
+          select: { grade: true, section: true, name: true, streamGroup: true },
+        },
+        marks: { select: { marks: true, maxMarks: true } },
+      },
+    });
+
+    const blocks: Array<{
+      grade: number;
+      label: string;
+      streamGroup?: string | null;
+      students: ReturnType<AdminService['rankStudents']>;
+    }> = [
+      {
+        grade: 10,
+        label: '10th Standard',
+        students: this.rankStudents(grade10Students, 10),
+      },
+    ];
+
+    for (const grade of [11, 12]) {
+      for (const streamGroup of SENIOR_STREAM_GROUPS) {
         const students = await this.prisma.student.findMany({
           where: {
             status: StudentStatus.ACTIVE,
-            class: { grade, schoolId },
+            class: { grade, schoolId, streamGroup },
           },
           include: {
-            class: { select: { grade: true, section: true, name: true } },
+            class: {
+              select: {
+                grade: true,
+                section: true,
+                name: true,
+                streamGroup: true,
+              },
+            },
             marks: { select: { marks: true, maxMarks: true } },
           },
         });
 
-        const ranked = students
-          .map((s) => {
-            if (s.marks.length === 0) return null;
-            const scored = s.marks.reduce((sum, m) => sum + m.marks, 0);
-            const maxTotal = s.marks.reduce((sum, m) => sum + m.maxMarks, 0);
-            const averagePercent =
-              maxTotal > 0 ? Math.round((scored / maxTotal) * 1000) / 10 : 0;
-            return {
-              studentId: s.id,
-              fullName: s.fullName,
-              rollNumber: s.rollNumber,
-              classLabel: `${s.class.name} · ${grade}${s.class.section}`,
-              grade,
-              averagePercent,
-            };
-          })
-          .filter((s): s is NonNullable<typeof s> => s !== null)
-          .sort((a, b) => b.averagePercent - a.averagePercent)
-          .slice(0, 5)
-          .map((s, index) => ({ ...s, rank: index + 1 }));
+        if (students.length === 0) continue;
 
-        return {
+        const ranked = this.rankStudents(students, grade);
+        if (ranked.length === 0) continue;
+
+        blocks.push({
           grade,
-          label: labels[grade],
+          streamGroup,
+          label: `${grade}th · ${streamGroup}`,
           students: ranked,
-        };
-      }),
-    );
+        });
+      }
+    }
 
     return blocks;
   }
@@ -551,8 +614,8 @@ export class AdminService {
     };
   }
 
-  async listClasses(search?: string) {
-    const where: Prisma.ClassWhereInput = {};
+  async listClasses(schoolId: string, search?: string) {
+    const where: Prisma.ClassWhereInput = { schoolId };
     if (search) {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
@@ -571,6 +634,7 @@ export class AdminService {
       id: c.id,
       grade: c.grade,
       section: c.section,
+      streamGroup: c.streamGroup || null,
       name: c.name,
       category: c.category,
       room: c.room,
@@ -687,8 +751,7 @@ export class AdminService {
     };
   }
 
-  async createTeacher(dto: CreateTeacherDto) {
-    const schoolId = await this.resolveSchoolId();
+  async createTeacher(schoolId: string, dto: CreateTeacherDto) {
     const email = dto.email.trim().toLowerCase();
     const existing = await this.prisma.user.findUnique({
       where: { schoolId_email: { schoolId, email } },
@@ -716,7 +779,8 @@ export class AdminService {
         userId: user.id,
         employeeCode,
         gender: dto.gender ?? 'MALE',
-        department: dto.department.trim(),
+        department:
+          dto.department?.trim() || dto.subjects[0]?.trim() || 'General',
         subjects: dto.subjects,
       },
     });
@@ -725,7 +789,9 @@ export class AdminService {
       const cls = await this.prisma.class.findUnique({
         where: { id: dto.classTeacherClassId },
       });
-      if (!cls) throw new BadRequestException('Selected class not found');
+      if (!cls || cls.schoolId !== schoolId) {
+        throw new BadRequestException('Selected class not found');
+      }
       await this.prisma.class.update({
         where: { id: dto.classTeacherClassId },
         data: { classTeacherId: teacher.id },
@@ -749,24 +815,48 @@ export class AdminService {
     };
   }
 
-  async createClass(dto: CreateClassDto) {
-    const schoolId = await this.resolveSchoolId();
+  async createClass(schoolId: string, dto: CreateClassDto) {
+    let streamGroup = '';
+    try {
+      streamGroup = validateStreamGroupForGrade(dto.grade, dto.streamGroup);
+    } catch (e) {
+      const code = e instanceof Error ? e.message : '';
+      if (code === 'GROUP_REQUIRED') {
+        throw new BadRequestException(
+          'Group name is required for 11th and 12th classes',
+        );
+      }
+      if (code === 'GROUP_INVALID') {
+        throw new BadRequestException('Invalid group name for senior class');
+      }
+      throw e;
+    }
 
     const academicYear = dto.academicYear ?? '2025-26';
+    const section = dto.section.toUpperCase();
     const existing = await this.prisma.class.findFirst({
-      where: { grade: dto.grade, section: dto.section, academicYear },
+      where: { schoolId, grade: dto.grade, section, streamGroup, academicYear },
     });
     if (existing) {
-      throw new ConflictException('Class with this grade and section already exists');
+      throw new ConflictException(
+        isSeniorGrade(dto.grade)
+          ? 'Class with this grade, section and group already exists'
+          : 'Class with this grade and section already exists',
+      );
     }
+
+    const defaultName = isSeniorGrade(dto.grade)
+      ? `Class ${dto.grade}-${section} · ${streamGroup}`
+      : `Class ${dto.grade}-${section}`;
 
     const cls = await this.prisma.class.create({
       data: {
         schoolId,
         grade: dto.grade,
-        section: dto.section.toUpperCase(),
-        name: dto.name.trim(),
-        category: dto.category.trim(),
+        section,
+        streamGroup,
+        name: dto.name.trim() || defaultName,
+        category: isSeniorGrade(dto.grade) ? streamGroup : dto.category.trim(),
         room: dto.room?.trim(),
         academicYear,
         classTeacherId: dto.classTeacherId,
@@ -785,6 +875,7 @@ export class AdminService {
       name: cls.name,
       grade: cls.grade,
       section: cls.section,
+      streamGroup: cls.streamGroup || null,
     };
   }
 

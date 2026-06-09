@@ -180,7 +180,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _sectionTitle('Recent Announcements', trailing: 'View All'),
+          _sectionTitle('Announcements', trailing: 'View All'),
           const SizedBox(height: 12),
           const SkeletonBox(height: 120, borderRadius: 20),
         ],
@@ -1039,10 +1039,13 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
   Widget _announcementsSection() {
     final items = (_summary?['announcements'] as List<dynamic>? ?? []);
+    final latest = items.isNotEmpty ? items.first as Map<String, dynamic> : null;
+    final older = items.length > 1 ? items.sublist(1, items.length > 3 ? 3 : items.length) : <dynamic>[];
+
     return Column(
       children: [
         _sectionTitle(
-          'Recent Announcements',
+          'Announcements',
           trailing: 'View All',
           onTrailingTap: () =>
               openSmoothPage(context, const AdminAnnouncementsScreen()),
@@ -1050,107 +1053,232 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         const SizedBox(height: 12),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: _hPad),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(_cardRadius),
-              border: Border.all(color: const Color(0xFFE8EDF5)),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF20345B).withValues(alpha: 0.05),
-                  blurRadius: 14,
-                  offset: const Offset(0, 5),
+          child: items.isEmpty
+              ? Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: _overviewCardDecoration(),
+                  child: const Text(
+                    'No announcements yet.',
+                    style: TextStyle(color: AppColors.textMuted),
+                  ),
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (latest != null) _latestAnnouncementCard(latest),
+                    if (older.isNotEmpty) ...[
+                      const SizedBox(height: 14),
+                      const Padding(
+                        padding: EdgeInsets.only(left: 4, bottom: 8),
+                        child: Text(
+                          'Previous announcements',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        decoration: _overviewCardDecoration(),
+                        child: Column(
+                          children: List.generate(older.length, (i) {
+                            final item = older[i] as Map<String, dynamic>;
+                            final isLast = i == older.length - 1;
+                            return Column(
+                              children: [
+                                _announcementRow(item, compact: true),
+                                if (!isLast)
+                                  const Divider(
+                                    height: 1,
+                                    indent: 14,
+                                    endIndent: 14,
+                                    color: Color(0xFFEEF1F6),
+                                  ),
+                              ],
+                            );
+                          }),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _latestAnnouncementCard(Map<String, dynamic> item) {
+    final body = '${item['body'] ?? item['content'] ?? item['title'] ?? ''}';
+    final audience = item['audience'] == 'TEACHERS_AND_PARENTS'
+        ? 'Teachers & parents'
+        : 'Teachers';
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => openSmoothPage(context, const AdminAnnouncementsScreen()),
+        borderRadius: BorderRadius.circular(_cardRadius),
+        child: Ink(
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF0835B8), Color(0xFF1B5FFF), Color(0xFF4F8CFF)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(_cardRadius),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withValues(alpha: 0.22),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFF3B58),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        'NEW',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.6,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _formatRelativeDate(item['createdAt']),
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.85),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.16),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        audience,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.92),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Latest announcement',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  body,
+                  maxLines: 4,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.92),
+                    fontSize: 13,
+                    height: 1.45,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Posted by ${item['postedBy'] ?? 'Admin'}',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.75),
+                    fontSize: 11,
+                  ),
                 ),
               ],
             ),
-            child: items.isEmpty
-                ? const Padding(
-                    padding: EdgeInsets.all(20),
-                    child: Text(
-                      'No announcements yet.',
-                      style: TextStyle(color: AppColors.textMuted),
-                    ),
-                  )
-                : Column(
-                    children: List.generate(
-                      items.length > 2 ? 2 : items.length,
-                      (i) {
-                        final item = items[i] as Map<String, dynamic>;
-                        final isLast = i == (items.length > 2 ? 1 : items.length - 1);
-                        return Column(
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Container(
-                                    height: 42,
-                                    width: 42,
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFE8F8EE),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: const Icon(
-                                      Icons.campaign_rounded,
-                                      color: Color(0xFF22A750),
-                                      size: 22,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          '${item['title'] ?? 'School Notice'}',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w700,
-                                            fontSize: 14,
-                                            color: Color(0xFF1F2937),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 3),
-                                        Text(
-                                          '${item['body'] ?? item['content'] ?? ''}',
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                            fontSize: 12,
-                                            height: 1.35,
-                                            color: AppColors.textMuted,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    _formatRelativeDate(item['createdAt']),
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w500,
-                                      color: AppColors.textMuted.withValues(alpha: 0.9),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            if (!isLast)
-                              const Divider(
-                                height: 1,
-                                indent: 68,
-                                endIndent: 14,
-                                color: Color(0xFFEEF1F6),
-                              ),
-                          ],
-                        );
-                      },
-                    ),
-                  ),
           ),
         ),
-      ],
+      ),
+    );
+  }
+
+  Widget _announcementRow(Map<String, dynamic> item, {bool compact = false}) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            height: 40,
+            width: 40,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE8F8EE),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.campaign_rounded,
+              color: Color(0xFF22A750),
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${item['title'] ?? 'School Notice'}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                    color: Color(0xFF1F2937),
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  '${item['body'] ?? item['content'] ?? ''}',
+                  maxLines: compact ? 2 : 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    height: 1.35,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            _formatRelativeDate(item['createdAt']),
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textMuted.withValues(alpha: 0.9),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

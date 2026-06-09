@@ -117,14 +117,22 @@ export class AdminController {
     return this.admin.classStats();
   }
 
+  @Get('classes/stream-groups')
+  streamGroups() {
+    return this.admin.getSeniorStreamGroups();
+  }
+
   @Get('classes/:id')
   getClass(@Param('id') id: string) {
     return this.admin.getClass(id);
   }
 
   @Get('classes')
-  listClasses(@Query('search') search?: string) {
-    return this.admin.listClasses(search);
+  listClasses(
+    @CurrentUser() user: { schoolId: string },
+    @Query('search') search?: string,
+  ) {
+    return this.admin.listClasses(user.schoolId, search);
   }
 
   @Post('students')
@@ -138,13 +146,19 @@ export class AdminController {
   }
 
   @Post('teachers')
-  createTeacher(@Body() dto: CreateTeacherDto) {
-    return this.admin.createTeacher(dto);
+  createTeacher(
+    @CurrentUser() user: { schoolId: string },
+    @Body() dto: CreateTeacherDto,
+  ) {
+    return this.admin.createTeacher(user.schoolId, dto);
   }
 
   @Post('classes')
-  createClass(@Body() dto: CreateClassDto) {
-    return this.admin.createClass(dto);
+  createClass(
+    @CurrentUser() user: { schoolId: string },
+    @Body() dto: CreateClassDto,
+  ) {
+    return this.admin.createClass(user.schoolId, dto);
   }
 
   @Get('attendance/overview')

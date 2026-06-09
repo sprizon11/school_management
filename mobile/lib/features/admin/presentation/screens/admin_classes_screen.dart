@@ -518,7 +518,8 @@ class _AdminClassesScreenState extends ConsumerState<AdminClassesScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          '${c['grade']}${c['section']}',
+                          _classBadgeLabel(c),
+                          textAlign: TextAlign.center,
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w800,
@@ -541,7 +542,7 @@ class _AdminClassesScreenState extends ConsumerState<AdminClassesScreen> {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              '${c['category']}${c['room'] != null ? ' · Room ${c['room']}' : ''}',
+                              _classSubtitle(c),
                               style: const TextStyle(
                                 fontSize: 11,
                                 color: Color(0xFF6B7280),
@@ -712,4 +713,22 @@ class _AdminClassesScreenState extends ConsumerState<AdminClassesScreen> {
       ),
     );
   }
+}
+
+String _classBadgeLabel(Map<String, dynamic> c) => '${c['grade']}${c['section']}';
+
+String _classSubtitle(Map<String, dynamic> c) {
+  final grade = c['grade'];
+  final parts = <String>[];
+  if (grade == 11 || grade == 12) {
+    final group = (c['streamGroup'] ?? c['category'] ?? '').toString().trim();
+    if (group.isNotEmpty) parts.add('Group: $group');
+  } else if (c['category'] != null) {
+    parts.add('${c['category']}');
+  }
+  final room = c['room']?.toString().trim();
+  if (room != null && room.isNotEmpty) {
+    parts.add('Room $room');
+  }
+  return parts.join(' · ');
 }
