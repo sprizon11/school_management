@@ -123,10 +123,13 @@ class _AdminTeachersScreenState extends ConsumerState<AdminTeachersScreen> {
     };
   }
 
-  void _openTeacher(Map<String, dynamic> teacher) {
+  Future<void> _openTeacher(Map<String, dynamic> teacher) async {
     final id = teacher['id'] as String?;
     if (id == null) return;
-    openSmoothPage(context, AdminTeacherDetailScreen(teacherId: id));
+    final changed = await Navigator.of(context).push<bool>(
+      SmoothPageRoute(page: AdminTeacherDetailScreen(teacherId: id)),
+    );
+    if (changed == true) _load();
   }
 
   Future<void> _openAddTeacher() async {

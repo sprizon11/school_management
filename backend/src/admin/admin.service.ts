@@ -562,6 +562,39 @@ export class AdminService {
     };
   }
 
+  async deleteTeacher(schoolId: string, id: string) {
+    const teacher = await this.prisma.teacher.findUnique({
+      where: { id },
+      include: { user: true },
+    });
+    if (!teacher || teacher.user.schoolId !== schoolId) {
+      throw new NotFoundException('Teacher not found');
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.class.updateMany({
+        where: { classTeacherId: id },
+        data: { classTeacherId: null },
+      });
+      await tx.mark.updateMany({
+        where: { teacherId: id },
+        data: { teacherId: null },
+      });
+      await tx.homework.deleteMany({ where: { teacherId: id } });
+      await tx.teacher.delete({ where: { id } });
+      await tx.user.delete({ where: { id: teacher.userId } });
+    });
+
+    await this.prisma.activityLog.create({
+      data: {
+        action: `Deleted teacher ${teacher.user.fullName}`,
+        actorName: 'Admin',
+      },
+    });
+
+    return { ok: true };
+  }
+
   async getTeacher(id: string) {
     const teacher = await this.prisma.teacher.findUnique({
       where: { id },

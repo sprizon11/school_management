@@ -23,6 +23,7 @@ class _AdminTeacherDetailScreenState
     extends ConsumerState<AdminTeacherDetailScreen> {
   Map<String, dynamic>? _teacher;
   bool _loading = true;
+  bool _deleting = false;
   String? _error;
 
   @override
@@ -81,6 +82,62 @@ class _AdminTeacherDetailScreenState
     openSmoothPage(context, AdminClassDetailScreen(classId: classId));
   }
 
+  Future<void> _confirmDelete() async {
+    final name = '${_teacher?['fullName'] ?? 'this teacher'}';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete teacher?'),
+        content: Text(
+          'Remove $name from your school? Their login will be disabled and class teacher assignments will be cleared.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFDC2626)),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) await _deleteTeacher();
+  }
+
+  Future<void> _deleteTeacher() async {
+    setState(() => _deleting = true);
+    try {
+      await ref.read(dioProvider).delete('/admin/teachers/${widget.teacherId}');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Teacher deleted'),
+          backgroundColor: Color(0xFF16A34A),
+        ),
+      );
+      Navigator.of(context).pop(true);
+    } on DioException catch (e) {
+      if (!mounted) return;
+      final msg = e.response?.data?['message']?.toString() ?? 'Could not delete teacher';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(msg), backgroundColor: const Color(0xFFDC2626)),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not delete teacher'),
+          backgroundColor: Color(0xFFDC2626),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _deleting = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final topPad = MediaQuery.paddingOf(context).top;
@@ -133,11 +190,77 @@ class _AdminTeacherDetailScreenState
                       ),
                       const SizedBox(height: 14),
                       _assignedClasses(),
+                      const SizedBox(height: 20),
+                      _deleteSection(),
+                      const SizedBox(height: 8),
                     ]),
                   ),
                 ),
               ],
             ),
+    );
+  }
+
+  Widget _deleteSection() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFFECACA)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626), size: 20),
+              SizedBox(width: 8),
+              Text(
+                'Danger zone',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF991B1B),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Deleting removes this teacher account and clears their class assignments.',
+            style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _deleting ? null : _confirmDelete,
+              icon: _deleting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.delete_outline_rounded, size: 18),
+              label: Text(_deleting ? 'Deleting...' : 'Delete Teacher'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFFDC2626),
+                side: const BorderSide(color: Color(0xFFFCA5A5)),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

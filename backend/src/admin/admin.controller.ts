@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -97,6 +97,14 @@ export class AdminController {
   @Get('teachers/:id')
   getTeacher(@Param('id') id: string) {
     return this.admin.getTeacher(id);
+  }
+
+  @Delete('teachers/:id')
+  deleteTeacher(
+    @CurrentUser() user: { schoolId: string },
+    @Param('id') id: string,
+  ) {
+    return this.admin.deleteTeacher(user.schoolId, id);
   }
 
   @Get('teachers')
