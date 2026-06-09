@@ -1,0 +1,8 @@
+{
+  "name": "school-dev-portal",
+  "private": true,
+  "description": "Private platform console — not for app users",
+  "scripts": {
+    "start": "npx --yes serve . -p 5199"
+  }
+}
