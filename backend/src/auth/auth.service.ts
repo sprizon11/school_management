@@ -34,6 +34,7 @@ export class AuthService {
       },
       include: {
         teacher: true,
+        parent: true,
       },
     });
 
@@ -57,6 +58,7 @@ export class AuthService {
       schoolId: user.schoolId,
       role: user.role,
       teacherId: user.teacher?.id,
+      parentId: user.parent?.id,
     };
 
     return {
@@ -70,6 +72,7 @@ export class AuthService {
         role: user.role,
         avatarUrl: user.avatarUrl,
         teacherId: user.teacher?.id,
+        parentId: user.parent?.id,
       },
     };
   }

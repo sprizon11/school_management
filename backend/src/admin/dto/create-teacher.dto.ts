@@ -38,4 +38,10 @@ export class CreateTeacherDto {
   @IsOptional()
   @IsString()
   classTeacherClassId?: string;
+
+  /** Additional classes where teacher teaches subject (not class teacher). */
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  teachingClassIds?: string[];
 }

@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/network/api_client.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../widgets/teacher_ui.dart';
 
 class TeacherAnnouncementsScreen extends ConsumerStatefulWidget {
   const TeacherAnnouncementsScreen({super.key});
@@ -45,22 +46,31 @@ class _TeacherAnnouncementsScreenState extends ConsumerState<TeacherAnnouncement
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6FB),
+      backgroundColor: teacherBg,
       appBar: AppBar(
         title: const Text('Announcements'),
-        backgroundColor: AppColors.teacherPrimary,
+        backgroundColor: teacherHeaderStart,
         foregroundColor: Colors.white,
+        elevation: 0,
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: AppColors.teacherPrimary))
           : RefreshIndicator(
               onRefresh: _load,
+              color: AppColors.teacherPrimary,
               child: _items.isEmpty
                   ? ListView(
                       physics: const AlwaysScrollableScrollPhysics(),
-                      children: const [
-                        SizedBox(height: 80),
-                        Center(child: Text('No announcements from admin yet.')),
+                      children: [
+                        const SizedBox(height: 80),
+                        Icon(Icons.campaign_outlined, size: 48, color: Colors.grey.shade400),
+                        const SizedBox(height: 12),
+                        const Center(
+                          child: Text(
+                            'No announcements from admin yet.',
+                            style: TextStyle(color: AppColors.textMuted),
+                          ),
+                        ),
                       ],
                     )
                   : ListView.builder(
@@ -68,25 +78,61 @@ class _TeacherAnnouncementsScreenState extends ConsumerState<TeacherAnnouncement
                       itemCount: _items.length,
                       itemBuilder: (_, i) {
                         final item = _items[i] as Map<String, dynamic>;
+                        final isLatest = i == _items.length - 1;
                         return Container(
                           margin: const EdgeInsets.only(bottom: 12),
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: const Color(0xFFE8EDF5)),
+                          padding: const EdgeInsets.all(16),
+                          decoration: teacherCardDecoration().copyWith(
+                            border: isLatest
+                                ? Border.all(
+                                    color: AppColors.teacherPrimary.withValues(alpha: 0.3),
+                                  )
+                                : null,
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              if (isLatest)
+                                Container(
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 3,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFF3B58),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: const Text(
+                                    'LATEST',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ),
                               Text(
                                 '${item['body'] ?? ''}',
-                                style: const TextStyle(fontSize: 14, height: 1.45),
+                                style: const TextStyle(fontSize: 14, height: 1.5),
                               ),
-                              const SizedBox(height: 8),
-                              Text(
-                                '${item['postedBy'] ?? 'Admin'} · ${_formatTime(item['createdAt'])}',
-                                style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.admin_panel_settings_outlined,
+                                    size: 14,
+                                    color: AppColors.textMuted,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    '${item['postedBy'] ?? 'Admin'} · ${_formatTime(item['createdAt'])}',
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: AppColors.textMuted,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),

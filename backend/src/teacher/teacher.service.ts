@@ -1,9 +1,55 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { StudentStatus } from '@prisma/client';
+import { ensureParentAccount } from '../common/parent-account';
+import { CreateStudentDto } from '../admin/dto/create-student.dto';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class TeacherService {
   constructor(private prisma: PrismaService) {}
+
+  private async classIdsForTeacher(teacherId: string) {
+    const [asClassTeacher, teaching] = await Promise.all([
+      this.prisma.class.findMany({
+        where: { classTeacherId: teacherId },
+        select: { id: true },
+      }),
+      this.prisma.teacherTeachingClass.findMany({
+        where: { teacherId },
+        select: { classId: true },
+      }),
+    ]);
+    return [
+      ...new Set([
+        ...asClassTeacher.map((c) => c.id),
+        ...teaching.map((t) => t.classId),
+      ]),
+    ];
+  }
+
+  private async assertClassAccess(classId: string, teacherId: string) {
+    const ids = await this.classIdsForTeacher(teacherId);
+    if (!ids.includes(classId)) {
+      throw new ForbiddenException('You are not assigned to this class');
+    }
+  }
+
+  private async assertClassTeacher(classId: string, teacherId: string) {
+    const cls = await this.prisma.class.findFirst({
+      where: { id: classId, classTeacherId: teacherId },
+    });
+    if (!cls) {
+      throw new ForbiddenException(
+        'Only the class teacher can add students to this class',
+      );
+    }
+    return cls;
+  }
 
   async getTeacherByUserId(userId: string) {
     const teacher = await this.prisma.teacher.findFirst({
@@ -21,21 +67,41 @@ export class TeacherService {
     });
     if (!teacher) throw new NotFoundException('Teacher not found');
 
-    const pendingHomework = await this.prisma.homework.count({
-      where: { teacherId, dueDate: { gte: new Date() } },
-    });
+    const classIds = await this.classIdsForTeacher(teacherId);
+    const [pendingHomework, totalStudents] = await Promise.all([
+      this.prisma.homework.count({
+        where: { teacherId, dueDate: { gte: new Date() } },
+      }),
+      classIds.length > 0
+        ? this.prisma.student.count({ where: { classId: { in: classIds } } })
+        : Promise.resolve(0),
+    ]);
 
     return {
       teacher: {
         fullName: teacher.user.fullName,
+        employeeCode: teacher.employeeCode,
+        department: teacher.department,
         subjects: teacher.subjects,
         classes: teacher.classes.map((c) => `${c.grade}${c.section}`),
       },
-      classesToday: teacher.classes.length > 0 ? Math.min(4, teacher.classes.length) : 0,
-      pendingGrading: pendingHomework + 8,
+      classCount: classIds.length,
+      totalStudents,
+      classesToday: classIds.length > 0 ? Math.min(4, classIds.length) : 0,
+      pendingGrading: pendingHomework,
+      tasksCount: pendingHomework + 3,
       attendanceMarkedPercent: 85,
       leaveRequestsPending: 3,
     };
+  }
+
+  async upcomingHomework(teacherId: string) {
+    return this.prisma.homework.findMany({
+      where: { teacherId, dueDate: { gte: new Date() } },
+      include: { class: true },
+      orderBy: { dueDate: 'asc' },
+      take: 6,
+    });
   }
 
   async schedule(teacherId: string) {
@@ -44,43 +110,58 @@ export class TeacherService {
       include: { classes: true },
     });
     const subjects = teacher?.subjects ?? ['Mathematics'];
-    const periods = [
-      { start: '08:00', end: '08:45', subject: subjects[0], room: '203', current: true },
-      { start: '09:00', end: '09:45', subject: 'Science', room: '105', current: false },
-      { start: '10:00', end: '10:45', subject: subjects[0], room: '203', current: false },
+    const classes = await this.prisma.class.findMany({
+      where: { id: { in: await this.classIdsForTeacher(teacherId) } },
+    });
+    const times = [
+      { start: '08:00 AM', end: '08:45 AM' },
+      { start: '09:00 AM', end: '09:45 AM' },
+      { start: '10:00 AM', end: '10:45 AM' },
+      { start: '11:00 AM', end: '11:45 AM' },
     ];
-    return periods;
+    return times.map((t, i) => {
+      const cls = classes[i % Math.max(classes.length, 1)];
+      const gradeSection = cls ? `${cls.grade}${cls.section}` : '9A';
+      return {
+        start: t.start,
+        end: t.end,
+        timeLabel: `${t.start} - ${t.end}`,
+        subject: subjects[i % subjects.length] ?? 'Science',
+        classLabel: `Class $gradeSection`,
+        room: cls?.room ? `${cls.room}` : 'Room 203',
+        location: cls?.room?.toLowerCase().includes('lab')
+          ? cls.room
+          : cls?.room
+            ? `Room ${cls.room}`
+            : 'Science Lab',
+        current: i === 0,
+      };
+    });
   }
 
   async assignedClasses(teacherId: string) {
+    const ids = await this.classIdsForTeacher(teacherId);
+    if (ids.length === 0) return [];
     return this.prisma.class.findMany({
-      where: { classTeacherId: teacherId },
+      where: { id: { in: ids } },
       include: {
         classTeacher: { include: { user: true } },
         _count: { select: { students: true } },
       },
+      orderBy: [{ grade: 'asc' }, { section: 'asc' }],
     });
   }
 
   async classDetail(classId: string, teacherId: string) {
-    const cls = await this.prisma.class.findFirst({
-      where: { id: classId, classTeacherId: teacherId },
+    await this.assertClassAccess(classId, teacherId);
+    const cls = await this.prisma.class.findUnique({
+      where: { id: classId },
       include: {
         classTeacher: { include: { user: true } },
         _count: { select: { students: true } },
       },
     });
-    if (!cls) {
-      const any = await this.prisma.class.findUnique({
-        where: { id: classId },
-        include: {
-          classTeacher: { include: { user: true } },
-          _count: { select: { students: true } },
-        },
-      });
-      if (!any) throw new NotFoundException('Class not found');
-      return any;
-    }
+    if (!cls) throw new NotFoundException('Class not found');
     return cls;
   }
 
@@ -93,7 +174,14 @@ export class TeacherService {
     return { total, boys, girls, strength: 100 };
   }
 
-  async classStudents(classId: string, page = 1, limit = 10, search?: string) {
+  async classStudents(
+    classId: string,
+    teacherId: string,
+    page = 1,
+    limit = 10,
+    search?: string,
+  ) {
+    await this.assertClassAccess(classId, teacherId);
     const where: any = { classId };
     if (search) {
       where.OR = [
@@ -172,5 +260,54 @@ export class TeacherService {
       data: { readAt: new Date() },
     });
     return { ok: true };
+  }
+
+  async createStudent(teacherId: string, schoolId: string, dto: CreateStudentDto) {
+    await this.assertClassTeacher(dto.classId, teacherId);
+    const cls = await this.prisma.class.findUnique({ where: { id: dto.classId } });
+    if (!cls || cls.schoolId !== schoolId) {
+      throw new BadRequestException('Class not found');
+    }
+
+    const count = await this.prisma.student.count({ where: { classId: dto.classId } });
+    const rollNumber = dto.rollNumber ?? count + 1;
+    const studentCode = `STU${String(Date.now()).slice(-8)}`;
+
+    const student = await this.prisma.student.create({
+      data: {
+        fullName: dto.fullName.trim(),
+        gender: dto.gender,
+        classId: dto.classId,
+        email: dto.email?.trim().toLowerCase(),
+        phone: dto.phone?.trim(),
+        rollNumber,
+        studentCode,
+        status: StudentStatus.ACTIVE,
+        dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : undefined,
+        bloodGroup: dto.bloodGroup?.trim(),
+        address: dto.address?.trim(),
+        avatarUrl: dto.avatarUrl,
+        fatherName: dto.fatherName?.trim(),
+        fatherPhone: dto.fatherPhone?.trim(),
+        fatherOccupation: dto.fatherOccupation?.trim(),
+        motherName: dto.motherName?.trim(),
+        motherPhone: dto.motherPhone?.trim(),
+        motherOccupation: dto.motherOccupation?.trim(),
+        parentAddress: dto.parentAddress?.trim(),
+        emergencyContact: dto.emergencyContact?.trim(),
+        emergencyPhone: dto.emergencyPhone?.trim(),
+      },
+      include: { class: true },
+    });
+
+    await ensureParentAccount(this.prisma, schoolId, student);
+
+    return {
+      id: student.id,
+      fullName: student.fullName,
+      studentCode: student.studentCode,
+      rollNumber: student.rollNumber,
+      className: student.class.name,
+    };
   }
 }

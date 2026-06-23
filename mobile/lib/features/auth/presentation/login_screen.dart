@@ -185,6 +185,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final route = switch (role) {
         'ADMIN' => '/admin',
         'TEACHER' => '/teacher',
+        'PARENT' => '/parent',
         _ => null,
       };
       setState(() => _statusMessage = null);
@@ -216,11 +217,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final topSafe = media.padding.top;
     final bottomSafe = media.padding.bottom;
 
+    final screenW = media.size.width;
+    final isWide = screenW > 600;
+    final contentMaxWidth = isWide ? 460.0 : screenW;
+
     return Scaffold(
       resizeToAvoidBottomInset: false,
       body: SizedBox(
         height: screenH,
-        width: media.size.width,
+        width: screenW,
         child: Stack(
           clipBehavior: Clip.hardEdge,
           children: [
@@ -233,63 +238,68 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 _bgAsset,
                 fit: BoxFit.cover,
                 alignment: Alignment.topCenter,
-                cacheWidth: (media.size.width * media.devicePixelRatio).round(),
+                cacheWidth: (screenW * media.devicePixelRatio).round(),
                 errorBuilder: (_, __, ___) =>
                     const ColoredBox(color: AppColors.surface),
               ),
             ),
             Positioned.fill(
-              child: SingleChildScrollView(
-                keyboardDismissBehavior:
-                    ScrollViewKeyboardDismissBehavior.onDrag,
-                padding: EdgeInsets.fromLTRB(
-                  20,
-                  topSafe + 8,
-                  20,
-                  keyboardH > 0 ? keyboardH + 20 : bottomSafe + 48,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(height: screenH * 0.13),
-                    const _BrandHeader(),
-                    SizedBox(height: screenH * 0.018),
-                    _LoginCard(
-                      formKey: _formKey,
-                      identifierCtrl: _identifierCtrl,
-                      passwordCtrl: _passwordCtrl,
-                      obscure: _obscure,
-                      remember: _remember,
-                      loading: _loggingIn || _wakingServer,
-                      status: _statusMessage,
-                      error: authError,
-                      schools: _schools,
-                      schoolsLoading: _loadingSchools,
-                      schoolsError: _schoolsError,
-                      selectedSchool: selectedSchool,
-                      onSchoolChanged: (school) async {
-                        if (school == null) {
-                          await ref
-                              .read(selectedSchoolProvider.notifier)
-                              .clear();
-                        } else {
-                          await ref
-                              .read(selectedSchoolProvider.notifier)
-                              .select(school);
-                        }
-                      },
-                      onRetrySchools: _loadSchools,
-                      onToggleObscure: () =>
-                          setState(() => _obscure = !_obscure),
-                      onRememberChanged: (v) =>
-                          setState(() => _remember = v ?? true),
-                      onLogin: _login,
+              child: Center(
+                child: SizedBox(
+                  width: contentMaxWidth,
+                  child: SingleChildScrollView(
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    padding: EdgeInsets.fromLTRB(
+                      20,
+                      topSafe + 8,
+                      20,
+                      keyboardH > 0 ? keyboardH + 20 : bottomSafe + 48,
                     ),
-                    const SizedBox(height: 14),
-                    const _OrDivider(),
-                    const SizedBox(height: 12),
-                    const _GoogleSignInButton(),
-                  ],
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(height: screenH * 0.17),
+                        const _BrandHeader(),
+                        SizedBox(height: screenH * 0.018),
+                        _LoginCard(
+                          formKey: _formKey,
+                          identifierCtrl: _identifierCtrl,
+                          passwordCtrl: _passwordCtrl,
+                          obscure: _obscure,
+                          remember: _remember,
+                          loading: _loggingIn || _wakingServer,
+                          status: _statusMessage,
+                          error: authError,
+                          schools: _schools,
+                          schoolsLoading: _loadingSchools,
+                          schoolsError: _schoolsError,
+                          selectedSchool: selectedSchool,
+                          onSchoolChanged: (school) async {
+                            if (school == null) {
+                              await ref
+                                  .read(selectedSchoolProvider.notifier)
+                                  .clear();
+                            } else {
+                              await ref
+                                  .read(selectedSchoolProvider.notifier)
+                                  .select(school);
+                            }
+                          },
+                          onRetrySchools: _loadSchools,
+                          onToggleObscure: () =>
+                              setState(() => _obscure = !_obscure),
+                          onRememberChanged: (v) =>
+                              setState(() => _remember = v ?? true),
+                          onLogin: _login,
+                        ),
+                        const SizedBox(height: 16),
+                        const _OrDivider(),
+                        const SizedBox(height: 14),
+                        const _GoogleSignInButton(),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -297,7 +307,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               Positioned(
                 left: 0,
                 right: 0,
-                bottom: bottomSafe + 12,
+                bottom: bottomSafe + 14,
                 child: const _SecurityFooterText(),
               ),
           ],
@@ -313,18 +323,13 @@ class _BrandHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      // Keep text on the left; illustration stays visible on the right.
       padding: const EdgeInsets.only(right: 108),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           RichText(
             text: const TextSpan(
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-                height: 1.1,
-              ),
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, height: 1.1),
               children: [
                 TextSpan(text: 'Smart ', style: TextStyle(color: AppColors.primaryDark)),
                 TextSpan(text: 'School', style: TextStyle(color: AppColors.primary)),
@@ -439,52 +444,66 @@ class _LoginCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+      padding: const EdgeInsets.fromLTRB(22, 24, 22, 20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.12),
+            blurRadius: 40,
+            spreadRadius: 0,
+            offset: const Offset(0, 16),
+          ),
+          BoxShadow(
             color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
           ),
         ],
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.9),
+          width: 1.5,
+        ),
       ),
       child: Form(
         key: formKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Center(
-              child: Text(
-                'Welcome Back!',
-                style: TextStyle(
-                  fontSize: 21,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primaryDark,
-                ),
-              ),
-            ),
-            const SizedBox(height: 3),
-            const Center(
-              child: Text(
-                'Login to continue to your account',
-                style: TextStyle(color: AppColors.textMuted, fontSize: 12.5),
-              ),
-            ),
-            const SizedBox(height: 8),
+            // Card top accent line
             Center(
               child: Container(
-                height: 3,
-                width: 34,
+                height: 4,
+                width: 40,
                 decoration: BoxDecoration(
-                  color: AppColors.primary,
+                  gradient: const LinearGradient(
+                    colors: [AppColors.primary, AppColors.primaryLight],
+                  ),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
             ),
             const SizedBox(height: 16),
+            const Center(
+              child: Text(
+                'Welcome Back!',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primaryDark,
+                  letterSpacing: -0.3,
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Center(
+              child: Text(
+                'Login to continue to your account',
+                style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+              ),
+            ),
+            const SizedBox(height: 20),
             if (schoolsLoading)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 8),
@@ -658,22 +677,32 @@ class _LoginCard extends StatelessWidget {
                 style: const TextStyle(color: Colors.red, fontSize: 12),
               ),
             ],
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             Material(
               color: Colors.transparent,
+              borderRadius: BorderRadius.circular(16),
               child: Ink(
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [AppColors.primary, AppColors.primaryLight],
+                    colors: [AppColors.primaryDark, AppColors.primary, AppColors.primaryLight],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
                   ),
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.40),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
                 ),
                 child: InkWell(
                   onTap: loading ? null : onLogin,
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(16),
                   child: Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    padding: const EdgeInsets.symmetric(vertical: 15),
                     alignment: Alignment.center,
                     child: loading
                         ? const SizedBox(
@@ -681,23 +710,24 @@ class _LoginCard extends StatelessWidget {
                             width: 20,
                             child: CircularProgressIndicator(
                               color: Colors.white,
-                              strokeWidth: 2,
+                              strokeWidth: 2.5,
                             ),
                           )
                         : const Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
-                                'Login',
+                                'Sign In',
                                 style: TextStyle(
                                   color: Colors.white,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
+                                  fontSize: 15.5,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.3,
                                 ),
                               ),
-                              SizedBox(width: 8),
+                              SizedBox(width: 10),
                               Icon(
-                                Icons.arrow_forward,
+                                Icons.arrow_forward_rounded,
                                 color: Colors.white,
                                 size: 18,
                               ),
@@ -721,19 +751,30 @@ class _OrDivider extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(child: Divider(color: Colors.grey.shade300, thickness: 1)),
+        Expanded(
+          child: Divider(
+            color: Colors.white.withValues(alpha: 0.40),
+            thickness: 1,
+          ),
+        ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14),
           child: Text(
             'OR',
             style: TextStyle(
-              color: Colors.grey.shade600,
-              fontWeight: FontWeight.w600,
-              fontSize: 13,
+              color: Colors.white.withValues(alpha: 0.80),
+              fontWeight: FontWeight.w700,
+              fontSize: 12,
+              letterSpacing: 1.2,
             ),
           ),
         ),
-        Expanded(child: Divider(color: Colors.grey.shade300, thickness: 1)),
+        Expanded(
+          child: Divider(
+            color: Colors.white.withValues(alpha: 0.40),
+            thickness: 1,
+          ),
+        ),
       ],
     );
   }
@@ -745,22 +786,26 @@ class _GoogleSignInButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(12),
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: () {},
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         child: Container(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 12),
+          padding: const EdgeInsets.symmetric(vertical: 13),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFDADCE0)),
+            color: Colors.white.withValues(alpha: 0.92),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.70),
+              width: 1.5,
+            ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
               ),
             ],
           ),

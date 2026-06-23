@@ -117,7 +117,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: const Color(0xFFF4F6FB),
+      backgroundColor: const Color(0xFFF0F4FC),
       drawer: AdminSidebar(onTabSelect: widget.onTabSelect),
       drawerEnableOpenDragGesture: false,
       body: RefreshIndicator(
@@ -218,28 +218,56 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(
         _hPad,
-        topPad + 10,
+        topPad + 12,
         _hPad,
-        20 + statsInset,
+        22 + statsInset,
       ),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFF0835B8), Color(0xFF1B5FFF), Color(0xFF3D7BFF)],
+          colors: [Color(0xFF051C6E), Color(0xFF0D3DD4), Color(0xFF2563EB), Color(0xFF4F8CFF)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
       ),
       child: Stack(
         clipBehavior: Clip.none,
         children: [
+          // Decorative blobs for depth
           Positioned(
-            right: -12,
-            top: 0,
-            child: Icon(
-              Icons.apartment_rounded,
-              size: 72,
-              color: Colors.white.withValues(alpha: 0.1),
+            right: -30,
+            top: -30,
+            child: Container(
+              width: 130,
+              height: 130,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.07),
+              ),
+            ),
+          ),
+          Positioned(
+            right: 30,
+            bottom: 10,
+            child: Container(
+              width: 70,
+              height: 70,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.05),
+              ),
+            ),
+          ),
+          Positioned(
+            left: -20,
+            bottom: -10,
+            child: Container(
+              width: 90,
+              height: 90,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.05),
+              ),
             ),
           ),
           Row(
@@ -394,13 +422,18 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       height: _statsCardHeight,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE8EDF5)),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E9F8), width: 1.2),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF1E3A5F).withValues(alpha: 0.08),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+            color: const Color(0xFF1B3FBF).withValues(alpha: 0.13),
+            blurRadius: 28,
+            offset: const Offset(0, 10),
+          ),
+          BoxShadow(
+            color: Colors.white.withValues(alpha: 0.9),
+            blurRadius: 0,
+            offset: const Offset(0, 0),
           ),
         ],
       ),
@@ -448,17 +481,24 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                height: 28,
-                width: 28,
+                height: 34,
+                width: 34,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [stat.color, stat.color.withValues(alpha: 0.72)],
+                    colors: [stat.color, stat.color.withValues(alpha: 0.70)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  borderRadius: BorderRadius.circular(9),
+                  borderRadius: BorderRadius.circular(11),
+                  boxShadow: [
+                    BoxShadow(
+                      color: stat.color.withValues(alpha: 0.35),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
                 ),
-                child: Icon(stat.icon, color: Colors.white, size: 15),
+                child: Icon(stat.icon, color: Colors.white, size: 17),
               ),
               const SizedBox(height: 5),
               Text(
@@ -520,10 +560,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         children: [
           Container(
             width: 4,
-            height: 18,
+            height: 20,
             decoration: BoxDecoration(
-              color: AppColors.primary,
-              borderRadius: BorderRadius.circular(2),
+              gradient: const LinearGradient(
+                colors: [AppColors.primaryDark, AppColors.primaryLight],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+              borderRadius: BorderRadius.circular(3),
             ),
           ),
           const SizedBox(width: 10),
@@ -606,30 +650,37 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   }) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: color.withValues(alpha: 0.12),
-            blurRadius: 14,
-            offset: const Offset(0, 5),
+            color: color.withValues(alpha: 0.18),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Material(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(18),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
-          splashColor: color.withValues(alpha: 0.08),
-          highlightColor: color.withValues(alpha: 0.04),
-          child: Container(
-            width: double.infinity,
-            height: double.infinity,
+          splashColor: color.withValues(alpha: 0.10),
+          highlightColor: color.withValues(alpha: 0.05),
+          child: Ink(
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE8EDF5)),
+              gradient: LinearGradient(
+                colors: [Colors.white, Color.lerp(Colors.white, color, 0.04)!],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: color.withValues(alpha: 0.12), width: 1.2),
             ),
             child: Stack(
               fit: StackFit.expand,
@@ -1544,12 +1595,18 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     return BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(_cardRadius),
-      border: Border.all(color: const Color(0xFFE8EDF5)),
+      border: Border.all(color: const Color(0xFFE4EAF6), width: 1.2),
       boxShadow: [
         BoxShadow(
-          color: const Color(0xFF20345B).withValues(alpha: 0.06),
-          blurRadius: 18,
-          offset: const Offset(0, 6),
+          color: const Color(0xFF1B3FBF).withValues(alpha: 0.08),
+          blurRadius: 24,
+          spreadRadius: 0,
+          offset: const Offset(0, 8),
+        ),
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.03),
+          blurRadius: 6,
+          offset: const Offset(0, 2),
         ),
       ],
     );

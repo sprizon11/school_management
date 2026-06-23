@@ -10,6 +10,7 @@ datasource db {
 enum UserRole {
   ADMIN
   TEACHER
+  PARENT
 }
 
 enum Gender {
@@ -72,7 +73,9 @@ model User {
   avatarUrl    String?
   createdAt     DateTime          @default(now())
   teacher       Teacher?
+  parent        Parent?
   notifications AppNotification[]
+  chatMessages  ChatMessage[]
 
   @@unique([schoolId, email])
 }
@@ -85,9 +88,22 @@ model Teacher {
   gender       Gender   @default(MALE)
   department   String
   subjects     String[]
-  classes      Class[]  @relation("ClassTeacher")
-  marks        Mark[]
-  homework     Homework[]
+  classes           Class[]                 @relation("ClassTeacher")
+  teachingClasses   TeacherTeachingClass[]
+  marks             Mark[]
+  homework          Homework[]
+  chatConversations ChatConversation[]
+}
+
+model TeacherTeachingClass {
+  id        String  @id @default(cuid())
+  teacherId String
+  teacher   Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  classId   String
+  class     Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+  subject   String
+
+  @@unique([teacherId, classId])
 }
 
 model Class {
@@ -103,9 +119,10 @@ model Class {
   academicYear   String
   classTeacherId String?
   classTeacher   Teacher?  @relation("ClassTeacher", fields: [classTeacherId], references: [id])
-  students       Student[]
-  homework       Homework[]
-  createdAt      DateTime  @default(now())
+  students            Student[]
+  homework            Homework[]
+  teachingAssignments TeacherTeachingClass[]
+  createdAt           DateTime               @default(now())
 
   @@unique([schoolId, grade, section, streamGroup, academicYear])
 }
@@ -137,7 +154,45 @@ model Student {
   attendance         AttendanceRecord[]
   marks              Mark[]
   feeAssignments     FeeAssignment[]
+  parent             Parent?
+  chatConversations  ChatConversation[]
   createdAt          DateTime          @default(now())
+}
+
+model Parent {
+  id        String  @id @default(cuid())
+  userId    String  @unique
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  studentId String  @unique
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+}
+
+model ChatConversation {
+  id            String        @id @default(cuid())
+  schoolId      String
+  teacherId     String
+  teacher       Teacher       @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  studentId     String
+  student       Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  lastMessageAt DateTime?
+  lastMessage   String?
+  messages      ChatMessage[]
+
+  @@unique([teacherId, studentId])
+  @@index([schoolId, lastMessageAt])
+}
+
+model ChatMessage {
+  id             String           @id @default(cuid())
+  conversationId String
+  conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderUserId   String
+  senderUser     User             @relation(fields: [senderUserId], references: [id], onDelete: Cascade)
+  body           String
+  createdAt      DateTime         @default(now())
+  readAt         DateTime?
+
+  @@index([conversationId, createdAt])
 }
 
 model AttendanceRecord {

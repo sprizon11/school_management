@@ -6,6 +6,7 @@ import { HealthController } from './health.controller';
 import { PrismaModule } from './prisma/prisma.module';
 import { DevModule } from './dev/dev.module';
 import { SchoolsModule } from './schools/schools.module';
+import { ParentModule } from './parent/parent.module';
 import { TeacherModule } from './teacher/teacher.module';
 
 @Module({
@@ -18,6 +19,7 @@ import { TeacherModule } from './teacher/teacher.module';
     SchoolsModule,
     AdminModule,
     TeacherModule,
+    ParentModule,
   ],
 })
 export class AppModule {}

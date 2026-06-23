@@ -11,6 +11,7 @@ import {
   UserRole,
 } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { ensureParentAccount } from '../common/parent-account';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateClassDto } from './dto/create-class.dto';
 import { CreateStudentDto } from './dto/create-student.dto';
@@ -814,6 +815,8 @@ export class AdminService {
       include: { class: true },
     });
 
+    await ensureParentAccount(this.prisma, cls.schoolId, student);
+
     await this.prisma.activityLog.create({
       data: {
         action: `Added student ${student.fullName}`,
@@ -875,6 +878,41 @@ export class AdminService {
         where: { id: dto.classTeacherClassId },
         data: { classTeacherId: teacher.id },
       });
+      await this.prisma.teacherTeachingClass.upsert({
+        where: {
+          teacherId_classId: {
+            teacherId: teacher.id,
+            classId: dto.classTeacherClassId,
+          },
+        },
+        create: {
+          teacherId: teacher.id,
+          classId: dto.classTeacherClassId,
+          subject: dto.subjects[0]?.trim() || teacher.department,
+        },
+        update: {
+          subject: dto.subjects[0]?.trim() || teacher.department,
+        },
+      });
+    }
+
+    if (dto.teachingClassIds?.length) {
+      for (const classId of dto.teachingClassIds) {
+        if (classId === dto.classTeacherClassId) continue;
+        const cls = await this.prisma.class.findUnique({ where: { id: classId } });
+        if (!cls || cls.schoolId !== schoolId) continue;
+        await this.prisma.teacherTeachingClass.upsert({
+          where: { teacherId_classId: { teacherId: teacher.id, classId } },
+          create: {
+            teacherId: teacher.id,
+            classId,
+            subject: dto.subjects[0]?.trim() || teacher.department,
+          },
+          update: {
+            subject: dto.subjects[0]?.trim() || teacher.department,
+          },
+        });
+      }
     }
 
     await this.prisma.activityLog.create({
