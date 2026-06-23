@@ -17,7 +17,7 @@ workflows:
           cd mobile
           flutter pub get
 
-      - name: Patch Xcode project (remove team requirement)
+      - name: Patch Xcode project
         script: |
           set -e
           PBXPROJ="mobile/ios/Runner.xcodeproj/project.pbxproj"
@@ -25,7 +25,7 @@ workflows:
           sed -i '' 's/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;/g' "$PBXPROJ"
           sed -i '' 's/CODE_SIGN_IDENTITY = "iPhone Developer";/CODE_SIGN_IDENTITY = "";/g' "$PBXPROJ"
           sed -i '' 's/CODE_SIGN_IDENTITY = "Apple Development";/CODE_SIGN_IDENTITY = "";/g' "$PBXPROJ"
-          echo "Patch applied."
+          echo "Patch done."
 
       - name: Pod install
         script: |
@@ -33,46 +33,47 @@ workflows:
           cd mobile/ios
           pod install --repo-update
 
-      - name: Build iOS (Xcode completes even if Flutter reports failure)
+      - name: Build iOS and find app
         script: |
           cd mobile
-          # Flutter will say "failed" due to team check, but Xcode actually builds the .app
-          # Use || true so the script continues after Flutter's false failure
+
+          # Run flutter build - ignore exit code, Xcode still compiles Dart
           flutter build ios --release --no-codesign \
             --dart-define=API_BASE_URL=$API_BASE_URL \
             2>&1 | tee /tmp/flutter_build.log || true
 
-          echo "=== Looking for Runner.app ==="
-          find . -name "Runner.app" -type d 2>/dev/null | grep -v Pods | head -10
-          find "$HOME/Library/Developer/Xcode/DerivedData" -name "Runner.app" -type d 2>/dev/null \
-            | grep -v iphonesimulator | head -5 || true
-          echo "=== build/ios contents ==="
-          ls -la build/ios/ 2>/dev/null || echo "build/ios not found"
-          ls -la build/ios/iphoneos/ 2>/dev/null || echo "iphoneos dir not found"
+          echo "=== Searching for Runner.app everywhere ==="
+          find . -name "Runner.app" -type d 2>/dev/null | grep -v Pods || true
+          find "$HOME" -name "Runner.app" -type d 2>/dev/null \
+            | grep -v iphonesimulator | grep -v Pods | head -10 || true
+          find /private/var -name "Runner.app" -type d 2>/dev/null \
+            | grep -v iphonesimulator | grep -v Pods | head -5 || true
+
+          echo "=== build/ios tree ==="
+          find build/ios -maxdepth 5 -name "*.app" -o -name "Runner" 2>/dev/null | head -20 || true
 
       - name: Package IPA
         script: |
           set -e
           cd mobile
 
-          # Try the expected Flutter output path first
-          APP_PATH="build/ios/iphoneos/Runner.app"
+          # Search all possible locations
+          APP_PATH=$(find . "$HOME" /private/var -name "Runner.app" -type d 2>/dev/null \
+            | grep -v iphonesimulator | grep -v Pods | grep -v ".build" | head -1) || true
 
-          # Fallback: search DerivedData
-          if [ ! -d "$APP_PATH" ]; then
-            echo "Not at expected path, searching..."
-            APP_PATH=$(find "$HOME/Library/Developer/Xcode/DerivedData" -name "Runner.app" \
-              -not -path "*iphonesimulator*" -not -path "*/Pods/*" -type d 2>/dev/null | head -1)
+          echo "Found: $APP_PATH"
+
+          if [ -z "$APP_PATH" ] || [ ! -f "$APP_PATH/Info.plist" ]; then
+            echo "ERROR: Runner.app with Info.plist not found. Listing all .app folders:"
+            find . "$HOME" -name "Runner.app" -type d 2>/dev/null | head -20 || true
+            exit 1
           fi
-
-          echo "Using app at: $APP_PATH"
-          ls -la "$APP_PATH/Info.plist" || (echo "ERROR: No Info.plist found!" && exit 1)
 
           mkdir -p Payload
           cp -r "$APP_PATH" Payload/
           zip -r Runner.ipa Payload
           rm -rf Payload
-          echo "IPA size: $(du -h Runner.ipa)"
+          echo "IPA: $(du -h Runner.ipa)"
 
     artifacts:
       - mobile/Runner.ipa
