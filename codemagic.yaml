@@ -17,49 +17,45 @@ workflows:
           cd mobile
           flutter pub get
 
+      - name: Patch Xcode project (remove team requirement)
+        script: |
+          set -e
+          PBXPROJ="mobile/ios/Runner.xcodeproj/project.pbxproj"
+          # Remove DEVELOPMENT_TEAM entries
+          sed -i '' '/DEVELOPMENT_TEAM/d' "$PBXPROJ"
+          # Switch to Manual signing
+          sed -i '' 's/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;/g' "$PBXPROJ"
+          # Clear code sign identity
+          sed -i '' 's/CODE_SIGN_IDENTITY = "iPhone Developer";/CODE_SIGN_IDENTITY = "";/g' "$PBXPROJ"
+          sed -i '' 's/CODE_SIGN_IDENTITY = "Apple Development";/CODE_SIGN_IDENTITY = "";/g' "$PBXPROJ"
+          echo "Patch applied."
+
       - name: Pod install
         script: |
           set -e
           cd mobile/ios
           pod install --repo-update
 
-      - name: Build iOS unsigned
+      - name: Build iOS no-codesign
         script: |
           set -e
           cd mobile
-
-          # Generate dart defines env file that Xcode can read
-          DART_DEFINE_B64=$(echo -n "API_BASE_URL=$API_BASE_URL" | base64)
-
-          xcodebuild \
-            -workspace ios/Runner.xcworkspace \
-            -scheme Runner \
-            -sdk iphoneos \
-            -configuration Release \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO \
-            DEVELOPMENT_TEAM="" \
-            ENABLE_BITCODE=NO \
-            DART_DEFINES="$DART_DEFINE_B64" \
-            -derivedDataPath /tmp/DerivedData \
-            build \
-            2>&1 | tee /tmp/xcode_build.log
-
-          echo "Build done. Looking for .app:"
-          find /tmp/DerivedData -name "Runner.app" -type d | head -5
+          flutter build ios --release --no-codesign \
+            --dart-define=API_BASE_URL=$API_BASE_URL \
+            2>&1 | tee /tmp/flutter_build.log
+          echo "--- Build output ---"
+          ls -la build/ios/iphoneos/ || echo "iphoneos dir not found"
 
       - name: Package IPA
         script: |
           set -e
-          APP_PATH=$(find /tmp/DerivedData -name "Runner.app" -type d | head -1)
-          echo "Packaging: $APP_PATH"
-          mkdir -p /tmp/Payload
-          cp -r "$APP_PATH" /tmp/Payload/
-          cd /tmp
+          cd mobile
+          mkdir -p Payload
+          cp -r build/ios/iphoneos/Runner.app Payload/
           zip -r Runner.ipa Payload
+          rm -rf Payload
           echo "IPA size: $(du -h Runner.ipa)"
 
     artifacts:
-      - /tmp/Runner.ipa
-      - /tmp/xcode_build.log
+      - mobile/Runner.ipa
+      - /tmp/flutter_build.log
