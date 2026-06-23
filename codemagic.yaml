@@ -16,28 +16,50 @@ workflows:
           flutter --version
           cd mobile
           flutter pub get
-          cat ios/Podfile | head -5 || echo "No Podfile!"
+
       - name: Pod install
         script: |
           set -e
           cd mobile/ios
           pod install --repo-update
-      - name: Build iOS no-codesign
-        script: |
-          cd mobile
-          flutter build ios --release --no-codesign --dart-define=API_BASE_URL=$API_BASE_URL 2>&1 | tee /tmp/flutter_build.log
-          EXIT_CODE=${PIPESTATUS[0]}
-          echo "Exit code: $EXIT_CODE"
-          ls -la build/ios/iphoneos/ 2>&1 || echo "iphoneos dir not found"
-          exit $EXIT_CODE
-      - name: Package IPA
+
+      - name: Build iOS unsigned
         script: |
           set -e
           cd mobile
-          mkdir -p Payload
-          cp -r build/ios/iphoneos/Runner.app Payload/
+
+          # Generate dart defines env file that Xcode can read
+          DART_DEFINE_B64=$(echo -n "API_BASE_URL=$API_BASE_URL" | base64)
+
+          xcodebuild \
+            -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -sdk iphoneos \
+            -configuration Release \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            DEVELOPMENT_TEAM="" \
+            ENABLE_BITCODE=NO \
+            DART_DEFINES="$DART_DEFINE_B64" \
+            -derivedDataPath /tmp/DerivedData \
+            build \
+            2>&1 | tee /tmp/xcode_build.log
+
+          echo "Build done. Looking for .app:"
+          find /tmp/DerivedData -name "Runner.app" -type d | head -5
+
+      - name: Package IPA
+        script: |
+          set -e
+          APP_PATH=$(find /tmp/DerivedData -name "Runner.app" -type d | head -1)
+          echo "Packaging: $APP_PATH"
+          mkdir -p /tmp/Payload
+          cp -r "$APP_PATH" /tmp/Payload/
+          cd /tmp
           zip -r Runner.ipa Payload
-          rm -rf Payload
+          echo "IPA size: $(du -h Runner.ipa)"
+
     artifacts:
-      - mobile/Runner.ipa
-      - /tmp/flutter_build.log
+      - /tmp/Runner.ipa
+      - /tmp/xcode_build.log
