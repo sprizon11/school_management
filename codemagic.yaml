@@ -10,21 +10,27 @@ workflows:
       vars:
         API_BASE_URL: "https://school-management-9yzh.onrender.com/api"
     scripts:
-      - name: Get Flutter packages
+      - name: Flutter pub get
         script: |
           set -e
-          echo "Flutter version:"
           flutter --version
           cd mobile
           flutter pub get
+          echo "Podfile generated:"
+          cat ios/Podfile | head -5 || echo "No Podfile!"
+      - name: Pod install
+        script: |
+          set -e
+          cd mobile/ios
+          pod install --repo-update
       - name: Build iOS no-codesign
         script: |
           set -e
           cd mobile
-          echo "Starting flutter build ios..."
+          echo "Building..."
           flutter build ios --release --no-codesign --dart-define=API_BASE_URL=$API_BASE_URL
-          echo "Build done. Listing output:"
-          ls -la build/ios/iphoneos/ || echo "iphoneos folder not found"
+          echo "Build complete"
+          ls -la build/ios/iphoneos/ || echo "iphoneos dir not found"
       - name: Package IPA
         script: |
           set -e
@@ -33,6 +39,6 @@ workflows:
           cp -r build/ios/iphoneos/Runner.app Payload/
           zip -r Runner.ipa Payload
           rm -rf Payload
-          echo "IPA created: $(du -h Runner.ipa)"
+          echo "IPA size: $(du -h Runner.ipa)"
     artifacts:
       - mobile/Runner.ipa
