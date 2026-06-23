@@ -16,7 +16,6 @@ workflows:
           flutter --version
           cd mobile
           flutter pub get
-          echo "Podfile generated:"
           cat ios/Podfile | head -5 || echo "No Podfile!"
       - name: Pod install
         script: |
@@ -25,12 +24,12 @@ workflows:
           pod install --repo-update
       - name: Build iOS no-codesign
         script: |
-          set -e
           cd mobile
-          echo "Building..."
-          flutter build ios --release --no-codesign --dart-define=API_BASE_URL=$API_BASE_URL
-          echo "Build complete"
-          ls -la build/ios/iphoneos/ || echo "iphoneos dir not found"
+          flutter build ios --release --no-codesign --dart-define=API_BASE_URL=$API_BASE_URL 2>&1 | tee /tmp/flutter_build.log
+          EXIT_CODE=${PIPESTATUS[0]}
+          echo "Exit code: $EXIT_CODE"
+          ls -la build/ios/iphoneos/ 2>&1 || echo "iphoneos dir not found"
+          exit $EXIT_CODE
       - name: Package IPA
         script: |
           set -e
@@ -39,6 +38,6 @@ workflows:
           cp -r build/ios/iphoneos/Runner.app Payload/
           zip -r Runner.ipa Payload
           rm -rf Payload
-          echo "IPA size: $(du -h Runner.ipa)"
     artifacts:
       - mobile/Runner.ipa
+      - /tmp/flutter_build.log
