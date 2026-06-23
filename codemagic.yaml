@@ -1,0 +1,30 @@
+workflows:
+  ios-unsigned:
+    name: iOS Unsigned Build
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      vars:
+        API_BASE_URL: "https://school-management-9yzh.onrender.com/api"
+    scripts:
+      - name: Get Flutter packages
+        script: |
+          cd mobile
+          flutter pub get
+      - name: Build iOS no-codesign
+        script: |
+          cd mobile
+          flutter build ios --release --no-codesign \
+            --dart-define=API_BASE_URL=$API_BASE_URL
+      - name: Package IPA
+        script: |
+          cd mobile
+          mkdir -p Payload
+          cp -r build/ios/iphoneos/Runner.app Payload/
+          zip -r Runner.ipa Payload
+          rm -rf Payload
+    artifacts:
+      - mobile/Runner.ipa
