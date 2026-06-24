@@ -49,18 +49,33 @@ workflows:
             CODE_SIGNING_ALLOWED=YES \
             DEVELOPMENT_TEAM="" \
             ENABLE_BITCODE=NO \
-            DART_DEFINES="$(echo -n API_BASE_URL=$API_BASE_URL | base64)" \
+            SKIP_INSTALL=NO \
             2>&1 | tee /tmp/xcode_archive.log
 
-          echo "Archive contents:"
-          ls -la /tmp/Runner.xcarchive/Products/Applications/ || echo "No Applications folder"
+          echo "=== xcarchive structure ==="
+          find /tmp/Runner.xcarchive -maxdepth 5 2>/dev/null \
+            | tee /tmp/xcarchive_list.txt \
+            || echo "No xcarchive found" | tee /tmp/xcarchive_list.txt
 
       - name: Package IPA
         script: |
           set -e
-          APP_PATH=$(ls -d /tmp/Runner.xcarchive/Products/Applications/*.app 2>/dev/null | head -1)
-          echo "App: $APP_PATH"
-          ls "$APP_PATH/Info.plist"
+
+          # Show xcarchive structure
+          echo "=== xcarchive contents ==="
+          cat /tmp/xcarchive_list.txt || true
+
+          # Find .app ANYWHERE inside the xcarchive (not just standard path)
+          APP_PATH=$(find /tmp/Runner.xcarchive -name "*.app" -type d 2>/dev/null \
+            | grep -v iphonesimulator | head -1) || true
+          echo "Found app: $APP_PATH"
+
+          if [ -z "$APP_PATH" ] || [ ! -f "$APP_PATH/Info.plist" ]; then
+            echo "ERROR: No .app with Info.plist found in xcarchive."
+            echo "All .app dirs found:"
+            find /tmp -name "*.app" -type d 2>/dev/null || true
+            exit 1
+          fi
 
           mkdir -p /tmp/Payload
           cp -r "$APP_PATH" /tmp/Payload/
@@ -71,3 +86,4 @@ workflows:
     artifacts:
       - /tmp/Runner.ipa
       - /tmp/xcode_archive.log
+      - /tmp/xcarchive_list.txt
