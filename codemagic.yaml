@@ -33,48 +33,41 @@ workflows:
           cd mobile/ios
           pod install --repo-update
 
-      - name: Build iOS and find app
-        script: |
-          cd mobile
-
-          # Run flutter build - ignore exit code, Xcode still compiles Dart
-          flutter build ios --release --no-codesign \
-            --dart-define=API_BASE_URL=$API_BASE_URL \
-            2>&1 | tee /tmp/flutter_build.log || true
-
-          echo "=== Searching for Runner.app everywhere ==="
-          find . -name "Runner.app" -type d 2>/dev/null | grep -v Pods || true
-          find "$HOME" -name "Runner.app" -type d 2>/dev/null \
-            | grep -v iphonesimulator | grep -v Pods | head -10 || true
-          find /private/var -name "Runner.app" -type d 2>/dev/null \
-            | grep -v iphonesimulator | grep -v Pods | head -5 || true
-
-          echo "=== build/ios tree ==="
-          find build/ios -maxdepth 5 -name "*.app" -o -name "Runner" 2>/dev/null | head -20 || true
-
-      - name: Package IPA
+      - name: Archive with xcodebuild
         script: |
           set -e
           cd mobile
 
-          # Search all possible locations
-          APP_PATH=$(find . "$HOME" /private/var -name "Runner.app" -type d 2>/dev/null \
-            | grep -v iphonesimulator | grep -v Pods | grep -v ".build" | head -1) || true
+          xcodebuild archive \
+            -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -sdk iphoneos \
+            -archivePath /tmp/Runner.xcarchive \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=YES \
+            DEVELOPMENT_TEAM="" \
+            ENABLE_BITCODE=NO \
+            DART_DEFINES="$(echo -n API_BASE_URL=$API_BASE_URL | base64)" \
+            2>&1 | tee /tmp/xcode_archive.log
 
-          echo "Found: $APP_PATH"
+          echo "Archive contents:"
+          ls -la /tmp/Runner.xcarchive/Products/Applications/ || echo "No Applications folder"
 
-          if [ -z "$APP_PATH" ] || [ ! -f "$APP_PATH/Info.plist" ]; then
-            echo "ERROR: Runner.app with Info.plist not found. Listing all .app folders:"
-            find . "$HOME" -name "Runner.app" -type d 2>/dev/null | head -20 || true
-            exit 1
-          fi
+      - name: Package IPA
+        script: |
+          set -e
+          APP_PATH=$(ls -d /tmp/Runner.xcarchive/Products/Applications/*.app 2>/dev/null | head -1)
+          echo "App: $APP_PATH"
+          ls "$APP_PATH/Info.plist"
 
-          mkdir -p Payload
-          cp -r "$APP_PATH" Payload/
+          mkdir -p /tmp/Payload
+          cp -r "$APP_PATH" /tmp/Payload/
+          cd /tmp
           zip -r Runner.ipa Payload
-          rm -rf Payload
           echo "IPA: $(du -h Runner.ipa)"
 
     artifacts:
-      - mobile/Runner.ipa
-      - /tmp/flutter_build.log
+      - /tmp/Runner.ipa
+      - /tmp/xcode_archive.log
