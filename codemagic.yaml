@@ -26,6 +26,7 @@ workflows:
           sed -i '' 's/CODE_SIGN_IDENTITY = "iPhone Developer";/CODE_SIGN_IDENTITY = "";/g' "$PBXPROJ"
           sed -i '' 's/CODE_SIGN_IDENTITY = "Apple Development";/CODE_SIGN_IDENTITY = "";/g' "$PBXPROJ"
           echo "Patch done."
+          grep -n "CODE_SIGN\|DEVELOPMENT_TEAM\|SKIP_INSTALL" "$PBXPROJ" | head -20
 
       - name: Pod install
         script: |
@@ -35,7 +36,7 @@ workflows:
 
       - name: Archive with xcodebuild
         script: |
-          set -e
+          set -eo pipefail
           cd mobile
 
           xcodebuild archive \
@@ -52,30 +53,16 @@ workflows:
             SKIP_INSTALL=NO \
             2>&1 | tee /tmp/xcode_archive.log
 
-          echo "=== xcarchive structure ==="
-          find /tmp/Runner.xcarchive -maxdepth 5 2>/dev/null \
-            | tee /tmp/xcarchive_list.txt \
-            || echo "No xcarchive found" | tee /tmp/xcarchive_list.txt
+          echo "=== xcarchive apps ==="
+          find /tmp/Runner.xcarchive -name "*.app" -type d
 
       - name: Package IPA
         script: |
           set -e
-
-          # Show xcarchive structure
-          echo "=== xcarchive contents ==="
-          cat /tmp/xcarchive_list.txt || true
-
-          # Find .app ANYWHERE inside the xcarchive (not just standard path)
-          APP_PATH=$(find /tmp/Runner.xcarchive -name "*.app" -type d 2>/dev/null \
-            | grep -v iphonesimulator | head -1) || true
-          echo "Found app: $APP_PATH"
-
-          if [ -z "$APP_PATH" ] || [ ! -f "$APP_PATH/Info.plist" ]; then
-            echo "ERROR: No .app with Info.plist found in xcarchive."
-            echo "All .app dirs found:"
-            find /tmp -name "*.app" -type d 2>/dev/null || true
-            exit 1
-          fi
+          APP_PATH=$(find /tmp/Runner.xcarchive -name "*.app" -type d \
+            | grep -v iphonesimulator | head -1)
+          echo "App: $APP_PATH"
+          ls "$APP_PATH/Info.plist"
 
           mkdir -p /tmp/Payload
           cp -r "$APP_PATH" /tmp/Payload/
@@ -86,4 +73,3 @@ workflows:
     artifacts:
       - /tmp/Runner.ipa
       - /tmp/xcode_archive.log
-      - /tmp/xcarchive_list.txt
