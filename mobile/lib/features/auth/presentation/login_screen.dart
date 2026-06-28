@@ -240,9 +240,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
             ),
 
-            // Brand header — fixed at top
+            // Brand header — fixed below logo
             Positioned(
-              top: topSafe + 24,
+              top: topSafe + 108,
               left: (screenW - contentMaxWidth) / 2 + 20,
               right: (screenW - contentMaxWidth) / 2 + 20,
               child: const _BrandHeader(),
@@ -317,45 +317,55 @@ class _BrandHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 108),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          RichText(
-            text: const TextSpan(
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, height: 1.1),
-              children: [
-                TextSpan(text: 'Smart ', style: TextStyle(color: AppColors.primaryDark)),
-                TextSpan(text: 'School', style: TextStyle(color: AppColors.primary)),
-              ],
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        RichText(
+          text: const TextSpan(
+            style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, height: 1.1),
+            children: [
+              TextSpan(text: 'Smart ', style: TextStyle(color: AppColors.primaryDark)),
+              TextSpan(text: 'School', style: TextStyle(color: AppColors.primary)),
+            ],
           ),
-          const SizedBox(height: 2),
-          Text(
-            'Management System',
-            style: TextStyle(
-              fontSize: 11,
-              letterSpacing: 2,
-              fontWeight: FontWeight.w500,
-              color: Colors.grey.shade600,
+        ),
+        const SizedBox(height: 3),
+        Row(
+          children: [
+            Container(
+              height: 2,
+              width: 24,
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(1),
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          RichText(
-            text: const TextSpan(
-              style: TextStyle(fontSize: 12, height: 1.35, fontWeight: FontWeight.w600),
-              children: [
-                TextSpan(text: 'Connecting ', style: TextStyle(color: AppColors.primaryDark)),
-                TextSpan(
-                  text: 'Schools, Teachers\n& Students',
-                  style: TextStyle(color: AppColors.primary),
-                ),
-              ],
+            const SizedBox(width: 6),
+            Text(
+              'Management System',
+              style: TextStyle(
+                fontSize: 11,
+                letterSpacing: 2.5,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey.shade600,
+              ),
             ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        RichText(
+          text: const TextSpan(
+            style: TextStyle(fontSize: 13, height: 1.4, fontWeight: FontWeight.w600),
+            children: [
+              TextSpan(text: 'Connecting ', style: TextStyle(color: AppColors.primaryDark)),
+              TextSpan(
+                text: 'Schools, Teachers\n& Students',
+                style: TextStyle(color: AppColors.primary),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
