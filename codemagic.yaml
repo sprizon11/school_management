@@ -1,75 +1,77 @@
 workflows:
-  ios-unsigned:
-    name: iOS Unsigned Build
+  # iOS free install — no Apple Developer Program required.
+  # Download smartschool_free.ipa from artifacts, then install with Sideloadly
+  # on Windows using your free Apple ID (re-sign every ~7 days).
+  ios-free-workflow:
+    name: SmartSchool iOS (Free Install)
     max_build_duration: 60
     instance_type: mac_mini_m2
     environment:
       flutter: stable
       xcode: latest
       cocoapods: default
-      vars:
-        API_BASE_URL: "https://school-management-9yzh.onrender.com/api"
+    working_directory: mobile
     scripts:
-      - name: Flutter pub get
+      - name: Get Flutter packages
         script: |
-          set -e
-          flutter --version
-          cd mobile
+          flutter config --no-enable-swift-package-manager
           flutter pub get
-
-      - name: Patch Xcode project
+      - name: Install CocoaPods dependencies
         script: |
-          set -e
-          PBXPROJ="mobile/ios/Runner.xcodeproj/project.pbxproj"
-          sed -i '' '/DEVELOPMENT_TEAM/d' "$PBXPROJ"
-          sed -i '' 's/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;/g' "$PBXPROJ"
-          sed -i '' 's/CODE_SIGN_IDENTITY = "iPhone Developer";/CODE_SIGN_IDENTITY = "";/g' "$PBXPROJ"
-          sed -i '' 's/CODE_SIGN_IDENTITY = "Apple Development";/CODE_SIGN_IDENTITY = "";/g' "$PBXPROJ"
-          echo "Patch done."
-          grep -n "CODE_SIGN\|DEVELOPMENT_TEAM\|SKIP_INSTALL" "$PBXPROJ" | head -20
-
-      - name: Pod install
-        script: |
-          set -e
-          cd mobile/ios
+          cd ios
+          rm -rf Pods Podfile.lock Runner.xcworkspace/xcshareddata/swiftpm
           pod install --repo-update
-
-      - name: Archive with xcodebuild
+      - name: Build unsigned iOS app
         script: |
-          set -eo pipefail
-          cd mobile
+          flutter clean
+          flutter pub get
+          cd ios && pod install && cd ..
+          flutter build ios --release --no-codesign
+      - name: Package IPA for Sideloadly
+        script: |
+          APP_PATH="build/ios/iphoneos/Runner.app"
+          if [ ! -d "$APP_PATH" ]; then
+            echo "Runner.app not found — searching build/ios..."
+            APP_PATH="$(find build/ios -name Runner.app -type d | head -n 1)"
+          fi
+          if [ -z "$APP_PATH" ] || [ ! -d "$APP_PATH" ]; then
+            echo "Could not locate Runner.app after build."
+            find build/ios -maxdepth 4 -type d
+            exit 1
+          fi
+          rm -rf Payload smartschool_free.ipa
+          mkdir -p Payload
+          cp -R "$APP_PATH" Payload/
+          zip -qr smartschool_free.ipa Payload
+          rm -rf Payload
+          ls -lh smartschool_free.ipa
+    artifacts:
+      - mobile/smartschool_free.ipa
 
-          xcodebuild archive \
-            -workspace ios/Runner.xcworkspace \
-            -scheme Runner \
-            -configuration Release \
-            -sdk iphoneos \
-            -archivePath /tmp/Runner.xcarchive \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=YES \
-            DEVELOPMENT_TEAM="" \
-            ENABLE_BITCODE=NO \
-            SKIP_INSTALL=NO \
-            2>&1 | tee /tmp/xcode_archive.log
-
-          echo "=== xcarchive apps ==="
-          find /tmp/Runner.xcarchive -name "*.app" -type d
-
-      - name: Package IPA
+  # Android — works without Apple account. Download APK from Codemagic artifacts.
+  android-workflow:
+    name: SmartSchool Android
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      flutter: stable
+      java: 17
+    working_directory: mobile
+    scripts:
+      - name: Get Flutter packages
+        script: flutter pub get
+      - name: Set up Android SDK
         script: |
           set -e
-          APP_PATH=$(find /tmp/Runner.xcarchive -name "*.app" -type d \
-            | grep -v iphonesimulator | head -1)
-          echo "App: $APP_PATH"
-          ls "$APP_PATH/Info.plist"
-
-          mkdir -p /tmp/Payload
-          cp -r "$APP_PATH" /tmp/Payload/
-          cd /tmp
-          zip -r Runner.ipa Payload
-          echo "IPA: $(du -h Runner.ipa)"
-
+          yes | sdkmanager --licenses || true
+          sdkmanager \
+            "platform-tools" \
+            "platforms;android-36" \
+            "build-tools;36.0.0" \
+            "platforms;android-35" \
+            "build-tools;35.0.0"
+      - name: Build release APK
+        script: |
+          flutter build apk --release --no-tree-shake-icons
     artifacts:
-      - /tmp/Runner.ipa
-      - /tmp/xcode_archive.log
+      - build/app/outputs/flutter-apk/app-release.apk
