@@ -1,9 +1,8 @@
 import 'package:dio/dio.dart';
 import '../config/api_config.dart';
 
-/// Render free tier sleeps after ~15 min idle; first request can take 50–90s.
-const cloudTimeout = Duration(seconds: 90);
-const _cloudHosts = ['onrender.com', 'railway.app', 'fly.dev'];
+const cloudTimeout = Duration(seconds: 30);
+const _cloudHosts = ['onrender.com', 'railway.app', 'fly.dev', 'run.app'];
 
 bool get isCloudHosted {
   final url = ApiConfig.baseUrl.toLowerCase();
