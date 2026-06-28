@@ -213,11 +213,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final selectedSchool = ref.watch(selectedSchoolProvider);
     final media = MediaQuery.of(context);
     final screenH = media.size.height;
-    final keyboardH = media.viewInsets.bottom;
+    final screenW = media.size.width;
     final topSafe = media.padding.top;
     final bottomSafe = media.padding.bottom;
-
-    final screenW = media.size.width;
+    final keyboardH = media.viewInsets.bottom;
     final isWide = screenW > 600;
     final contentMaxWidth = isWide ? 460.0 : screenW;
 
@@ -229,11 +228,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         child: Stack(
           clipBehavior: Clip.hardEdge,
           children: [
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              height: screenH,
+            // Background
+            Positioned.fill(
               child: Image.asset(
                 _bgAsset,
                 fit: BoxFit.cover,
@@ -243,66 +239,65 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     const ColoredBox(color: AppColors.surface),
               ),
             ),
-            Positioned.fill(
-              child: Center(
-                child: SizedBox(
-                  width: contentMaxWidth,
-                  child: SingleChildScrollView(
-                    keyboardDismissBehavior:
-                        ScrollViewKeyboardDismissBehavior.onDrag,
-                    padding: EdgeInsets.fromLTRB(
-                      20,
-                      topSafe + 8,
-                      20,
-                      keyboardH > 0 ? keyboardH + 20 : bottomSafe + 48,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SizedBox(height: screenH * 0.17),
-                        const _BrandHeader(),
-                        SizedBox(height: screenH * 0.018),
-                        _LoginCard(
-                          formKey: _formKey,
-                          identifierCtrl: _identifierCtrl,
-                          passwordCtrl: _passwordCtrl,
-                          obscure: _obscure,
-                          remember: _remember,
-                          loading: _loggingIn || _wakingServer,
-                          status: _statusMessage,
-                          error: authError,
-                          schools: _schools,
-                          schoolsLoading: _loadingSchools,
-                          schoolsError: _schoolsError,
-                          selectedSchool: selectedSchool,
-                          onSchoolChanged: (school) async {
-                            if (school == null) {
-                              await ref
-                                  .read(selectedSchoolProvider.notifier)
-                                  .clear();
-                            } else {
-                              await ref
-                                  .read(selectedSchoolProvider.notifier)
-                                  .select(school);
-                            }
-                          },
-                          onRetrySchools: _loadSchools,
-                          onToggleObscure: () =>
-                              setState(() => _obscure = !_obscure),
-                          onRememberChanged: (v) =>
-                              setState(() => _remember = v ?? true),
-                          onLogin: _login,
-                        ),
-                        const SizedBox(height: 16),
-                        const _OrDivider(),
-                        const SizedBox(height: 14),
-                        const _GoogleSignInButton(),
-                      ],
-                    ),
+
+            // Brand header — fixed at top
+            Positioned(
+              top: topSafe + 24,
+              left: (screenW - contentMaxWidth) / 2 + 20,
+              right: (screenW - contentMaxWidth) / 2 + 20,
+              child: const _BrandHeader(),
+            ),
+
+            // Login card + OR + Google — fixed above footer
+            Positioned(
+              left: (screenW - contentMaxWidth) / 2 + 20,
+              right: (screenW - contentMaxWidth) / 2 + 20,
+              bottom: keyboardH > 0
+                  ? keyboardH + 12
+                  : bottomSafe + 64,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _LoginCard(
+                    formKey: _formKey,
+                    identifierCtrl: _identifierCtrl,
+                    passwordCtrl: _passwordCtrl,
+                    obscure: _obscure,
+                    remember: _remember,
+                    loading: _loggingIn || _wakingServer,
+                    status: _statusMessage,
+                    error: authError,
+                    schools: _schools,
+                    schoolsLoading: _loadingSchools,
+                    schoolsError: _schoolsError,
+                    selectedSchool: selectedSchool,
+                    onSchoolChanged: (school) async {
+                      if (school == null) {
+                        await ref
+                            .read(selectedSchoolProvider.notifier)
+                            .clear();
+                      } else {
+                        await ref
+                            .read(selectedSchoolProvider.notifier)
+                            .select(school);
+                      }
+                    },
+                    onRetrySchools: _loadSchools,
+                    onToggleObscure: () =>
+                        setState(() => _obscure = !_obscure),
+                    onRememberChanged: (v) =>
+                        setState(() => _remember = v ?? true),
+                    onLogin: _login,
                   ),
-                ),
+                  const SizedBox(height: 16),
+                  const _OrDivider(),
+                  const SizedBox(height: 14),
+                  const _GoogleSignInButton(),
+                ],
               ),
             ),
+
+            // Footer — fixed at bottom
             if (keyboardH == 0)
               Positioned(
                 left: 0,
