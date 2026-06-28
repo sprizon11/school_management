@@ -46,7 +46,7 @@ workflows:
           rm -rf Payload
           ls -lh smartschool_free.ipa
     artifacts:
-      - mobile/smartschool_free.ipa
+      - smartschool_free.ipa
 
   # Android — works without Apple account. Download APK from Codemagic artifacts.
   android-workflow:
