@@ -191,18 +191,7 @@ class _AdminStudentsScreenState extends ConsumerState<AdminStudentsScreen> {
                                     child: CircularProgressIndicator(),
                                   )
                                 : _visibleItems.isEmpty
-                                ? Center(
-                                    child: Text(
-                                      _genderFilter == 'MALE'
-                                          ? 'No boys found'
-                                          : _genderFilter == 'FEMALE'
-                                          ? 'No girls found'
-                                          : 'No students found',
-                                      style: const TextStyle(
-                                        color: AppColors.textMuted,
-                                      ),
-                                    ),
-                                  )
+                                ? _emptyState()
                                 : ListView.separated(
                                     padding: const EdgeInsets.only(bottom: 88),
                                     itemCount: _visibleItems.length,
@@ -470,19 +459,19 @@ class _AdminStudentsScreenState extends ConsumerState<AdminStudentsScreen> {
         onTap: onTap,
         borderRadius: BorderRadius.circular(10),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+          padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 8),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: Colors.white, size: 16),
-              const SizedBox(width: 4),
+              Icon(icon, color: Colors.white, size: 18),
+              const SizedBox(width: 5),
               Flexible(
                 child: Text(
                   label,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -495,31 +484,37 @@ class _AdminStudentsScreenState extends ConsumerState<AdminStudentsScreen> {
   }
 
   Widget _outlineAction(String label, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
-      decoration: BoxDecoration(
-        color: Colors.white,
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        onTap: () {},
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: const Color(0xFF6B7280)),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 8,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF6B7280),
-              height: 1.1,
-            ),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 4),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
           ),
-        ],
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 16, color: const Color(0xFF6B7280)),
+              const SizedBox(width: 5),
+              Flexible(
+                child: Text(
+                  label,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF6B7280),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -702,6 +697,107 @@ class _AdminStudentsScreenState extends ConsumerState<AdminStudentsScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _emptyState() {
+    final filtered = _isFiltered;
+    final title = _genderFilter == 'MALE'
+        ? 'No boys found'
+        : _genderFilter == 'FEMALE'
+            ? 'No girls found'
+            : filtered
+                ? 'No matching students'
+                : 'No students yet';
+    final subtitle = filtered
+        ? 'Try adjusting your search or filters.'
+        : 'Add your first student to get started.';
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              height: 96,
+              width: 96,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  colors: [
+                    AppColors.primary.withValues(alpha: 0.12),
+                    AppColors.primary.withValues(alpha: 0.04),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: Icon(
+                filtered ? Icons.search_off_rounded : Icons.groups_rounded,
+                size: 46,
+                color: AppColors.primary.withValues(alpha: 0.7),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF1F2937),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textMuted,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 22),
+            if (filtered)
+              OutlinedButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _search.clear();
+                    _classFilter = null;
+                    _genderFilter = null;
+                  });
+                  _load();
+                },
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: const Text('Clear filters'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: BorderSide(color: AppColors.primary.withValues(alpha: 0.4)),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+              )
+            else
+              ElevatedButton.icon(
+                onPressed: _openAddStudent,
+                icon: const Icon(Icons.add_rounded, size: 20),
+                label: const Text('Add Student'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 13),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  textStyle: const TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.w700),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

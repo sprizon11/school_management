@@ -240,11 +240,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
             ),
 
-            // Brand header — fixed below logo
+            // Brand header — sits below the logo baked into the background image
             Positioned(
-              top: topSafe + 108,
-              left: (screenW - contentMaxWidth) / 2 + 20,
-              right: (screenW - contentMaxWidth) / 2 + 20,
+              top: topSafe + screenH * 0.17,
+              left: (screenW - contentMaxWidth) / 2 + 24,
+              right: (screenW - contentMaxWidth) / 2 + 24,
               child: const _BrandHeader(),
             ),
 
@@ -254,7 +254,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               right: (screenW - contentMaxWidth) / 2 + 20,
               bottom: keyboardH > 0
                   ? keyboardH + 12
-                  : bottomSafe + 64,
+                  : bottomSafe + 120,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -319,43 +319,31 @@ class _BrandHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
         RichText(
           text: const TextSpan(
-            style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, height: 1.1),
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, height: 1.1),
             children: [
               TextSpan(text: 'Smart ', style: TextStyle(color: AppColors.primaryDark)),
               TextSpan(text: 'School', style: TextStyle(color: AppColors.primary)),
             ],
           ),
         ),
-        const SizedBox(height: 3),
-        Row(
-          children: [
-            Container(
-              height: 2,
-              width: 24,
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(1),
-              ),
-            ),
-            const SizedBox(width: 6),
-            Text(
-              'Management System',
-              style: TextStyle(
-                fontSize: 11,
-                letterSpacing: 2.5,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey.shade600,
-              ),
-            ),
-          ],
+        const SizedBox(height: 4),
+        Text(
+          'MANAGEMENT SYSTEM',
+          style: TextStyle(
+            fontSize: 10,
+            letterSpacing: 3,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey.shade500,
+          ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 14),
         RichText(
           text: const TextSpan(
-            style: TextStyle(fontSize: 13, height: 1.4, fontWeight: FontWeight.w600),
+            style: TextStyle(fontSize: 12.5, height: 1.4, fontWeight: FontWeight.w600),
             children: [
               TextSpan(text: 'Connecting ', style: TextStyle(color: AppColors.primaryDark)),
               TextSpan(

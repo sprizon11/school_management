@@ -41,56 +41,102 @@ class _AdminShellState extends State<AdminShell> {
         index: _index,
         children: _screens,
       ),
-      bottomNavigationBar: ClipRect(
+      bottomNavigationBar: _LiquidNavBar(
+        index: _index,
+        onTap: (i) => setState(() => _index = i),
+      ),
+    );
+  }
+}
+
+class _LiquidNavBar extends StatelessWidget {
+  const _LiquidNavBar({required this.index, required this.onTap});
+
+  final int index;
+  final ValueChanged<int> onTap;
+
+  static const _items = <({IconData icon, String label})>[
+    (icon: Icons.home_rounded, label: 'Dashboard'),
+    (icon: Icons.groups_rounded, label: 'Students'),
+    (icon: Icons.school_rounded, label: 'Teachers'),
+    (icon: Icons.menu_book_rounded, label: 'Classes'),
+    (icon: Icons.grid_view_rounded, label: 'More'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomSafe = MediaQuery.paddingOf(context).bottom;
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16, 0, 16, bottomSafe > 0 ? bottomSafe : 14),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(28),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+          filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
           child: Container(
+            height: 66,
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.72),
+              color: Colors.white.withValues(alpha: 0.82),
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.6), width: 1.2),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF1B3FBF).withValues(alpha: 0.16),
+                  blurRadius: 24,
+                  offset: const Offset(0, 10),
+                ),
+              ],
             ),
-            child: SafeArea(
-              top: false,
-              child: BottomNavigationBar(
-                type: BottomNavigationBarType.fixed,
-                backgroundColor: Colors.transparent,
-                elevation: 0,
-                currentIndex: _index,
-                selectedItemColor: AppColors.primary,
-                unselectedItemColor: const Color(0xFF5B6474),
-                selectedLabelStyle: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
-                unselectedLabelStyle: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                ),
-                onTap: (i) => setState(() => _index = i),
-                items: const [
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.home_rounded),
-                    label: 'Dashboard',
-                  ),
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.groups_rounded),
-                    label: 'Students',
-                  ),
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.school_outlined),
-                    label: 'Teachers',
-                  ),
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.menu_book_rounded),
-                    label: 'Classes',
-                  ),
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.grid_view_rounded),
-                    label: 'More',
-                  ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  for (var i = 0; i < _items.length; i++)
+                    _navItem(i, _items[i].icon, _items[i].label),
                 ],
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _navItem(int i, IconData icon, String label) {
+    final selected = i == index;
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => onTap(i),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOutCubic,
+        height: 48,
+        width: 48,
+        decoration: BoxDecoration(
+          gradient: selected
+              ? const LinearGradient(
+                  colors: [AppColors.primaryDark, AppColors.primary],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : null,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.4),
+                    blurRadius: 12,
+                    offset: const Offset(0, 5),
+                  ),
+                ]
+              : null,
+        ),
+        child: Icon(
+          icon,
+          size: 24,
+          color: selected ? Colors.white : const Color(0xFF6B7686),
         ),
       ),
     );

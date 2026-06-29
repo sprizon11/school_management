@@ -17,7 +17,6 @@ import 'admin_fee_collection_screen.dart';
 import 'admin_reports_screen.dart';
 import 'admin_timetable_screen.dart';
 import 'admin_announcements_screen.dart';
-import 'admin_profile_screen.dart';
 import '../widgets/admin_sidebar.dart';
 
 class AdminDashboardScreen extends ConsumerStatefulWidget {
@@ -108,6 +107,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       authProvider.select((a) => a.user?.fullName ?? 'Admin'),
     );
     final schoolName = ref.watch(authProvider.select((a) => a.user?.schoolName));
+    final role = ref.watch(authProvider.select((a) => a.user?.role ?? 'ADMIN'));
     final selectedSchool = ref.watch(selectedSchoolProvider);
     final displaySchool = (schoolName != null && schoolName.isNotEmpty)
         ? schoolName
@@ -127,7 +127,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           physics: const AlwaysScrollableScrollPhysics(),
           padding: EdgeInsets.only(bottom: bottomInset),
           children: [
-            _headerSection(displaySchool, fullName),
+            _headerSection(displaySchool, fullName, role),
             _sectionTitle('Quick Access'),
             const SizedBox(height: 12),
             _quickAccessGrid(),
@@ -188,7 +188,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     );
   }
 
-  Widget _headerSection(String schoolName, String fullName) {
+  Widget _headerSection(String schoolName, String fullName, String role) {
     const statsOverhang = 52.0;
 
     return Column(
@@ -197,7 +197,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         Stack(
           clipBehavior: Clip.none,
           children: [
-            _blueHeader(schoolName, fullName, statsInset: statsOverhang),
+            _blueHeader(schoolName, fullName, role, statsInset: statsOverhang),
             Positioned(
               left: _hPad,
               right: _hPad,
@@ -211,7 +211,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     );
   }
 
-  Widget _blueHeader(String schoolName, String fullName, {double statsInset = 0}) {
+  Widget _blueHeader(String schoolName, String fullName, String role,
+      {double statsInset = 0}) {
     final topPad = MediaQuery.paddingOf(context).top;
 
     return Container(
@@ -271,7 +272,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             ),
           ),
           Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: GestureDetector(
@@ -286,48 +287,46 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        'Welcome back',
+                        'Welcome back,',
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.85),
-                          fontSize: 12,
+                          color: Colors.white.withValues(alpha: 0.8),
+                          fontSize: 13,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 4),
                       Text(
                         schoolName,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 18,
-                          height: 1.15,
+                          fontSize: 22,
+                          height: 1.1,
                           fontWeight: FontWeight.w800,
-                          letterSpacing: -0.2,
+                          letterSpacing: -0.4,
                         ),
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 4),
                       Text(
-                        fullName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        _roleLabel(role),
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.92),
-                          fontSize: 14,
-                          height: 1.15,
-                          fontWeight: FontWeight.w600,
+                          color: Colors.white.withValues(alpha: 0.78),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ],
                   ),
                 ),
               ),
-              _headerIconButton(
-                icon: Icons.campaign_rounded,
-                onTap: () => openSmoothPage(context, const AdminAnnouncementsScreen()),
+              const SizedBox(width: 12),
+              _headerCircleButton(
+                icon: Icons.notifications_none_rounded,
+                showBadge: true,
+                onTap: () =>
+                    openSmoothPage(context, const AdminAnnouncementsScreen()),
               ),
-              const SizedBox(width: 10),
-              _profileAvatar(fullName),
             ],
           ),
         ],
@@ -335,51 +334,60 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     );
   }
 
-  Widget _headerIconButton({
+  String _roleLabel(String role) {
+    switch (role.toUpperCase()) {
+      case 'ADMIN':
+        return 'Super Administrator';
+      case 'TEACHER':
+        return 'Teacher';
+      case 'PARENT':
+        return 'Parent';
+      default:
+        return role;
+    }
+  }
+
+  Widget _headerCircleButton({
     required IconData icon,
     required VoidCallback onTap,
+    bool showBadge = false,
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        height: 44,
-        width: 44,
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.16),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
-        ),
-        child: Icon(icon, color: Colors.white, size: 22),
-      ),
-    );
-  }
-
-  Widget _profileAvatar(String fullName) {
-    final initials = fullName
-        .trim()
-        .split(RegExp(r'\s+'))
-        .where((p) => p.isNotEmpty)
-        .take(2)
-        .map((p) => p[0].toUpperCase())
-        .join();
-
-    return GestureDetector(
-      onTap: () => openSmoothPage(context, const AdminProfileScreen()),
-      child: CircleAvatar(
-        radius: 22,
-        backgroundColor: Colors.white.withValues(alpha: 0.2),
-        child: CircleAvatar(
-          radius: 20,
-          backgroundColor: Colors.white,
-          child: Text(
-            initials.isEmpty ? 'A' : initials,
-            style: const TextStyle(
-              color: AppColors.primary,
-              fontWeight: FontWeight.w800,
-              fontSize: 14,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            height: 50,
+            width: 50,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.15),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
+            child: Icon(icon, color: const Color(0xFF1F2D5A), size: 23),
           ),
-        ),
+          if (showBadge)
+            Positioned(
+              top: 3,
+              right: 3,
+              child: Container(
+                height: 11,
+                width: 11,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF3B5C),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -481,15 +489,15 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                height: 34,
-                width: 34,
+                height: 36,
+                width: 36,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [stat.color, stat.color.withValues(alpha: 0.70)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  borderRadius: BorderRadius.circular(11),
+                  borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
                       color: stat.color.withValues(alpha: 0.35),
@@ -498,27 +506,15 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     ),
                   ],
                 ),
-                child: Icon(stat.icon, color: Colors.white, size: 17),
+                child: Icon(stat.icon, color: Colors.white, size: 18),
               ),
-              const SizedBox(height: 5),
-              Text(
-                stat.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 9,
-                  height: 1.1,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF64748B),
-                ),
-              ),
-              const SizedBox(height: 2),
+              const SizedBox(height: 6),
               FittedBox(
                 fit: BoxFit.scaleDown,
                 child: Text(
                   stat.value,
                   style: const TextStyle(
-                    fontSize: 18,
+                    fontSize: 19,
                     height: 1,
                     fontWeight: FontWeight.w800,
                     color: Color(0xFF0F172A),
@@ -526,7 +522,19 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: 1),
+              Text(
+                stat.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 10,
+                  height: 1.1,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF475569),
+                ),
+              ),
+              const SizedBox(height: 3),
               FittedBox(
                 fit: BoxFit.scaleDown,
                 child: Text(
@@ -535,7 +543,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
-                    fontSize: 8,
+                    fontSize: 8.5,
                     height: 1.1,
                     fontWeight: FontWeight.w500,
                     color: Color(0xFF94A3B8),

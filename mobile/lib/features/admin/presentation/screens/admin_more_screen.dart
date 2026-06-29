@@ -191,15 +191,43 @@ class _AdminMoreScreenState extends ConsumerState<AdminMoreScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    schoolName,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textMuted.withValues(alpha: 0.7),
-                      letterSpacing: 0.3,
-                    ),
+                  const SizedBox(height: 8),
+                  Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.school_rounded,
+                              size: 14,
+                              color: AppColors.primary.withValues(alpha: 0.5)),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              schoolName,
+                              textAlign: TextAlign.center,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textMuted.withValues(alpha: 0.85),
+                                letterSpacing: 0.2,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'SmartUp · v1.0.0',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textMuted.withValues(alpha: 0.55),
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -324,18 +352,6 @@ class _PremiumHeader extends StatelessWidget {
                         ),
                       ),
                     ],
-                  ),
-                  const Spacer(),
-                  // Settings icon button
-                  Container(
-                    height: 42,
-                    width: 42,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(13),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
-                    ),
-                    child: const Icon(Icons.settings_rounded, color: Colors.white, size: 20),
                   ),
                 ],
               ),

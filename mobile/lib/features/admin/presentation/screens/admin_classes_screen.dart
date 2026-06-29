@@ -410,10 +410,10 @@ class _AdminClassesScreenState extends ConsumerState<AdminClassesScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Material(
         color: AppColors.primary,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(12),
         child: InkWell(
           onTap: _openAddClass,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(12),
           child: const Padding(
             padding: EdgeInsets.symmetric(vertical: 12, horizontal: 8),
             child: Row(
@@ -651,38 +651,87 @@ class _AdminClassesScreenState extends ConsumerState<AdminClassesScreen> {
   }
 
   Widget _emptyState() {
+    final searching = _search.text.trim().isNotEmpty;
+    final title = searching ? 'No matching classes' : 'No classes yet';
+    final subtitle = searching
+        ? 'Try a different class, grade or teacher.'
+        : 'Create your first class to start adding students.';
+
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(32),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.class_outlined, size: 48, color: Colors.grey.shade400),
-            const SizedBox(height: 12),
-            Text(
-              _search.text.trim().isNotEmpty
-                  ? 'No classes match your search'
-                  : 'No classes yet',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF374151),
+            Container(
+              height: 96,
+              width: 96,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  colors: [
+                    AppColors.primary.withValues(alpha: 0.12),
+                    AppColors.primary.withValues(alpha: 0.04),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: Icon(
+                searching ? Icons.search_off_rounded : Icons.class_rounded,
+                size: 46,
+                color: AppColors.primary.withValues(alpha: 0.7),
               ),
             ),
-            if (_search.text.trim().isEmpty) ...[
-              const SizedBox(height: 6),
-              const Text(
-                'Create your first class to start adding students.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+            const SizedBox(height: 20),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF1F2937),
               ),
-              const SizedBox(height: 16),
-              FilledButton.icon(
+            ),
+            const SizedBox(height: 6),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textMuted,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 22),
+            if (searching)
+              OutlinedButton.icon(
+                onPressed: () => setState(() => _search.clear()),
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: const Text('Clear search'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: BorderSide(color: AppColors.primary.withValues(alpha: 0.4)),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+              )
+            else
+              ElevatedButton.icon(
                 onPressed: _openAddClass,
-                icon: const Icon(Icons.add_rounded, size: 18),
+                icon: const Icon(Icons.add_rounded, size: 20),
                 label: const Text('Add Class'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 13),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  textStyle: const TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.w700),
+                ),
               ),
-            ],
           ],
         ),
       ),
