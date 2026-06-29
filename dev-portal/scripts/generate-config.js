@@ -4,7 +4,7 @@ const path = require('path');
 const apiBase =
   process.env.PORTAL_API_BASE ||
   process.env.API_BASE_URL ||
-  'https://school-management-9yzh.onrender.com/api';
+  'https://school-management-692069213021.asia-south1.run.app/api';
 
 const file = `window.PORTAL_CONFIG = {
   apiBase: ${JSON.stringify(apiBase.replace(/\/$/, ''))},
