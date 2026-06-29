@@ -158,9 +158,16 @@ class _AdminStudentsScreenState extends ConsumerState<AdminStudentsScreen> {
             child: Transform.translate(
               offset: const Offset(0, -16),
               child: Container(
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF051C6E).withValues(alpha: 0.18),
+                      blurRadius: 20,
+                      offset: const Offset(0, -6),
+                    ),
+                  ],
                 ),
                 child: _loading && _stats == null
                     ? const Padding(
@@ -216,43 +223,78 @@ class _AdminStudentsScreenState extends ConsumerState<AdminStudentsScreen> {
   Widget _header(double topPad) {
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.fromLTRB(12, topPad + 8, 12, 28),
+      padding: EdgeInsets.fromLTRB(16, topPad + 12, 16, 32),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFF0A3FC9), Color(0xFF2368FF), Color(0xFF4388FF)],
+          colors: [
+            Color(0xFF051C6E),
+            Color(0xFF0D3DD4),
+            Color(0xFF2563EB),
+            Color(0xFF4F8CFF),
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
+        clipBehavior: Clip.none,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Students',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 28,
-                    fontWeight: FontWeight.w800,
-                    height: 1.1,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Manage and view all student details',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.9),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
+          Positioned(
+            right: -28,
+            top: -34,
+            child: Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.07),
+              ),
             ),
           ),
-          _headerIconButton(Icons.refresh_rounded, onTap: () => _load(showOverlay: true)),
+          Positioned(
+            right: 44,
+            bottom: 0,
+            child: Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.05),
+              ),
+            ),
+          ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Students',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                        height: 1.1,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Manage and view all student details',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.85),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              _headerIconButton(Icons.refresh_rounded, onTap: () => _load(showOverlay: true)),
+            ],
+          ),
         ],
       ),
     );
