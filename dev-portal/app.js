@@ -258,8 +258,6 @@ function renderDashboard() {
           ${statCard('Active schools', overview.schools?.active ?? 0, icons.active, 'green')}
           ${statCard('Students', overview.students ?? 0, icons.students, 'violet')}
           ${statCard('Teachers', overview.teachers ?? 0, icons.teachers, 'teal')}
-        </div>
-        <div class="grid-stats secondary">
           ${statCard('Admins', overview.admins ?? 0, icons.admins, 'amber')}
           ${statCard('Parent profiles', overview.parents ?? 0, icons.parents, 'slate')}
           ${statCard('Classes', overview.classes ?? 0, icons.classes, 'blue')}
@@ -359,8 +357,6 @@ function renderSchoolDetail() {
         ${statCard('Teachers', stats.teachers, icons.teachers, 'teal')}
         ${statCard('Admins', stats.admins, icons.admins, 'amber')}
         ${statCard('Parent profiles', stats.parents, icons.parents, 'slate')}
-      </div>
-      <div class="grid-stats secondary" style="margin-bottom:24px">
         ${statCard('Classes', stats.classes, icons.classes, 'blue')}
       </div>
 
