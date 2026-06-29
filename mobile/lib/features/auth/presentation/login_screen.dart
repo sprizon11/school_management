@@ -242,7 +242,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
             // Brand header — sits below the logo baked into the background image
             Positioned(
-              top: topSafe + screenH * 0.17,
+              top: topSafe + screenH * 0.11,
               left: (screenW - contentMaxWidth) / 2 + 24,
               right: (screenW - contentMaxWidth) / 2 + 24,
               child: const _BrandHeader(),
