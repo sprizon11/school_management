@@ -254,8 +254,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               right: (screenW - contentMaxWidth) / 2 + 20,
               bottom: keyboardH > 0
                   ? keyboardH + 12
-                  : bottomSafe + 120,
-              child: Column(
+                  : bottomSafe + 84,
+              child: ConstrainedBox(
+                // Never let the card area grow past the space below the brand
+                // header — on small phones it scrolls instead of clipping.
+                constraints: BoxConstraints(
+                  maxHeight: screenH - topSafe - screenH * 0.16,
+                ),
+                child: SingleChildScrollView(
+                  reverse: true,
+                  physics: const ClampingScrollPhysics(),
+                  child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   _LoginCard(
@@ -294,6 +303,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   const SizedBox(height: 14),
                   const _GoogleSignInButton(),
                 ],
+              ),
+                ),
               ),
             ),
 
@@ -437,10 +448,10 @@ class _LoginCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(22, 24, 22, 20),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
             color: AppColors.primary.withValues(alpha: 0.12),
@@ -477,26 +488,26 @@ class _LoginCard extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             const Center(
               child: Text(
                 'Welcome Back!',
                 style: TextStyle(
-                  fontSize: 22,
+                  fontSize: 20,
                   fontWeight: FontWeight.w800,
                   color: AppColors.primaryDark,
                   letterSpacing: -0.3,
                 ),
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 3),
             const Center(
               child: Text(
                 'Login to continue to your account',
-                style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+                style: TextStyle(color: AppColors.textMuted, fontSize: 12.5),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
             if (schoolsLoading)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 8),
@@ -555,7 +566,7 @@ class _LoginCard extends StatelessWidget {
                 onChanged: loading ? null : onSchoolChanged,
                 validator: (v) => v == null ? 'Select your school' : null,
               ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 9),
             TextFormField(
               controller: identifierCtrl,
               keyboardType: TextInputType.emailAddress,
@@ -569,11 +580,11 @@ class _LoginCard extends StatelessWidget {
                 hintText: 'Email',
                 isDense: true,
                 contentPadding:
-                    EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                    EdgeInsets.symmetric(horizontal: 14, vertical: 11),
               ),
               validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 9),
             TextFormField(
               controller: passwordCtrl,
               obscureText: obscure,
@@ -591,7 +602,7 @@ class _LoginCard extends StatelessWidget {
                 hintText: 'Password',
                 isDense: true,
                 contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
                 suffixIcon: IconButton(
                   icon: Icon(
                     obscure
@@ -670,7 +681,7 @@ class _LoginCard extends StatelessWidget {
                 style: const TextStyle(color: Colors.red, fontSize: 12),
               ),
             ],
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             Material(
               color: Colors.transparent,
               borderRadius: BorderRadius.circular(16),
@@ -695,7 +706,7 @@ class _LoginCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(16),
                   child: Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 15),
+                    padding: const EdgeInsets.symmetric(vertical: 13),
                     alignment: Alignment.center,
                     child: loading
                         ? const SizedBox(

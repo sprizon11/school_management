@@ -20,8 +20,20 @@ class SmartSchoolApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       routerConfig: router,
-      builder: (context, child) =>
-          NotificationPoller(child: child ?? const SizedBox.shrink()),
+      builder: (context, child) {
+        final mq = MediaQuery.of(context);
+        // Clamp system text scaling so layouts stay intact on every device
+        // and accessibility font setting (prevents overflow on small phones
+        // and oversized text on large-font devices).
+        final clamped = mq.textScaler.clamp(
+          minScaleFactor: 0.9,
+          maxScaleFactor: 1.15,
+        );
+        return MediaQuery(
+          data: mq.copyWith(textScaler: clamped),
+          child: NotificationPoller(child: child ?? const SizedBox.shrink()),
+        );
+      },
     );
   }
 }
