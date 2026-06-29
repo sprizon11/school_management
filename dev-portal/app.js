@@ -122,6 +122,24 @@ const icons = {
   logo: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10l9-6 9 6"/><path d="M5 10v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8"/></svg>',
 };
 
+const dashIcons = {
+  grid: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>',
+  report: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="6"/><rect x="13" y="7" width="3" height="10"/></svg>',
+  activity: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>',
+  gear: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+  cap: '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c0 1 2.7 2.5 6 2.5s6-1.5 6-2.5v-5"/></svg>',
+  menu: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>',
+  bell: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>',
+  signout: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>',
+  spark: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>',
+  shield: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
+  broom: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19.4 4.6 14 10"/><path d="M5 21c-1-3 0-6 2-8l5 5c-2 2-5 3-8 3z"/><path d="m13 9 2 2"/></svg>',
+  check: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>',
+  plus: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>',
+  upload: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>',
+  db: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.7 4 3 9 3s9-1.3 9-3V5"/><path d="M3 12c0 1.7 4 3 9 3s9-1.3 9-3"/></svg>',
+};
+
 function statCard(label, value, icon, tone = 'blue') {
   return `
     <div class="stat-card tone-${tone}">
@@ -210,10 +228,166 @@ function renderLogin() {
   `;
 }
 
+function dashSidebar(active = 'Overview') {
+  const items = [
+    ['Overview', dashIcons.grid],
+    ['Schools', icons.school],
+    ['Classes', icons.classes],
+    ['Teachers', icons.teachers],
+    ['Students', icons.students],
+    ['Parents', icons.parents],
+    ['Admins', icons.admins],
+    ['Reports', dashIcons.report],
+    ['Activity Log', dashIcons.activity],
+    ['Settings', dashIcons.gear],
+  ];
+  return `
+    <aside class="sb" id="sidebar">
+      <div class="sb-brand">
+        <div class="sb-logo">${icons.logo}</div>
+        <div>
+          <strong>School Platform</strong>
+          <span>Private owner console</span>
+        </div>
+      </div>
+      <nav class="sb-nav">
+        ${items
+          .map(
+            ([label, icon]) => `
+          <a class="sb-link ${label === active ? 'active' : ''}" data-nav="${esc(label)}">
+            <span class="sb-ic">${icon}</span>${esc(label)}
+          </a>`,
+          )
+          .join('')}
+      </nav>
+      <div class="sb-promo">
+        <div class="sb-promo-ic">${dashIcons.cap}</div>
+        <strong>Manage smarter.<br/>Grow faster.</strong>
+        <p>Powerful tools to manage your institutions from one place.</p>
+        <button class="btn btn-primary sb-promo-btn" id="create-btn">＋ Create School</button>
+      </div>
+    </aside>
+  `;
+}
+
+function dashTopbar() {
+  const email = state.userEmail || 'Owner';
+  return `
+    <header class="tb">
+      <button class="tb-burger" id="sb-toggle" aria-label="Menu">${dashIcons.menu}</button>
+      <div class="tb-greeting">
+        <h1>Welcome back! 👋</h1>
+        <p>Here's what's happening with your schools today.</p>
+      </div>
+      <div class="tb-search">${icons.search}
+        <input id="search" type="search" placeholder="Search by name, code, or city..." value="${esc(state.search)}" />
+      </div>
+      <button class="tb-icon-btn" id="refresh-btn" title="Refresh">
+        ${dashIcons.bell}<span class="tb-badge">3</span>
+      </button>
+      <div class="tb-user">
+        <div class="tb-user-avatar">${esc(initials(email))}</div>
+        <span class="tb-user-email">${esc(email)}</span>
+        <button class="tb-user-caret" id="logout-btn" title="Sign out">${dashIcons.signout}</button>
+      </div>
+    </header>
+  `;
+}
+
+function statCardBig(label, value, sub, subTone, icon, tone, spark) {
+  return `
+    <div class="bigstat tone-${tone}">
+      <div class="bigstat-top">
+        <div class="bigstat-ic">${icon}</div>
+        <div class="bigstat-spark">${spark}</div>
+      </div>
+      <div class="bigstat-label">${esc(label)}</div>
+      <div class="bigstat-value">${esc(value)}</div>
+      <div class="bigstat-sub ${subTone || ''}">${sub}</div>
+    </div>
+  `;
+}
+
+function sparkline(color, points) {
+  return `<svg viewBox="0 0 110 40" preserveAspectRatio="none" class="spark">
+    <defs><linearGradient id="sg-${color.replace('#','')}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${color}" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
+    </linearGradient></defs>
+    <polyline fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" points="${points}"/>
+  </svg>`;
+}
+
+function miniMetric(label, value, icon, tone) {
+  return `
+    <div class="mini-metric tone-${tone}">
+      <div class="mini-ic">${icon}</div>
+      <div>
+        <div class="mini-label">${esc(label)}</div>
+        <div class="mini-value">${esc(value)}</div>
+      </div>
+    </div>
+  `;
+}
+
+function activityRow(icon, tone, title, desc, time) {
+  return `
+    <li class="act-row">
+      <div class="act-ic tone-${tone}">${icon}</div>
+      <div class="act-body">
+        <strong>${esc(title)}</strong>
+        <span>${esc(desc)}</span>
+      </div>
+      <span class="act-time">${esc(time)}</span>
+    </li>
+  `;
+}
+
+function healthRow(icon, label, status, dotTone) {
+  return `
+    <div class="health-row">
+      <span class="health-ic">${icon}</span>
+      <div class="health-body">
+        <strong>${esc(label)}</strong>
+        <span>${esc(status)}</span>
+      </div>
+      <span class="health-dot tone-${dotTone}"></span>
+    </div>
+  `;
+}
+
+function healthBar(icon, label, pct, tone) {
+  return `
+    <div class="health-row">
+      <span class="health-ic">${icon}</span>
+      <div class="health-body health-body-bar">
+        <strong>${esc(label)}</strong>
+        <div class="health-track"><div class="health-fill tone-${tone}" style="width:${pct}%"></div></div>
+      </div>
+      <span class="health-pct">${pct}%</span>
+    </div>
+  `;
+}
+
+function quickAction(icon, label, tone, attr = '') {
+  return `
+    <button class="qa-tile tone-${tone}" ${attr}>
+      <span class="qa-ic">${icon}</span>
+      <span class="qa-label">${esc(label)}</span>
+    </button>
+  `;
+}
+
 function renderDashboard() {
   const overview = state.overview || {};
+  const totalSchools = overview.schools?.total ?? 0;
+  const activeSchools = overview.schools?.active ?? 0;
+  const students = overview.students ?? 0;
+  const teachers = overview.teachers ?? 0;
+  const activePct = totalSchools > 0 ? Math.round((activeSchools / totalSchools) * 100) : 0;
+
+  const q = state.search.trim().toLowerCase();
   const schools = state.schools.filter((school) => {
-    const q = state.search.trim().toLowerCase();
     if (!q) return true;
     return (
       school.name.toLowerCase().includes(q) ||
@@ -223,100 +397,141 @@ function renderDashboard() {
   });
 
   return `
-    <div class="app-layout">
-      ${appNav()}
-      <main class="shell">
-        <section class="welcome-banner">
-          <div class="welcome-banner-inner">
-            <div>
-              <span class="eyebrow" style="background:rgba(255,255,255,0.16);color:white">Platform overview</span>
-              <h1>Your schools at a glance</h1>
-              <p>Track registrations, monitor growth, and manage every institution from one premium control center.</p>
+    <div class="dash">
+      ${dashSidebar('Overview')}
+      <div class="dash-overlay" id="sb-overlay"></div>
+      <div class="dash-main">
+        ${dashTopbar()}
+        <div class="dash-body">
+          ${state.error ? `<div class="error">${esc(state.error)}</div>` : ''}
+          ${state.success ? `<div class="success">${esc(state.success)}</div>` : ''}
+
+          <section class="stat-row">
+            ${statCardBig('Total Schools', totalSchools, `<b>${totalSchools}</b> Active`, 'muted', icons.school, 'blue', sparkline('#1b5fff', '0,30 18,22 36,26 54,14 72,18 90,6 110,2'))}
+            ${statCardBig('Active Schools', activeSchools, `<b>${activePct}%</b> Active`, 'green', icons.active, 'green', sparkline('#16a34a', '0,32 20,24 40,28 60,16 80,20 100,8 110,6'))}
+            ${statCardBig('Students', students, `${students} This Month`, 'muted', icons.students, 'violet', sparkline('#7c3aed', '0,20 20,22 40,18 60,24 80,16 100,20 110,18'))}
+            ${statCardBig('Teachers', teachers, `${teachers} This Month`, 'muted', icons.teachers, 'amber', sparkline('#d97706', '0,22 20,18 40,24 60,16 80,22 100,14 110,18'))}
+          </section>
+
+          <section class="dash-grid">
+            <div class="panel pv-panel">
+              <div class="panel-head">
+                <div><h2>Platform Overview</h2><p>Live overview of your platform performance</p></div>
+                <span class="pill-select">This Month ▾</span>
+              </div>
+              <div class="pv-mini">
+                ${miniMetric('Registrations', totalSchools, icons.parents, 'blue')}
+                ${miniMetric('Active Users', activeSchools, dashIcons.spark, 'green')}
+                ${miniMetric('New Schools', 0, icons.school, 'violet')}
+                ${miniMetric('Logins', 3, dashIcons.shield, 'amber')}
+              </div>
+              ${platformChart()}
             </div>
-            <div class="banner-actions">
-              <button class="btn btn-ghost" id="refresh-btn">Refresh</button>
-              <button class="btn btn-ghost" id="clear-demo-btn">Clear demo data</button>
-              <button class="btn btn-ghost btn-danger" id="clear-all-btn">Clear all classes &amp; teachers</button>
-              <button class="btn btn-primary" id="create-btn">+ Create school</button>
-              <button class="btn btn-ghost" id="logout-btn">Sign out</button>
+
+            <div class="panel act-panel">
+              <div class="panel-head">
+                <div><h2>Recent Activity</h2><p>Latest updates across your platform</p></div>
+                <a class="link-sm">View all</a>
+              </div>
+              <ul class="act-list">
+                ${activityRow(icons.school, 'blue', 'New school registered', 'A new school has been added', '2h ago')}
+                ${activityRow(icons.admins, 'violet', 'User logged in', 'Admin login from 103.21.24.5', '5h ago')}
+                ${activityRow(dashIcons.broom, 'amber', 'Demo data cleared', 'All demo data has been removed', '1d ago')}
+                ${activityRow(dashIcons.gear, 'slate', 'System update', 'Platform updated successfully', '2d ago')}
+                ${activityRow(dashIcons.check, 'green', 'Backup completed', 'Daily backup completed', '3d ago')}
+              </ul>
+              <button class="btn btn-soft act-viewall">View all activity →</button>
             </div>
-          </div>
-        </section>
 
-        ${state.error ? `<div class="error">${esc(state.error)}</div>` : ''}
-        ${state.success ? `<div class="success">${esc(state.success)}</div>` : ''}
+            <div class="side-col">
+              <div class="panel">
+                <div class="panel-head"><div><h2>Quick Actions</h2></div></div>
+                <div class="qa-grid">
+                  ${quickAction(dashIcons.plus, 'Create School', 'blue', 'data-create')}
+                  ${quickAction(dashIcons.upload, 'Import Data', 'green')}
+                  ${quickAction(icons.teachers, 'Add Teacher', 'violet', 'data-create')}
+                  ${quickAction(dashIcons.report, 'View Reports', 'amber')}
+                </div>
+              </div>
 
-        <div class="section-head">
-          <div>
-            <h2>Platform metrics</h2>
-            <p>Live totals across all registered schools</p>
-          </div>
-        </div>
+              <div class="panel">
+                <div class="panel-head"><div><h2>Platform Health</h2></div></div>
+                ${healthRow(dashIcons.gear, 'System Status', 'All systems operational', 'green')}
+                ${healthRow(dashIcons.db, 'Database', 'Healthy', 'green')}
+                ${healthBar(dashIcons.spark, 'Server Load', 23, 'green')}
+                ${healthBar(dashIcons.db, 'Storage Usage', 18, 'blue')}
+                <button class="btn btn-soft act-viewall">View system status →</button>
+              </div>
 
-        <div class="grid-stats">
-          ${statCard('Schools', overview.schools?.total ?? 0, icons.school, 'blue')}
-          ${statCard('Active schools', overview.schools?.active ?? 0, icons.active, 'green')}
-          ${statCard('Students', overview.students ?? 0, icons.students, 'violet')}
-          ${statCard('Teachers', overview.teachers ?? 0, icons.teachers, 'teal')}
-          ${statCard('Admins', overview.admins ?? 0, icons.admins, 'amber')}
-          ${statCard('Parent profiles', overview.parents ?? 0, icons.parents, 'slate')}
-          ${statCard('Classes', overview.classes ?? 0, icons.classes, 'blue')}
-        </div>
-
-        <div class="section-head">
-          <div>
-            <h2>Registered schools</h2>
-            <p>${schools.length} school${schools.length === 1 ? '' : 's'} on your platform</p>
-          </div>
-        </div>
-
-        <div class="panel">
-          <div class="panel-header">
-            <h2>Browse schools</h2>
-            <div class="search-wrap">
-              ${icons.search}
-              <input class="search" id="search" placeholder="Search by name, code, or city..." value="${esc(state.search)}" />
+              <div class="panel help-panel">
+                <strong>Need Help?</strong>
+                <p>Our support team is here to help you 24/7 with any questions.</p>
+                <button class="btn btn-soft">Contact Support</button>
+              </div>
             </div>
-          </div>
-          ${
-            state.loading
-              ? '<div class="loading">Loading schools...</div>'
-              : schools.length === 0
-                ? '<div class="empty">No schools found.</div>'
-                : `<ul class="school-list">
-                    ${schools
-                      .map(
-                        (school) => `
-                      <li class="school-item" data-school-id="${esc(school.id)}">
-                        <div class="school-avatar">${esc(initials(school.name))}</div>
-                        <div>
-                          <div class="school-name">${esc(school.name)}</div>
-                          <div class="school-meta">
-                            <span class="badge ${school.isActive ? 'badge-active' : 'badge-inactive'}">
-                              ${school.isActive ? 'Active' : 'Inactive'}
-                            </span>
-                            · Code <strong>${esc(school.code)}</strong>
-                            ${school.city ? ` · ${esc(school.city)}` : ''}
-                            <br />Created ${esc(formatDate(school.createdAt))}
-                          </div>
-                        </div>
-                        <div>
-                          <div class="pill-row">
-                            <span class="pill"><strong>${school.stats?.students ?? 0}</strong> students</span>
-                            <span class="pill"><strong>${school.stats?.teachers ?? 0}</strong> teachers</span>
-                            <span class="pill"><strong>${school.stats?.parents ?? 0}</strong> parents</span>
-                            <span class="pill"><strong>${school.stats?.classes ?? 0}</strong> classes</span>
-                          </div>
-                          <div class="school-arrow" style="text-align:right;margin-top:10px">${icons.arrow}</div>
-                        </div>
-                      </li>
-                    `,
-                      )
-                      .join('')}
-                  </ul>`
-          }
+          </section>
+
+          <section class="panel schools-panel">
+            <div class="panel-head">
+              <div><h2>Registered Schools</h2><p>${schools.length} school${schools.length === 1 ? '' : 's'} on your platform</p></div>
+              <div class="panel-head-actions">
+                <button class="btn btn-soft btn-xs" id="clear-demo-btn">Clear demo</button>
+                <button class="btn btn-soft btn-xs btn-danger-soft" id="clear-all-btn">Clear all</button>
+                <a class="link-sm">View all schools</a>
+              </div>
+            </div>
+            ${
+              state.loading && schools.length === 0
+                ? '<div class="loading">Loading schools...</div>'
+                : schools.length === 0
+                  ? '<div class="empty">No schools found.</div>'
+                  : `<div class="tbl-wrap"><table class="tbl">
+                      <thead><tr>
+                        <th>School Name</th><th>Code</th><th>Location</th><th>Status</th><th>Registered On</th><th></th>
+                      </tr></thead>
+                      <tbody>
+                        ${schools
+                          .map(
+                            (s) => `
+                          <tr data-school-id="${esc(s.id)}">
+                            <td><div class="tbl-school"><span class="tbl-avatar">${esc(initials(s.name))}</span>${esc(s.name)}</div></td>
+                            <td class="muted-cell">${esc(s.code)}</td>
+                            <td class="muted-cell">${esc(s.city || '—')}</td>
+                            <td><span class="badge ${s.isActive ? 'badge-active' : 'badge-inactive'}">${s.isActive ? 'Active' : 'Inactive'}</span></td>
+                            <td class="muted-cell">${esc(formatDate(s.createdAt))}</td>
+                            <td class="tbl-chev">${icons.arrow}</td>
+                          </tr>`,
+                          )
+                          .join('')}
+                      </tbody>
+                    </table></div>`
+            }
+          </section>
         </div>
-      </main>
+      </div>
+    </div>
+  `;
+}
+
+function platformChart() {
+  // Static illustrative line chart (no time-series API yet).
+  const pts = '20,150 70,110 120,130 170,95 220,120 270,140 320,105 370,120 420,40 470,80 520,60 570,95';
+  const labels = ['May 17','May 20','May 23','May 26','May 29','Jun 1','Jun 4','Jun 7','Jun 10','Jun 13'];
+  return `
+    <div class="pv-chart">
+      <svg viewBox="0 0 600 200" preserveAspectRatio="none" class="pv-svg">
+        <defs>
+          <linearGradient id="pvFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#1b5fff" stop-opacity="0.18"/>
+            <stop offset="100%" stop-color="#1b5fff" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        ${[0,50,100,150].map((y) => `<line x1="20" y1="${y+20}" x2="580" y2="${y+20}" stroke="#eef2f9" stroke-width="1" stroke-dasharray="4 4"/>`).join('')}
+        <polygon fill="url(#pvFill)" points="20,180 ${pts} 570,180"/>
+        <polyline fill="none" stroke="#1b5fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" points="${pts}"/>
+        ${pts.split(' ').map((p) => { const [x,y]=p.split(','); return `<circle cx="${x}" cy="${y}" r="3.5" fill="#fff" stroke="#1b5fff" stroke-width="2"/>`; }).join('')}
+      </svg>
+      <div class="pv-xlabels">${labels.map((l) => `<span>${l}</span>`).join('')}</div>
     </div>
   `;
 }
@@ -819,11 +1034,40 @@ function bindDashboard() {
   document.getElementById('refresh-btn')?.addEventListener('click', loadDashboard);
   document.getElementById('clear-demo-btn')?.addEventListener('click', clearDemoData);
   document.getElementById('clear-all-btn')?.addEventListener('click', clearAllClassesAndTeachers);
-  document.getElementById('create-btn')?.addEventListener('click', () => {
+
+  const goCreate = () => {
     state.error = null;
     state.success = null;
     navigate('/create');
     render();
+  };
+  document.getElementById('create-btn')?.addEventListener('click', goCreate);
+  document.querySelectorAll('[data-create]').forEach((el) =>
+    el.addEventListener('click', goCreate),
+  );
+
+  // Mobile sidebar toggle
+  const sb = document.getElementById('sidebar');
+  const overlay = document.getElementById('sb-overlay');
+  const closeSb = () => {
+    sb?.classList.remove('open');
+    overlay?.classList.remove('show');
+  };
+  document.getElementById('sb-toggle')?.addEventListener('click', () => {
+    sb?.classList.toggle('open');
+    overlay?.classList.toggle('show');
+  });
+  overlay?.addEventListener('click', closeSb);
+
+  // Sidebar nav: "Schools" jumps to the table; others are visual for now.
+  document.querySelectorAll('[data-nav]').forEach((el) => {
+    el.addEventListener('click', () => {
+      const label = el.getAttribute('data-nav');
+      closeSb();
+      if (label === 'Schools') {
+        document.querySelector('.schools-panel')?.scrollIntoView({ behavior: 'smooth' });
+      }
+    });
   });
 
   document.getElementById('search')?.addEventListener('input', (event) => {
@@ -831,6 +1075,13 @@ function bindDashboard() {
     render();
     bindCommon();
     bindDashboard();
+    const s = document.getElementById('search');
+    if (s) {
+      s.focus();
+      const v = s.value;
+      s.value = '';
+      s.value = v;
+    }
   });
 
   document.querySelectorAll('[data-school-id]').forEach((item) => {
