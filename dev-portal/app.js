@@ -14,6 +14,7 @@ const state = {
   error: null,
   success: null,
   search: '',
+  schoolsFilter: { status: '', city: '', type: '', search: '', page: 1 },
 };
 
 function loadSession() {
@@ -138,6 +139,16 @@ const dashIcons = {
   plus: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>',
   upload: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>',
   db: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.7 4 3 9 3s9-1.3 9-3V5"/><path d="M3 12c0 1.7 4 3 9 3s9-1.3 9-3"/></svg>',
+  eye: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>',
+  edit: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
+  dots: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="12" cy="19" r="1.2" fill="currentColor"/></svg>',
+  pin: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>',
+  filter: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>',
+  import: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>',
+  chevLeft: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>',
+  chevRight: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>',
+  inactive: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M10 15V9M14 15V9"/></svg>',
+  clock: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>',
 };
 
 function statCard(label, value, icon, tone = 'blue') {
@@ -270,15 +281,15 @@ function dashSidebar(active = 'Overview') {
   `;
 }
 
-function dashTopbar() {
+function dashTopbar(title, subtitle) {
   const email = state.userEmail || 'Owner';
+  const titleHtml = title
+    ? `<div class="tb-page-title"><h1>${esc(title)}</h1><p>${esc(subtitle || '')}</p></div>`
+    : `<div class="tb-greeting"><h1>Welcome back! 👋</h1><p>Here's what's happening with your schools today.</p></div>`;
   return `
     <header class="tb">
       <button class="tb-burger" id="sb-toggle" aria-label="Menu">${dashIcons.menu}</button>
-      <div class="tb-greeting">
-        <h1>Welcome back! 👋</h1>
-        <p>Here's what's happening with your schools today.</p>
-      </div>
+      ${titleHtml}
       <div class="tb-search">${icons.search}
         <input id="search" type="search" placeholder="Search by name, code, or city..." value="${esc(state.search)}" />
       </div>
@@ -532,6 +543,202 @@ function platformChart() {
         ${pts.split(' ').map((p) => { const [x,y]=p.split(','); return `<circle cx="${x}" cy="${y}" r="3.5" fill="#fff" stroke="#1b5fff" stroke-width="2"/>`; }).join('')}
       </svg>
       <div class="pv-xlabels">${labels.map((l) => `<span>${l}</span>`).join('')}</div>
+    </div>
+  `;
+}
+
+function schoolType(name) {
+  const n = (name || '').toLowerCase();
+  if (n.includes('matric')) return ['Matric School', 'pink'];
+  if (n.includes('primary') || n.includes('junior') || n.includes('elementary')) return ['Primary School', 'amber'];
+  if (n.includes('international') || n.includes('global')) return ['International', 'teal'];
+  if (n.includes('cbse') || n.includes('central')) return ['CBSE School', 'green'];
+  if (n.includes('high')) return ['High School', 'blue'];
+  if (n.includes('convent') || n.includes('girls') || n.includes('boys')) return ['Convent School', 'violet'];
+  return ['School', 'slate'];
+}
+
+function scStatCard(icon, title, value, sub, tone) {
+  return `
+    <div class="sc-stat tone-${tone}">
+      <div class="sc-stat-ic">${icon}</div>
+      <div>
+        <div class="sc-stat-label">${esc(title)}</div>
+        <div class="sc-stat-value">${esc(String(value))}</div>
+        <div class="sc-stat-sub">${esc(sub)}</div>
+      </div>
+    </div>
+  `;
+}
+
+function renderSchoolsPage() {
+  const totalSchools = state.schools.length;
+  const activeSchools = state.schools.filter((s) => s.isActive).length;
+  const inactiveSchools = totalSchools - activeSchools;
+
+  const now = new Date();
+  const newThisMonth = state.schools.filter((s) => {
+    if (!s.createdAt) return false;
+    const d = new Date(s.createdAt);
+    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+  }).length;
+
+  const sf = state.schoolsFilter;
+  const cities = [...new Set(state.schools.map((s) => s.city).filter(Boolean))].sort();
+
+  let filtered = state.schools;
+  if (sf.status === 'active') filtered = filtered.filter((s) => s.isActive);
+  if (sf.status === 'inactive') filtered = filtered.filter((s) => !s.isActive);
+  if (sf.city) filtered = filtered.filter((s) => s.city === sf.city);
+  if (sf.type) filtered = filtered.filter((s) => schoolType(s.name)[0].toLowerCase().includes(sf.type));
+  if (sf.search) {
+    const q = sf.search.toLowerCase();
+    filtered = filtered.filter(
+      (s) =>
+        s.name.toLowerCase().includes(q) ||
+        s.code.toLowerCase().includes(q) ||
+        (s.city || '').toLowerCase().includes(q),
+    );
+  }
+
+  const total = filtered.length;
+  const perPage = 10;
+  const totalPages = Math.max(1, Math.ceil(total / perPage));
+  const curPage = Math.min(sf.page || 1, totalPages);
+  const start = (curPage - 1) * perPage;
+  const pageSchools = filtered.slice(start, start + perPage);
+
+  const pageNums = [];
+  for (let i = 1; i <= totalPages; i++) {
+    if (totalPages <= 6 || i === 1 || i === totalPages || Math.abs(i - curPage) <= 1) {
+      pageNums.push(i);
+    } else if (pageNums[pageNums.length - 1] !== '…') {
+      pageNums.push('…');
+    }
+  }
+
+  const paginationHtml =
+    total === 0
+      ? ''
+      : `<div class="sc-pagination">
+          <span class="sc-pagination-info">Showing ${start + 1}–${Math.min(start + perPage, total)} of ${total} school${total === 1 ? '' : 's'}</span>
+          <button class="pg-btn" data-page="${curPage - 1}" ${curPage <= 1 ? 'disabled' : ''}>${dashIcons.chevLeft}</button>
+          ${pageNums
+            .map((n) =>
+              n === '…'
+                ? `<span class="pg-dots">…</span>`
+                : `<button class="pg-btn ${n === curPage ? 'active' : ''}" data-page="${n}">${n}</button>`,
+            )
+            .join('')}
+          <button class="pg-btn" data-page="${curPage + 1}" ${curPage >= totalPages ? 'disabled' : ''}>${dashIcons.chevRight}</button>
+          <select class="per-page-select"><option>10 per page</option></select>
+        </div>`;
+
+  const tableHtml =
+    state.loading && pageSchools.length === 0
+      ? '<div class="loading">Loading schools…</div>'
+      : pageSchools.length === 0
+        ? '<div class="empty">No schools match your filters.</div>'
+        : `<div class="tbl-wrap"><table class="tbl">
+            <thead><tr>
+              <th>School Name</th><th>Code</th><th>Location</th><th>Type</th><th>Status</th><th>Registered On</th><th>Actions</th>
+            </tr></thead>
+            <tbody>
+              ${pageSchools
+                .map((s) => {
+                  const [typeName, typeColor] = schoolType(s.name);
+                  const regDate = s.createdAt
+                    ? new Date(s.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                    : '—';
+                  const isActive = s.isActive;
+                  return `<tr data-school-id="${esc(s.id)}" style="cursor:pointer">
+                    <td>
+                      <div class="tbl-school" style="align-items:flex-start">
+                        <span class="tbl-avatar" style="margin-top:2px">${esc(initials(s.name))}</span>
+                        <div>
+                          <div style="font-weight:700">${esc(s.name)}</div>
+                          <div class="tbl-school-sub">${esc(s.code.toUpperCase())}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="muted-cell">${esc(s.code.toUpperCase())}</td>
+                    <td>
+                      <div class="loc-cell">${dashIcons.pin}<span>${esc(s.city || '—')}</span></div>
+                    </td>
+                    <td><span class="type-badge ${typeColor}">${esc(typeName)}</span></td>
+                    <td>
+                      <div class="status-badge ${isActive ? 's-active' : 's-inactive'}">
+                        <span class="status-dot ${isActive ? 'active' : 'inactive'}"></span>
+                        ${isActive ? 'Active' : 'Inactive'}
+                      </div>
+                    </td>
+                    <td class="muted-cell">${regDate}</td>
+                    <td>
+                      <div class="tbl-actions" onclick="event.stopPropagation()">
+                        <button class="tbl-action-btn sc-view-btn" data-school-id="${esc(s.id)}" title="View">${dashIcons.eye}</button>
+                        <button class="tbl-action-btn" title="Edit">${dashIcons.edit}</button>
+                        <button class="tbl-action-btn" title="More">${dashIcons.dots}</button>
+                      </div>
+                    </td>
+                  </tr>`;
+                })
+                .join('')}
+            </tbody>
+          </table></div>`;
+
+  return `
+    <div class="dash">
+      ${dashSidebar('Schools')}
+      <div class="dash-overlay" id="sb-overlay"></div>
+      <div class="dash-main">
+        ${dashTopbar('Schools', 'Manage and monitor all registered schools on your platform.')}
+        <div class="dash-body">
+          ${state.error ? `<div class="error">${esc(state.error)}</div>` : ''}
+
+          <div class="sc-header-row">
+            <div class="sc-stats">
+              ${scStatCard(icons.school, 'Total Schools', totalSchools, 'All registered schools', 'blue')}
+              ${scStatCard(icons.active, 'Active Schools', activeSchools, 'Active and running', 'green')}
+              ${scStatCard(dashIcons.inactive, 'Inactive Schools', inactiveSchools, 'Currently inactive', 'amber')}
+              ${scStatCard(dashIcons.clock, 'New This Month', newThisMonth, 'Recently added', 'violet')}
+            </div>
+            <div class="sc-actions-col">
+              <button class="btn btn-primary" id="create-btn">${dashIcons.plus} Create School</button>
+              <button class="btn btn-soft" id="import-btn">${dashIcons.import} Import Schools</button>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="sc-filter-bar">
+              <select class="sc-filter-select" id="sc-status-filter">
+                <option value="">All Status</option>
+                <option value="active" ${sf.status === 'active' ? 'selected' : ''}>Active</option>
+                <option value="inactive" ${sf.status === 'inactive' ? 'selected' : ''}>Inactive</option>
+              </select>
+              <select class="sc-filter-select" id="sc-city-filter">
+                <option value="">All Cities</option>
+                ${cities.map((c) => `<option value="${esc(c)}" ${sf.city === c ? 'selected' : ''}>${esc(c)}</option>`).join('')}
+              </select>
+              <select class="sc-filter-select" id="sc-type-filter">
+                <option value="">All Types</option>
+                <option value="high" ${sf.type === 'high' ? 'selected' : ''}>High School</option>
+                <option value="cbse" ${sf.type === 'cbse' ? 'selected' : ''}>CBSE School</option>
+                <option value="matric" ${sf.type === 'matric' ? 'selected' : ''}>Matric School</option>
+                <option value="primary" ${sf.type === 'primary' ? 'selected' : ''}>Primary School</option>
+                <option value="international" ${sf.type === 'international' ? 'selected' : ''}>International</option>
+              </select>
+              <div class="sc-search-wrap">
+                ${icons.search}
+                <input type="search" id="sc-search" placeholder="Search schools…" value="${esc(sf.search || '')}" />
+              </div>
+              <button class="sc-filter-icon-btn" title="More filters">${dashIcons.filter}</button>
+            </div>
+
+            ${tableHtml}
+            ${paginationHtml}
+          </div>
+        </div>
+      </div>
     </div>
   `;
 }
@@ -882,6 +1089,12 @@ function render() {
     return;
   }
 
+  if (path === '/schools') {
+    app.innerHTML = renderSchoolsPage();
+    bindSchoolsPage();
+    return;
+  }
+
   const schoolMatch = path.match(/^\/school\/([^/]+)$/);
   if (schoolMatch) {
     app.innerHTML =
@@ -930,6 +1143,24 @@ async function loadSchoolDetail(id) {
     state.loading = false;
     render();
   }
+}
+
+async function loadSchoolsPage() {
+  if (state.schools.length === 0) {
+    state.loading = true;
+    state.error = null;
+    render();
+    try {
+      const [overview, schools] = await Promise.all([api('/dev/overview'), api('/dev/schools')]);
+      state.overview = overview;
+      state.schools = schools;
+    } catch (error) {
+      state.error = error.message;
+    } finally {
+      state.loading = false;
+    }
+  }
+  render();
 }
 
 function bindLogin() {
@@ -1065,7 +1296,7 @@ function bindDashboard() {
       const label = el.getAttribute('data-nav');
       closeSb();
       if (label === 'Schools') {
-        document.querySelector('.schools-panel')?.scrollIntoView({ behavior: 'smooth' });
+        navigate('/schools');
       }
     });
   });
@@ -1087,6 +1318,114 @@ function bindDashboard() {
   document.querySelectorAll('[data-school-id]').forEach((item) => {
     item.addEventListener('click', () => {
       const id = item.getAttribute('data-school-id');
+      navigate(`/school/${id}`);
+      loadSchoolDetail(id);
+    });
+  });
+}
+
+function bindSchoolsPage() {
+  const sb = document.getElementById('sidebar');
+  const overlay = document.getElementById('sb-overlay');
+  const closeSb = () => {
+    sb?.classList.remove('open');
+    overlay?.classList.remove('show');
+  };
+  document.getElementById('sb-toggle')?.addEventListener('click', () => {
+    sb?.classList.toggle('open');
+    overlay?.classList.toggle('show');
+  });
+  overlay?.addEventListener('click', closeSb);
+
+  // Sidebar nav links
+  document.querySelectorAll('[data-nav]').forEach((el) => {
+    el.addEventListener('click', () => {
+      const label = el.getAttribute('data-nav');
+      closeSb();
+      if (label === 'Overview') {
+        navigate('/');
+        loadDashboard();
+      } else if (label === 'Schools') {
+        // already here
+      }
+    });
+  });
+
+  // Logout via user caret
+  document.querySelector('.tb-user-caret')?.addEventListener('click', () => {
+    clearSession();
+    state.overview = null;
+    state.schools = [];
+    state.schoolDetail = null;
+    navigate('/login');
+    render();
+  });
+
+  // Create / import buttons
+  document.getElementById('create-btn')?.addEventListener('click', () => {
+    state.error = null;
+    state.success = null;
+    navigate('/create');
+    render();
+  });
+
+  // Filters
+  const applyFilter = (updates) => {
+    Object.assign(state.schoolsFilter, updates, { page: 1 });
+    render();
+    bindSchoolsPage();
+  };
+
+  document.getElementById('sc-status-filter')?.addEventListener('change', (e) =>
+    applyFilter({ status: e.target.value }),
+  );
+  document.getElementById('sc-city-filter')?.addEventListener('change', (e) =>
+    applyFilter({ city: e.target.value }),
+  );
+  document.getElementById('sc-type-filter')?.addEventListener('change', (e) =>
+    applyFilter({ type: e.target.value }),
+  );
+  document.getElementById('sc-search')?.addEventListener('input', (e) => {
+    state.schoolsFilter.search = e.target.value;
+    state.schoolsFilter.page = 1;
+    render();
+    bindSchoolsPage();
+    const inp = document.getElementById('sc-search');
+    if (inp) {
+      inp.focus();
+      const v = inp.value;
+      inp.value = '';
+      inp.value = v;
+    }
+  });
+
+  // Pagination
+  document.querySelectorAll('[data-page]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const p = parseInt(btn.getAttribute('data-page'), 10);
+      if (!isNaN(p) && p >= 1) {
+        state.schoolsFilter.page = p;
+        render();
+        bindSchoolsPage();
+        document.querySelector('.dash-body')?.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    });
+  });
+
+  // View button → school detail
+  document.querySelectorAll('.sc-view-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id = btn.getAttribute('data-school-id');
+      navigate(`/school/${id}`);
+      loadSchoolDetail(id);
+    });
+  });
+
+  // Row click → school detail
+  document.querySelectorAll('tr[data-school-id]').forEach((row) => {
+    row.addEventListener('click', () => {
+      const id = row.getAttribute('data-school-id');
       navigate(`/school/${id}`);
       loadSchoolDetail(id);
     });
@@ -1269,6 +1608,11 @@ window.addEventListener('hashchange', async () => {
     return;
   }
 
+  if (path === '/schools') {
+    await loadSchoolsPage();
+    return;
+  }
+
   if (path === '/create') {
     state.error = null;
     render();
@@ -1287,6 +1631,8 @@ if (loadSession()) {
     loadDashboard();
   } else if (path === '/create') {
     render();
+  } else if (path === '/schools') {
+    loadSchoolsPage();
   } else {
     const schoolMatch = path.match(/^\/school\/([^/]+)$/);
     if (schoolMatch) loadSchoolDetail(schoolMatch[1]);
