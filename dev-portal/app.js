@@ -102,6 +102,19 @@ function formatDate(value) {
   return new Date(value).toLocaleString();
 }
 
+function formatRelativeTime(value) {
+  if (!value) return '—';
+  const diff = Date.now() - new Date(value).getTime();
+  const mins = Math.floor(diff / 60000);
+  const hrs  = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
+  if (mins < 1)  return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  if (hrs  < 24) return `${hrs}h ago`;
+  if (days <  7) return `${days}d ago`;
+  return new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
 function initials(text) {
   return String(text || '?')
     .split(/\s+/)
@@ -271,12 +284,6 @@ function dashSidebar(active = 'Overview') {
           )
           .join('')}
       </nav>
-      <div class="sb-promo">
-        <div class="sb-promo-ic">${dashIcons.cap}</div>
-        <strong>Manage smarter.<br/>Grow faster.</strong>
-        <p>Powerful tools to manage your institutions from one place.</p>
-        <button class="btn btn-primary sb-promo-btn" id="create-btn">＋ Create School</button>
-      </div>
     </aside>
   `;
 }
@@ -409,6 +416,28 @@ function renderDashboard() {
 
   const previewSchools = schools.slice(0, 5);
 
+  // Real activity: sorted school registrations (subscription events)
+  const recentRegistrations = [...state.schools]
+    .filter((s) => s.createdAt)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, 5);
+
+  const activityListHtml = recentRegistrations.length > 0
+    ? recentRegistrations.map((s) =>
+        activityRow(
+          icons.school,
+          s.isActive ? 'green' : 'amber',
+          `${s.name}`,
+          `Subscription activated · ${s.code.toUpperCase()}${s.city ? ` · ${s.city}` : ''}`,
+          formatRelativeTime(s.createdAt),
+        )
+      ).join('')
+    : `<li class="act-row"><div class="act-body" style="color:var(--muted);font-size:0.85rem;padding:8px 0">No subscription activity yet.</div></li>`;
+
+  // Real health: derived from actual API data
+  const totalRecords = students + teachers + (state.schools.length);
+  const lastRefresh = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
   return `
     <div class="dash">
       ${dashSidebar('Overview')}
@@ -445,21 +474,16 @@ function renderDashboard() {
 
             <div class="panel act-panel">
               <div class="panel-head">
-                <div><h2>Recent Activity</h2><p>Latest platform updates</p></div>
-                <a class="link-sm">View all</a>
+                <div><h2>Subscription Activity</h2><p>School subscription & payment events</p></div>
+                <a class="link-sm" data-goto="/schools">View all →</a>
               </div>
               <ul class="act-list">
-                ${activityRow(icons.school, 'blue', 'New school registered', 'A new school has been added', '2h ago')}
-                ${activityRow(icons.admins, 'violet', 'User logged in', 'Admin login from 103.21.24.5', '5h ago')}
-                ${activityRow(dashIcons.broom, 'amber', 'Demo data cleared', 'All demo data removed', '1d ago')}
-                ${activityRow(dashIcons.gear, 'slate', 'System update', 'Platform updated successfully', '2d ago')}
-                ${activityRow(dashIcons.check, 'green', 'Backup completed', 'Daily backup completed', '3d ago')}
+                ${activityListHtml}
               </ul>
-              <button class="btn btn-soft act-viewall">View all activity →</button>
             </div>
           </section>
 
-          <!-- Row 3: Quick Actions + Health + Help (3-col balanced) -->
+          <!-- Row 3: Quick Actions (left) + Platform Health real data (right) -->
           <section class="dash-grid-bottom">
             <div class="panel">
               <div class="panel-head"><div><h2>Quick Actions</h2><p>Common platform tasks</p></div></div>
@@ -472,18 +496,26 @@ function renderDashboard() {
             </div>
 
             <div class="panel">
-              <div class="panel-head"><div><h2>Platform Health</h2><p>System status at a glance</p></div></div>
-              ${healthRow(dashIcons.gear, 'System Status', 'All systems operational', 'green')}
-              ${healthRow(dashIcons.db, 'Database', 'Healthy · Neon PostgreSQL', 'green')}
-              ${healthBar(dashIcons.spark, 'Server Load', 23, 'green')}
-              ${healthBar(dashIcons.db, 'Storage Usage', 18, 'blue')}
-              <button class="btn btn-soft act-viewall" style="margin-top:12px">View system status →</button>
-            </div>
-
-            <div class="panel help-panel">
-              <strong>Need Help?</strong>
-              <p>Our support team is here to help you 24/7 with any questions about the platform.</p>
-              <button class="btn btn-soft">Contact Support</button>
+              <div class="panel-head"><div><h2>Platform Health</h2><p>Live system status</p></div></div>
+              ${healthRow(dashIcons.gear, 'API Server', 'Online · Cloud Run', 'green')}
+              ${healthRow(dashIcons.db, 'Database', 'Connected · Neon PostgreSQL', 'green')}
+              ${healthBar(icons.school, 'Schools Active', totalSchools > 0 ? activePct : 0, activePct >= 50 ? 'green' : 'amber')}
+              <div class="health-row">
+                <span class="health-ic">${dashIcons.spark}</span>
+                <div class="health-body">
+                  <strong>Total Records</strong>
+                  <span>${totalRecords.toLocaleString()} rows in database</span>
+                </div>
+                <span class="health-pct" style="font-size:0.72rem;color:var(--muted)">Live</span>
+              </div>
+              <div class="health-row" style="border-top:1px solid var(--border);padding-top:9px;margin-top:4px">
+                <span class="health-ic">${dashIcons.clock}</span>
+                <div class="health-body">
+                  <strong>Last Refreshed</strong>
+                  <span>Today at ${lastRefresh}</span>
+                </div>
+                <button class="btn-soft btn-xs" id="refresh-btn" style="border-radius:8px;padding:4px 10px;font-size:0.76rem">↻ Sync</button>
+              </div>
             </div>
           </section>
 

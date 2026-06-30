@@ -62,6 +62,8 @@
   flex-direction: column;
   gap: 4px;
   flex: 1;
+  overflow-y: auto;
+  padding-bottom: 12px;
 }
 
 .sb-link {
@@ -380,10 +382,10 @@
   align-items: start;
 }
 
-/* New balanced 3-col: Quick Actions + Health + Help */
+/* New balanced 2-col: Quick Actions + Health */
 .dash-grid-bottom {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: 18px;
   align-items: start;
 }
@@ -750,7 +752,6 @@
   .dash-grid { grid-template-columns: 1fr 1fr; }
   .side-col { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; }
   .side-col .panel { flex: 1; min-width: 240px; }
-  .dash-grid-bottom { grid-template-columns: 1fr 1fr; }
 }
 
 @media (max-width: 1024px) {
