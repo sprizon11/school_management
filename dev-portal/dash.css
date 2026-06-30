@@ -364,12 +364,36 @@
 .bigstat-sub.green { color: var(--success); }
 .bigstat-sub.green b { color: var(--success); }
 
-/* Dashboard middle grid */
+/* Dashboard middle grid (legacy 3-col kept for compat) */
 .dash-grid {
   display: grid;
   grid-template-columns: 1.5fr 1.1fr 0.95fr;
   gap: 18px;
   align-items: start;
+}
+
+/* New balanced 2-col: Overview + Activity */
+.dash-grid-top {
+  display: grid;
+  grid-template-columns: 1.45fr 1fr;
+  gap: 18px;
+  align-items: start;
+}
+
+/* New balanced 3-col: Quick Actions + Health + Help */
+.dash-grid-bottom {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 18px;
+  align-items: start;
+}
+
+/* Schools table "view all" footer row */
+.tbl-viewall {
+  text-align: center;
+  padding: 14px 0 2px;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
 }
 
 .dash-body .panel {
@@ -726,6 +750,7 @@
   .dash-grid { grid-template-columns: 1fr 1fr; }
   .side-col { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; }
   .side-col .panel { flex: 1; min-width: 240px; }
+  .dash-grid-bottom { grid-template-columns: 1fr 1fr; }
 }
 
 @media (max-width: 1024px) {
@@ -744,6 +769,8 @@
 
 @media (max-width: 820px) {
   .dash-grid { grid-template-columns: 1fr; }
+  .dash-grid-top { grid-template-columns: 1fr; }
+  .dash-grid-bottom { grid-template-columns: 1fr; }
   .side-col { flex-direction: column; }
   .tb-greeting p { display: none; }
   .pv-mini { grid-template-columns: repeat(2, 1fr); }

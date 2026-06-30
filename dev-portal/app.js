@@ -407,6 +407,8 @@ function renderDashboard() {
     );
   });
 
+  const previewSchools = schools.slice(0, 5);
+
   return `
     <div class="dash">
       ${dashSidebar('Overview')}
@@ -417,78 +419,82 @@ function renderDashboard() {
           ${state.error ? `<div class="error">${esc(state.error)}</div>` : ''}
           ${state.success ? `<div class="success">${esc(state.success)}</div>` : ''}
 
+          <!-- Row 1: Stat cards -->
           <section class="stat-row">
-            ${statCardBig('Total Schools', totalSchools, `<b>${totalSchools}</b> Active`, 'muted', icons.school, 'blue', sparkline('#1b5fff', '0,30 18,22 36,26 54,14 72,18 90,6 110,2'))}
-            ${statCardBig('Active Schools', activeSchools, `<b>${activePct}%</b> Active`, 'green', icons.active, 'green', sparkline('#16a34a', '0,32 20,24 40,28 60,16 80,20 100,8 110,6'))}
-            ${statCardBig('Students', students, `${students} This Month`, 'muted', icons.students, 'violet', sparkline('#7c3aed', '0,20 20,22 40,18 60,24 80,16 100,20 110,18'))}
-            ${statCardBig('Teachers', teachers, `${teachers} This Month`, 'muted', icons.teachers, 'amber', sparkline('#d97706', '0,22 20,18 40,24 60,16 80,22 100,14 110,18'))}
+            ${statCardBig('Total Schools', totalSchools, `<b>${totalSchools}</b> registered`, 'muted', icons.school, 'blue', sparkline('#1b5fff', '0,30 18,22 36,26 54,14 72,18 90,6 110,2'))}
+            ${statCardBig('Active Schools', activeSchools, `<b>${activePct}%</b> active`, 'green', icons.active, 'green', sparkline('#16a34a', '0,32 20,24 40,28 60,16 80,20 100,8 110,6'))}
+            ${statCardBig('Students', students, `${students} enrolled`, 'muted', icons.students, 'violet', sparkline('#7c3aed', '0,20 20,22 40,18 60,24 80,16 100,20 110,18'))}
+            ${statCardBig('Teachers', teachers, `${teachers} active`, 'muted', icons.teachers, 'amber', sparkline('#d97706', '0,22 20,18 40,24 60,16 80,22 100,14 110,18'))}
           </section>
 
-          <section class="dash-grid">
+          <!-- Row 2: Overview chart (left) + Recent Activity (right) -->
+          <section class="dash-grid-top">
             <div class="panel pv-panel">
               <div class="panel-head">
-                <div><h2>Platform Overview</h2><p>Live overview of your platform performance</p></div>
+                <div><h2>Platform Overview</h2><p>Live performance metrics</p></div>
                 <span class="pill-select">This Month ▾</span>
               </div>
               <div class="pv-mini">
-                ${miniMetric('Registrations', totalSchools, icons.parents, 'blue')}
-                ${miniMetric('Active Users', activeSchools, dashIcons.spark, 'green')}
-                ${miniMetric('New Schools', 0, icons.school, 'violet')}
-                ${miniMetric('Logins', 3, dashIcons.shield, 'amber')}
+                ${miniMetric('Schools', totalSchools, icons.school, 'blue')}
+                ${miniMetric('Active', activeSchools, dashIcons.spark, 'green')}
+                ${miniMetric('Students', students, icons.students, 'violet')}
+                ${miniMetric('Teachers', teachers, icons.teachers, 'amber')}
               </div>
               ${platformChart()}
             </div>
 
             <div class="panel act-panel">
               <div class="panel-head">
-                <div><h2>Recent Activity</h2><p>Latest updates across your platform</p></div>
+                <div><h2>Recent Activity</h2><p>Latest platform updates</p></div>
                 <a class="link-sm">View all</a>
               </div>
               <ul class="act-list">
                 ${activityRow(icons.school, 'blue', 'New school registered', 'A new school has been added', '2h ago')}
                 ${activityRow(icons.admins, 'violet', 'User logged in', 'Admin login from 103.21.24.5', '5h ago')}
-                ${activityRow(dashIcons.broom, 'amber', 'Demo data cleared', 'All demo data has been removed', '1d ago')}
+                ${activityRow(dashIcons.broom, 'amber', 'Demo data cleared', 'All demo data removed', '1d ago')}
                 ${activityRow(dashIcons.gear, 'slate', 'System update', 'Platform updated successfully', '2d ago')}
                 ${activityRow(dashIcons.check, 'green', 'Backup completed', 'Daily backup completed', '3d ago')}
               </ul>
               <button class="btn btn-soft act-viewall">View all activity →</button>
             </div>
+          </section>
 
-            <div class="side-col">
-              <div class="panel">
-                <div class="panel-head"><div><h2>Quick Actions</h2></div></div>
-                <div class="qa-grid">
-                  ${quickAction(dashIcons.plus, 'Create School', 'blue', 'data-create')}
-                  ${quickAction(dashIcons.upload, 'Import Data', 'green')}
-                  ${quickAction(icons.teachers, 'Add Teacher', 'violet', 'data-create')}
-                  ${quickAction(dashIcons.report, 'View Reports', 'amber')}
-                </div>
+          <!-- Row 3: Quick Actions + Health + Help (3-col balanced) -->
+          <section class="dash-grid-bottom">
+            <div class="panel">
+              <div class="panel-head"><div><h2>Quick Actions</h2><p>Common platform tasks</p></div></div>
+              <div class="qa-grid">
+                ${quickAction(dashIcons.plus, 'Create School', 'blue', 'data-create')}
+                ${quickAction(dashIcons.upload, 'Import Data', 'green')}
+                ${quickAction(icons.teachers, 'Add Teacher', 'violet', 'data-create')}
+                ${quickAction(dashIcons.report, 'View Reports', 'amber')}
               </div>
+            </div>
 
-              <div class="panel">
-                <div class="panel-head"><div><h2>Platform Health</h2></div></div>
-                ${healthRow(dashIcons.gear, 'System Status', 'All systems operational', 'green')}
-                ${healthRow(dashIcons.db, 'Database', 'Healthy', 'green')}
-                ${healthBar(dashIcons.spark, 'Server Load', 23, 'green')}
-                ${healthBar(dashIcons.db, 'Storage Usage', 18, 'blue')}
-                <button class="btn btn-soft act-viewall">View system status →</button>
-              </div>
+            <div class="panel">
+              <div class="panel-head"><div><h2>Platform Health</h2><p>System status at a glance</p></div></div>
+              ${healthRow(dashIcons.gear, 'System Status', 'All systems operational', 'green')}
+              ${healthRow(dashIcons.db, 'Database', 'Healthy · Neon PostgreSQL', 'green')}
+              ${healthBar(dashIcons.spark, 'Server Load', 23, 'green')}
+              ${healthBar(dashIcons.db, 'Storage Usage', 18, 'blue')}
+              <button class="btn btn-soft act-viewall" style="margin-top:12px">View system status →</button>
+            </div>
 
-              <div class="panel help-panel">
-                <strong>Need Help?</strong>
-                <p>Our support team is here to help you 24/7 with any questions.</p>
-                <button class="btn btn-soft">Contact Support</button>
-              </div>
+            <div class="panel help-panel">
+              <strong>Need Help?</strong>
+              <p>Our support team is here to help you 24/7 with any questions about the platform.</p>
+              <button class="btn btn-soft">Contact Support</button>
             </div>
           </section>
 
+          <!-- Row 4: Schools table (full width, preview 5 rows) -->
           <section class="panel schools-panel">
             <div class="panel-head">
               <div><h2>Registered Schools</h2><p>${schools.length} school${schools.length === 1 ? '' : 's'} on your platform</p></div>
               <div class="panel-head-actions">
                 <button class="btn btn-soft btn-xs" id="clear-demo-btn">Clear demo</button>
                 <button class="btn btn-soft btn-xs btn-danger-soft" id="clear-all-btn">Clear all</button>
-                <a class="link-sm">View all schools</a>
+                <a class="link-sm" data-goto="/schools">View all schools →</a>
               </div>
             </div>
             ${
@@ -501,7 +507,7 @@ function renderDashboard() {
                         <th>School Name</th><th>Code</th><th>Location</th><th>Status</th><th>Registered On</th><th></th>
                       </tr></thead>
                       <tbody>
-                        ${schools
+                        ${previewSchools
                           .map(
                             (s) => `
                           <tr data-school-id="${esc(s.id)}">
@@ -515,7 +521,8 @@ function renderDashboard() {
                           )
                           .join('')}
                       </tbody>
-                    </table></div>`
+                    </table></div>
+                    ${schools.length > 5 ? `<div class="tbl-viewall"><a class="link-sm" data-goto="/schools">View all ${schools.length} schools →</a></div>` : ''}`
             }
           </section>
         </div>
@@ -1313,6 +1320,10 @@ function bindDashboard() {
       s.value = '';
       s.value = v;
     }
+  });
+
+  document.querySelectorAll('[data-goto]').forEach((el) => {
+    el.addEventListener('click', () => navigate(el.getAttribute('data-goto')));
   });
 
   document.querySelectorAll('[data-school-id]').forEach((item) => {
