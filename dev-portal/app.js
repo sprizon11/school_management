@@ -387,15 +387,6 @@ function healthBar(icon, label, pct, tone) {
   `;
 }
 
-function quickAction(icon, label, tone, attr = '') {
-  return `
-    <button class="qa-tile tone-${tone}" ${attr}>
-      <span class="qa-ic">${icon}</span>
-      <span class="qa-label">${esc(label)}</span>
-    </button>
-  `;
-}
-
 function renderDashboard() {
   const overview = state.overview || {};
   const totalSchools = overview.schools?.total ?? 0;
@@ -456,12 +447,11 @@ function renderDashboard() {
             ${statCardBig('Teachers', teachers, `${teachers} active`, 'muted', icons.teachers, 'amber', sparkline('#d97706', '0,22 20,18 40,24 60,16 80,22 100,14 110,18'))}
           </section>
 
-          <!-- Row 2: Overview chart (left) + Recent Activity (right) -->
+          <!-- Row 2: Overview chart (left) + stacked Activity/Health (right) -->
           <section class="dash-grid-top">
             <div class="panel pv-panel">
               <div class="panel-head">
-                <div><h2>Platform Overview</h2><p>Live performance metrics</p></div>
-                <span class="pill-select">This Month ▾</span>
+                <div><h2>Platform Overview</h2><p>Total schools registered · last 8 weeks</p></div>
               </div>
               <div class="pv-mini">
                 ${miniMetric('Schools', totalSchools, icons.school, 'blue')}
@@ -469,52 +459,41 @@ function renderDashboard() {
                 ${miniMetric('Students', students, icons.students, 'violet')}
                 ${miniMetric('Teachers', teachers, icons.teachers, 'amber')}
               </div>
-              ${platformChart()}
+              ${platformChart(state.schools)}
             </div>
 
-            <div class="panel act-panel">
-              <div class="panel-head">
-                <div><h2>Subscription Activity</h2><p>School subscription & payment events</p></div>
-                <a class="link-sm" data-goto="/schools">View all →</a>
-              </div>
-              <ul class="act-list">
-                ${activityListHtml}
-              </ul>
-            </div>
-          </section>
-
-          <!-- Row 3: Quick Actions (left) + Platform Health real data (right) -->
-          <section class="dash-grid-bottom">
-            <div class="panel">
-              <div class="panel-head"><div><h2>Quick Actions</h2><p>Common platform tasks</p></div></div>
-              <div class="qa-grid">
-                ${quickAction(dashIcons.plus, 'Create School', 'blue', 'data-create')}
-                ${quickAction(dashIcons.upload, 'Import Data', 'green')}
-                ${quickAction(icons.teachers, 'Add Teacher', 'violet', 'data-create')}
-                ${quickAction(dashIcons.report, 'View Reports', 'amber')}
-              </div>
-            </div>
-
-            <div class="panel">
-              <div class="panel-head"><div><h2>Platform Health</h2><p>Live system status</p></div></div>
-              ${healthRow(dashIcons.gear, 'API Server', 'Online · Cloud Run', 'green')}
-              ${healthRow(dashIcons.db, 'Database', 'Connected · Neon PostgreSQL', 'green')}
-              ${healthBar(icons.school, 'Schools Active', totalSchools > 0 ? activePct : 0, activePct >= 50 ? 'green' : 'amber')}
-              <div class="health-row">
-                <span class="health-ic">${dashIcons.spark}</span>
-                <div class="health-body">
-                  <strong>Total Records</strong>
-                  <span>${totalRecords.toLocaleString()} rows in database</span>
+            <div class="right-stack">
+              <div class="panel act-panel">
+                <div class="panel-head">
+                  <div><h2>Subscription Activity</h2><p>School subscription & payment events</p></div>
+                  <a class="link-sm" data-goto="/schools">View all →</a>
                 </div>
-                <span class="health-pct" style="font-size:0.72rem;color:var(--muted)">Live</span>
+                <ul class="act-list">
+                  ${activityListHtml}
+                </ul>
               </div>
-              <div class="health-row" style="border-top:1px solid var(--border);padding-top:9px;margin-top:4px">
-                <span class="health-ic">${dashIcons.clock}</span>
-                <div class="health-body">
-                  <strong>Last Refreshed</strong>
-                  <span>Today at ${lastRefresh}</span>
+
+              <div class="panel">
+                <div class="panel-head"><div><h2>Platform Health</h2><p>Live system status</p></div></div>
+                ${healthRow(dashIcons.gear, 'API Server', 'Online · Cloud Run', 'green')}
+                ${healthRow(dashIcons.db, 'Database', 'Connected · Neon PostgreSQL', 'green')}
+                ${healthBar(icons.school, 'Schools Active', totalSchools > 0 ? activePct : 0, activePct >= 50 ? 'green' : 'amber')}
+                <div class="health-row">
+                  <span class="health-ic">${dashIcons.spark}</span>
+                  <div class="health-body">
+                    <strong>Total Records</strong>
+                    <span>${totalRecords.toLocaleString()} rows in database</span>
+                  </div>
+                  <span class="health-pct" style="font-size:0.72rem;color:var(--muted)">Live</span>
                 </div>
-                <button class="btn-soft btn-xs" id="refresh-btn" style="border-radius:8px;padding:4px 10px;font-size:0.76rem">↻ Sync</button>
+                <div class="health-row" style="border-top:1px solid var(--border);padding-top:9px;margin-top:4px">
+                  <span class="health-ic">${dashIcons.clock}</span>
+                  <div class="health-body">
+                    <strong>Last Refreshed</strong>
+                    <span>Today at ${lastRefresh}</span>
+                  </div>
+                  <button class="btn-soft btn-xs" id="refresh-btn" style="border-radius:8px;padding:4px 10px;font-size:0.76rem">↻ Sync</button>
+                </div>
               </div>
             </div>
           </section>
@@ -563,23 +542,50 @@ function renderDashboard() {
   `;
 }
 
-function platformChart() {
-  // Static illustrative line chart (no time-series API yet).
-  const pts = '20,150 70,110 120,130 170,95 220,120 270,140 320,105 370,120 420,40 470,80 520,60 570,95';
-  const labels = ['May 17','May 20','May 23','May 26','May 29','Jun 1','Jun 4','Jun 7','Jun 10','Jun 13'];
+function platformChart(schools) {
+  // Real cumulative school-registration growth, binned weekly over the last 8 weeks.
+  const periods = 8;
+  const now = new Date();
+  const bins = [];
+  for (let i = periods - 1; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i * 7);
+    bins.push(d);
+  }
+  const values = bins.map(
+    (binDate) => schools.filter((s) => s.createdAt && new Date(s.createdAt) <= binDate).length,
+  );
+  const labels = bins.map((d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+
+  const w = 600, h = 200, padX = 20, padTop = 20, padBottom = 20;
+  const usableW = w - padX * 2;
+  const usableH = h - padTop - padBottom;
+  const maxVal = Math.max(...values, 1);
+  const stepX = periods > 1 ? usableW / (periods - 1) : 0;
+
+  const coords = values.map((v, i) => {
+    const x = padX + i * stepX;
+    const y = padTop + usableH - (v / maxVal) * usableH;
+    return [x.toFixed(1), y.toFixed(1)];
+  });
+  const pts = coords.map(([x, y]) => `${x},${y}`).join(' ');
+  const dots = coords
+    .map(([x, y]) => `<circle cx="${x}" cy="${y}" r="3.5" fill="#fff" stroke="#1b5fff" stroke-width="2"/>`)
+    .join('');
+
   return `
     <div class="pv-chart">
-      <svg viewBox="0 0 600 200" preserveAspectRatio="none" class="pv-svg">
+      <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" class="pv-svg">
         <defs>
           <linearGradient id="pvFill" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stop-color="#1b5fff" stop-opacity="0.18"/>
             <stop offset="100%" stop-color="#1b5fff" stop-opacity="0"/>
           </linearGradient>
         </defs>
-        ${[0,50,100,150].map((y) => `<line x1="20" y1="${y+20}" x2="580" y2="${y+20}" stroke="#eef2f9" stroke-width="1" stroke-dasharray="4 4"/>`).join('')}
-        <polygon fill="url(#pvFill)" points="20,180 ${pts} 570,180"/>
+        ${[0, 50, 100, 150].map((y) => `<line x1="${padX}" y1="${y + padTop}" x2="${w - padX}" y2="${y + padTop}" stroke="#eef2f9" stroke-width="1" stroke-dasharray="4 4"/>`).join('')}
+        <polygon fill="url(#pvFill)" points="${padX},${h - padBottom} ${pts} ${w - padX},${h - padBottom}"/>
         <polyline fill="none" stroke="#1b5fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" points="${pts}"/>
-        ${pts.split(' ').map((p) => { const [x,y]=p.split(','); return `<circle cx="${x}" cy="${y}" r="3.5" fill="#fff" stroke="#1b5fff" stroke-width="2"/>`; }).join('')}
+        ${dots}
       </svg>
       <div class="pv-xlabels">${labels.map((l) => `<span>${l}</span>`).join('')}</div>
     </div>
@@ -1304,17 +1310,6 @@ function bindDashboard() {
   document.getElementById('refresh-btn')?.addEventListener('click', loadDashboard);
   document.getElementById('clear-demo-btn')?.addEventListener('click', clearDemoData);
   document.getElementById('clear-all-btn')?.addEventListener('click', clearAllClassesAndTeachers);
-
-  const goCreate = () => {
-    state.error = null;
-    state.success = null;
-    navigate('/create');
-    render();
-  };
-  document.getElementById('create-btn')?.addEventListener('click', goCreate);
-  document.querySelectorAll('[data-create]').forEach((el) =>
-    el.addEventListener('click', goCreate),
-  );
 
   // Mobile sidebar toggle
   const sb = document.getElementById('sidebar');
