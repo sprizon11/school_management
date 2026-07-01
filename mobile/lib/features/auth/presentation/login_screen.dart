@@ -382,11 +382,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     ),
                                   ),
                                 ),
-                                const Spacer(),
+                                // Two flexible gaps (instead of one) center
+                                // the card+footer group in the remaining
+                                // space below the header, rather than
+                                // pinning it to the very bottom.
+                                const Spacer(flex: 3),
                                 cardColumn,
                                 const SizedBox(height: 16),
                                 if (keyboardH == 0) const _SecurityFooterText(),
-                                const SizedBox(height: 14),
+                                const Spacer(flex: 2),
+                                const SizedBox(height: 10),
                               ],
                             ),
                           ),
