@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/navigation/smooth_page_route.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/providers/auth_provider.dart';
+import '../../../../core/services/notification_poller.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../providers/teacher_shell_provider.dart';
 import '../widgets/teacher_ui.dart';
+import 'teacher_announcements_screen.dart';
 
 const _dashBg = Color(0xFFF8F9FE);
 const _headerPurple = Color(0xFF1E1B4B);
@@ -163,7 +166,7 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
           slivers: [
             SliverToBoxAdapter(child: _buildHeader(context, displayName)),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(_hPad, 0, _hPad, 96),
+              padding: const EdgeInsets.fromLTRB(_hPad, 14, _hPad, 96),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
                   _buildProfileAndStats(displayName, teacher),
@@ -219,42 +222,98 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
 
   Widget _buildHeader(BuildContext context, String displayName) {
     final top = MediaQuery.paddingOf(context).top;
+    final unread = ref.watch(unreadNotificationCountProvider);
 
     return Padding(
       padding: EdgeInsets.fromLTRB(_hPad, top + 4, _hPad, 0),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '${teacherGreeting()},',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: _headerPurple.withValues(alpha: 0.55),
-              height: 1.2,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${teacherGreeting()},',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: _headerPurple.withValues(alpha: 0.55),
+                    height: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${_greetingName(displayName)} 👋',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                    color: _headerPurple,
+                    height: 1.1,
+                    letterSpacing: -0.6,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  "Here's what's happening in your classes today.",
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: _headerPurple.withValues(alpha: 0.45),
+                    height: 1.35,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 2),
-          Text(
-            '${_greetingName(displayName)} 👋',
-            style: const TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.w800,
+          const SizedBox(width: 12),
+          _notificationBell(context, unread),
+        ],
+      ),
+    );
+  }
+
+  Widget _notificationBell(BuildContext context, int unread) {
+    return GestureDetector(
+      onTap: () => openSmoothPage(context, const TeacherAnnouncementsScreen()),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            height: 46,
+            width: 46,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.teacherPrimary.withValues(alpha: 0.16),
+                  blurRadius: 14,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.notifications_none_rounded,
               color: _headerPurple,
-              height: 1.1,
-              letterSpacing: -0.6,
+              size: 22,
             ),
           ),
-          const SizedBox(height: 6),
-          Text(
-            "Here's what's happening in your classes today.",
-            style: TextStyle(
-              fontSize: 12,
-              color: _headerPurple.withValues(alpha: 0.45),
-              height: 1.35,
+          if (unread > 0)
+            Positioned(
+              top: 2,
+              right: 2,
+              child: Container(
+                height: 11,
+                width: 11,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF3B5C),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
+              ),
             ),
-          ),
-          const SizedBox(height: 14),
         ],
       ),
     );
@@ -610,46 +669,51 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
       (Icons.more_horiz_rounded, 'More', AppColors.teacherPrimary),
     ];
 
-    return SizedBox(
-      height: 86,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        clipBehavior: Clip.none,
-        itemCount: actions.length,
-        separatorBuilder: (_, index) => const SizedBox(width: 14),
-        itemBuilder: (_, i) {
-          final (icon, label, color) = actions[i];
-          return SizedBox(
-            width: 64,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: color.withValues(alpha: 0.15)),
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      decoration: _premiumCard(),
+      child: SizedBox(
+        height: 78,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          clipBehavior: Clip.none,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          itemCount: actions.length,
+          separatorBuilder: (_, index) => const SizedBox(width: 16),
+          itemBuilder: (_, i) {
+            final (icon, label, color) = actions[i];
+            return SizedBox(
+              width: 62,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: color.withValues(alpha: 0.15)),
+                    ),
+                    child: Icon(icon, color: color, size: 22),
                   ),
-                  child: Icon(icon, color: color, size: 22),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  label,
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF4B5563),
+                  const SizedBox(height: 6),
+                  Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF4B5563),
+                    ),
                   ),
-                ),
-              ],
-            ),
-          );
-        },
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }

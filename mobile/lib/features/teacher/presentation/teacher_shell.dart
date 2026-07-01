@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
@@ -7,8 +9,7 @@ import 'screens/teacher_chat_screen.dart';
 import 'screens/teacher_students_screen.dart';
 import 'screens/teacher_reports_screen.dart';
 import 'screens/teacher_more_screen.dart';
-
-const _dashBg = Color(0xFFF8F9FE);
+import 'widgets/teacher_ui.dart';
 
 class TeacherShell extends ConsumerStatefulWidget {
   const TeacherShell({super.key});
@@ -31,35 +32,67 @@ class _TeacherShellState extends ConsumerState<TeacherShell> {
     final index = ref.watch(teacherShellTabProvider);
 
     return Scaffold(
-      backgroundColor: _dashBg,
+      extendBody: true,
+      backgroundColor: teacherBg,
       body: IndexedStack(
         index: index,
         children: _screens,
       ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border(top: BorderSide(color: Colors.grey.shade100)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 20,
-              offset: const Offset(0, -4),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            child: Row(
-              children: [
-                _navItem(0, Icons.home_rounded, Icons.home_outlined, 'Dashboard'),
-                _navItem(1, Icons.chat_rounded, Icons.chat_outlined, 'Chat'),
-                _navItem(2, Icons.people_rounded, Icons.people_outline_rounded, 'Students'),
-                _navItem(3, Icons.insert_chart_rounded, Icons.insert_chart_outlined_rounded, 'Reports'),
-                _navItem(4, Icons.more_horiz_rounded, Icons.more_horiz, 'More'),
+      bottomNavigationBar: _TeacherLiquidNavBar(
+        index: index,
+        onTap: (i) => ref.read(teacherShellTabProvider.notifier).state = i,
+      ),
+    );
+  }
+}
+
+class _TeacherLiquidNavBar extends StatelessWidget {
+  const _TeacherLiquidNavBar({required this.index, required this.onTap});
+
+  final int index;
+  final ValueChanged<int> onTap;
+
+  static const _items = <({IconData icon, String label})>[
+    (icon: Icons.home_rounded, label: 'Dashboard'),
+    (icon: Icons.chat_bubble_rounded, label: 'Chat'),
+    (icon: Icons.people_alt_rounded, label: 'Students'),
+    (icon: Icons.insert_chart_rounded, label: 'Reports'),
+    (icon: Icons.grid_view_rounded, label: 'More'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomSafe = MediaQuery.paddingOf(context).bottom;
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16, 0, 16, bottomSafe > 0 ? bottomSafe : 14),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(28),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+          child: Container(
+            height: 66,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.82),
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.6), width: 1.2),
+              boxShadow: [
+                BoxShadow(
+                  color: teacherHeaderStart.withValues(alpha: 0.2),
+                  blurRadius: 24,
+                  offset: const Offset(0, 10),
+                ),
               ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  for (var i = 0; i < _items.length; i++)
+                    _navItem(i, _items[i].icon),
+                ],
+              ),
             ),
           ),
         ),
@@ -67,40 +100,40 @@ class _TeacherShellState extends ConsumerState<TeacherShell> {
     );
   }
 
-  Widget _navItem(int i, IconData selectedIcon, IconData icon, String label) {
-    final selected = ref.watch(teacherShellTabProvider) == i;
-    return Expanded(
-      child: InkWell(
-        onTap: () => ref.read(teacherShellTabProvider.notifier).state = i,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              selected ? selectedIcon : icon,
-              size: 23,
-              color: selected ? AppColors.teacherPrimary : const Color(0xFF9CA3AF),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                color: selected ? AppColors.teacherPrimary : const Color(0xFF9CA3AF),
-              ),
-            ),
-            const SizedBox(height: 5),
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              height: 3,
-              width: selected ? 32 : 0,
-              decoration: BoxDecoration(
-                color: AppColors.teacherPrimary,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ],
+  Widget _navItem(int i, IconData icon) {
+    final selected = i == index;
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => onTap(i),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOutCubic,
+        height: 48,
+        width: 48,
+        decoration: BoxDecoration(
+          gradient: selected
+              ? const LinearGradient(
+                  colors: [teacherHeaderStart, teacherHeaderEnd],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : null,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: AppColors.teacherPrimary.withValues(alpha: 0.4),
+                    blurRadius: 12,
+                    offset: const Offset(0, 5),
+                  ),
+                ]
+              : null,
+        ),
+        child: Icon(
+          icon,
+          size: 24,
+          color: selected ? Colors.white : const Color(0xFF6B7686),
         ),
       ),
     );
