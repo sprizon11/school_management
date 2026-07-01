@@ -22,6 +22,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   static const _bgAsset = 'assets/images/login_background.png';
 
   final _formKey = GlobalKey<FormState>();
+  final _domainCtrl = TextEditingController();
   final _identifierCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   bool _obscure = true;
@@ -31,6 +32,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _loadingSchools = true;
   String? _statusMessage;
   String? _schoolsError;
+  String? _domainError;
   List<SelectedSchool> _schools = [];
 
   @override
@@ -58,11 +60,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
       if (!mounted) return;
 
+      // Keep a remembered school only if it still exists; otherwise clear it
+      // so the user is returned to the domain step. We intentionally do NOT
+      // auto-select single-school deployments — the domain step is the
+      // consistent entry point for anyone who hasn't logged in before.
       final saved = ref.read(selectedSchoolProvider);
-      if (saved != null && list.any((s) => s.id == saved.id)) {
-        // keep saved selection
-      } else if (list.length == 1) {
-        await ref.read(selectedSchoolProvider.notifier).select(list.first);
+      if (saved != null && !list.any((s) => s.id == saved.id)) {
+        await ref.read(selectedSchoolProvider.notifier).clear();
       }
 
       setState(() {
@@ -114,9 +118,68 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   void dispose() {
+    _domainCtrl.dispose();
     _identifierCtrl.dispose();
     _passwordCtrl.dispose();
     super.dispose();
+  }
+
+  /// Step 1: resolve the typed school domain (its code) to a school and
+  /// advance to the credentials step. Matches locally against the schools
+  /// already loaded from /schools/public — no extra screen or API call.
+  Future<void> _continueWithDomain() async {
+    FocusScope.of(context).unfocus();
+    final input = _domainCtrl.text.trim();
+    if (input.isEmpty) {
+      setState(() => _domainError = 'Please enter your school domain');
+      return;
+    }
+    if (_loadingSchools) {
+      setState(() => _domainError = 'Loading schools, please wait…');
+      return;
+    }
+    if (_schoolsError != null) {
+      await _loadSchools();
+      return;
+    }
+
+    final lower = input.toLowerCase();
+    SelectedSchool? match;
+    for (final s in _schools) {
+      if (s.code.toLowerCase() == lower) {
+        match = s;
+        break;
+      }
+    }
+    match ??= () {
+      for (final s in _schools) {
+        if (s.code.toLowerCase().startsWith(lower) ||
+            s.name.toLowerCase().contains(lower)) {
+          return s;
+        }
+      }
+      return null;
+    }();
+
+    if (match == null) {
+      setState(() => _domainError = 'No school found for "$input"');
+      return;
+    }
+    setState(() => _domainError = null);
+    await ref.read(selectedSchoolProvider.notifier).select(match);
+  }
+
+  /// Go back to the domain step (from the credentials step). Prefills the
+  /// domain field with the current school's code for quick editing.
+  void _changeSchool() {
+    final current = ref.read(selectedSchoolProvider);
+    if (current != null) _domainCtrl.text = current.code;
+    ref.read(authProvider.notifier).setError(null);
+    ref.read(selectedSchoolProvider.notifier).clear();
+    setState(() {
+      _domainError = null;
+      _statusMessage = null;
+    });
   }
 
   Future<void> _loadRemembered() async {
@@ -214,110 +277,128 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final media = MediaQuery.of(context);
     final screenH = media.size.height;
     final screenW = media.size.width;
-    final topSafe = media.padding.top;
-    final bottomSafe = media.padding.bottom;
     final keyboardH = media.viewInsets.bottom;
     final isWide = screenW > 600;
     final contentMaxWidth = isWide ? 460.0 : screenW;
 
+    // Step is derived from whether a school is selected. A returning user
+    // whose school was remembered skips straight to the credentials step;
+    // "Change" clears the selection and returns to the domain step.
+    final showCredentials = selectedSchool != null;
+
+    final cardColumn = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _LoginCard(
+          showCredentials: showCredentials,
+          formKey: _formKey,
+          domainCtrl: _domainCtrl,
+          domainError: _domainError,
+          identifierCtrl: _identifierCtrl,
+          passwordCtrl: _passwordCtrl,
+          obscure: _obscure,
+          remember: _remember,
+          loading: _loggingIn || _wakingServer,
+          status: _statusMessage,
+          error: authError,
+          schoolsLoading: _loadingSchools,
+          schoolsError: _schoolsError,
+          selectedSchool: selectedSchool,
+          onContinue: _continueWithDomain,
+          onChangeSchool: _changeSchool,
+          onRetrySchools: _loadSchools,
+          onToggleObscure: () => setState(() => _obscure = !_obscure),
+          onRememberChanged: (v) => setState(() => _remember = v ?? true),
+          onLogin: _login,
+        ),
+        if (showCredentials) ...[
+          const SizedBox(height: 16),
+          const _OrDivider(),
+          const SizedBox(height: 14),
+          const _GoogleSignInButton(),
+        ],
+      ],
+    );
+
     return Scaffold(
       resizeToAvoidBottomInset: false,
-      body: SizedBox(
-        height: screenH,
-        width: screenW,
-        child: Stack(
-          clipBehavior: Clip.hardEdge,
-          children: [
-            // Background
-            Positioned.fill(
-              child: Image.asset(
-                _bgAsset,
-                fit: BoxFit.cover,
-                alignment: Alignment.topCenter,
-                cacheWidth: (screenW * media.devicePixelRatio).round(),
-                errorBuilder: (_, __, ___) =>
-                    const ColoredBox(color: AppColors.surface),
-              ),
+      body: Stack(
+        children: [
+          // Background
+          Positioned.fill(
+            child: Image.asset(
+              _bgAsset,
+              fit: BoxFit.cover,
+              alignment: Alignment.topCenter,
+              cacheWidth: (screenW * media.devicePixelRatio).round(),
+              errorBuilder: (_, __, ___) =>
+                  const ColoredBox(color: AppColors.surface),
             ),
+          ),
 
-            // Brand header — sits below the logo baked into the background image
-            Positioned(
-              top: topSafe + screenH * 0.11,
-              left: (screenW - contentMaxWidth) / 2 + 24,
-              right: (screenW - contentMaxWidth) / 2 + 24,
-              child: const _BrandHeader(),
-            ),
-
-            // Login card + OR + Google — fixed above footer
-            Positioned(
-              left: (screenW - contentMaxWidth) / 2 + 20,
-              right: (screenW - contentMaxWidth) / 2 + 20,
-              bottom: keyboardH > 0
-                  ? keyboardH + 12
-                  : bottomSafe + 84,
-              child: ConstrainedBox(
-                // Never let the card area grow past the space below the brand
-                // header — on small phones it scrolls instead of clipping.
-                constraints: BoxConstraints(
-                  maxHeight: screenH - topSafe - screenH * 0.16,
-                ),
-                child: SingleChildScrollView(
-                  reverse: true,
-                  physics: const ClampingScrollPhysics(),
-                  child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _LoginCard(
-                    formKey: _formKey,
-                    identifierCtrl: _identifierCtrl,
-                    passwordCtrl: _passwordCtrl,
-                    obscure: _obscure,
-                    remember: _remember,
-                    loading: _loggingIn || _wakingServer,
-                    status: _statusMessage,
-                    error: authError,
-                    schools: _schools,
-                    schoolsLoading: _loadingSchools,
-                    schoolsError: _schoolsError,
-                    selectedSchool: selectedSchool,
-                    onSchoolChanged: (school) async {
-                      if (school == null) {
-                        await ref
-                            .read(selectedSchoolProvider.notifier)
-                            .clear();
-                      } else {
-                        await ref
-                            .read(selectedSchoolProvider.notifier)
-                            .select(school);
-                      }
-                    },
-                    onRetrySchools: _loadSchools,
-                    onToggleObscure: () =>
-                        setState(() => _obscure = !_obscure),
-                    onRememberChanged: (v) =>
-                        setState(() => _remember = v ?? true),
-                    onLogin: _login,
+          // Header, card and footer laid out as siblings in a single flex
+          // column (via SafeArea) so they can never overlap regardless of
+          // per-device safe-area insets, text scale, or aspect ratio — the
+          // previous approach positioned the header and card independently
+          // by percentage, which drifted into overlap on some Android
+          // devices. If content doesn't fit, it scrolls instead of
+          // colliding.
+          SafeArea(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final availableH = constraints.maxHeight - keyboardH;
+                return SingleChildScrollView(
+                  padding: EdgeInsets.only(bottom: keyboardH),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: availableH > 0 ? availableH : 0,
+                    ),
+                    child: IntrinsicHeight(
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints:
+                              BoxConstraints(maxWidth: contentMaxWidth),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                            ),
+                            child: Column(
+                              children: [
+                                SizedBox(height: screenH * 0.125),
+                                // Constrain the brand block to the left ~60%
+                                // so the text can never bleed into the
+                                // illustration baked into the right side of
+                                // the background image.
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: ConstrainedBox(
+                                    constraints: BoxConstraints(
+                                      maxWidth: contentMaxWidth * 0.6,
+                                    ),
+                                    child: const Padding(
+                                      padding:
+                                          EdgeInsets.symmetric(horizontal: 4),
+                                      child: _BrandHeader(),
+                                    ),
+                                  ),
+                                ),
+                                const Spacer(),
+                                cardColumn,
+                                const SizedBox(height: 16),
+                                if (keyboardH == 0) const _SecurityFooterText(),
+                                const SizedBox(height: 14),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 16),
-                  const _OrDivider(),
-                  const SizedBox(height: 14),
-                  const _GoogleSignInButton(),
-                ],
-              ),
-                ),
-              ),
+                );
+              },
             ),
-
-            // Footer — fixed at bottom
-            if (keyboardH == 0)
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: bottomSafe + 14,
-                child: const _SecurityFooterText(),
-              ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -397,7 +478,10 @@ class _SecurityFooterText extends StatelessWidget {
 
 class _LoginCard extends StatelessWidget {
   const _LoginCard({
+    required this.showCredentials,
     required this.formKey,
+    required this.domainCtrl,
+    this.domainError,
     required this.identifierCtrl,
     required this.passwordCtrl,
     required this.obscure,
@@ -405,18 +489,21 @@ class _LoginCard extends StatelessWidget {
     required this.loading,
     this.status,
     required this.error,
-    required this.schools,
     required this.schoolsLoading,
     this.schoolsError,
     required this.selectedSchool,
-    required this.onSchoolChanged,
+    required this.onContinue,
+    required this.onChangeSchool,
     required this.onRetrySchools,
     required this.onToggleObscure,
     required this.onRememberChanged,
     required this.onLogin,
   });
 
+  final bool showCredentials;
   final GlobalKey<FormState> formKey;
+  final TextEditingController domainCtrl;
+  final String? domainError;
   final TextEditingController identifierCtrl;
   final TextEditingController passwordCtrl;
   final bool obscure;
@@ -424,31 +511,20 @@ class _LoginCard extends StatelessWidget {
   final bool loading;
   final String? status;
   final String? error;
-  final List<SelectedSchool> schools;
   final bool schoolsLoading;
   final String? schoolsError;
   final SelectedSchool? selectedSchool;
-  final ValueChanged<SelectedSchool?> onSchoolChanged;
+  final VoidCallback onContinue;
+  final VoidCallback onChangeSchool;
   final VoidCallback onRetrySchools;
   final VoidCallback onToggleObscure;
   final ValueChanged<bool?> onRememberChanged;
   final VoidCallback onLogin;
 
-  static SelectedSchool? _resolveSchoolValue(
-    List<SelectedSchool> schools,
-    SelectedSchool? selected,
-  ) {
-    if (selected == null || schools.isEmpty) return null;
-    for (final school in schools) {
-      if (school.id == selected.id) return school;
-    }
-    return null;
-  }
-
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+      padding: const EdgeInsets.fromLTRB(20, 13, 20, 13),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
@@ -470,278 +546,379 @@ class _LoginCard extends StatelessWidget {
           width: 1.5,
         ),
       ),
-      child: Form(
-        key: formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Card top accent line
-            Center(
-              child: Container(
-                height: 4,
-                width: 40,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [AppColors.primary, AppColors.primaryLight],
-                  ),
-                  borderRadius: BorderRadius.circular(2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Card top accent line
+          Center(
+            child: Container(
+              height: 4,
+              width: 40,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [AppColors.primary, AppColors.primaryLight],
                 ),
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
-            const SizedBox(height: 12),
-            const Center(
-              child: Text(
-                'Welcome Back!',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.primaryDark,
-                  letterSpacing: -0.3,
-                ),
+          ),
+          const SizedBox(height: 10),
+          Center(
+            child: Text(
+              showCredentials ? 'Welcome Back!' : 'Get Started',
+              style: const TextStyle(
+                fontSize: 19,
+                fontWeight: FontWeight.w800,
+                color: AppColors.primaryDark,
+                letterSpacing: -0.3,
               ),
             ),
-            const SizedBox(height: 3),
-            const Center(
-              child: Text(
-                'Login to continue to your account',
-                style: TextStyle(color: AppColors.textMuted, fontSize: 12.5),
+          ),
+          const SizedBox(height: 2),
+          Center(
+            child: Text(
+              showCredentials
+                  ? 'Login to continue to your account'
+                  : 'Enter your school domain to continue',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: AppColors.textMuted, fontSize: 12.5),
+            ),
+          ),
+          const SizedBox(height: 13),
+          if (showCredentials) _buildCredentialsStep() else _buildDomainStep(),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Step 1 — school domain
+  // ---------------------------------------------------------------------------
+  Widget _buildDomainStep() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TextField(
+          controller: domainCtrl,
+          textInputAction: TextInputAction.done,
+          autocorrect: false,
+          enableSuggestions: false,
+          textCapitalization: TextCapitalization.none,
+          onSubmitted: (_) {
+            if (!schoolsLoading) onContinue();
+          },
+          style: const TextStyle(fontSize: 14),
+          decoration: InputDecoration(
+            prefixIcon: const Icon(
+              Icons.domain_rounded,
+              color: AppColors.primary,
+              size: 20,
+            ),
+            hintText: 'School domain (e.g. greenfield)',
+            isDense: true,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            errorText: domainError,
+          ),
+        ),
+        if (schoolsError != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            schoolsError!,
+            style: const TextStyle(color: Colors.red, fontSize: 12),
+          ),
+        ],
+        const SizedBox(height: 12),
+        _GradientButton(
+          label: 'Continue',
+          icon: Icons.arrow_forward_rounded,
+          loading: schoolsLoading,
+          onTap: schoolsLoading
+              ? null
+              : (schoolsError != null ? onRetrySchools : onContinue),
+        ),
+        const SizedBox(height: 4),
+        const Center(
+          child: Text(
+            "Ask your school admin if you don't know the domain",
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.textMuted, fontSize: 11),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Step 2 — email + password
+  // ---------------------------------------------------------------------------
+  Widget _buildCredentialsStep() {
+    return Form(
+      key: formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Selected school chip with a "Change" affordance
+          Container(
+            padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.18),
               ),
             ),
-            const SizedBox(height: 16),
-            if (schoolsLoading)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8),
-                child: Center(
-                  child: SizedBox(
-                    height: 22,
-                    width: 22,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                ),
-              )
-            else if (schoolsError != null)
-              Column(
-                children: [
-                  Text(
-                    schoolsError!,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.red, fontSize: 12),
-                  ),
-                  const SizedBox(height: 8),
-                  TextButton(
-                    onPressed: onRetrySchools,
-                    child: const Text('Retry schools'),
-                  ),
-                ],
-              )
-            else
-              DropdownButtonFormField<SelectedSchool>(
-                value: _resolveSchoolValue(schools, selectedSchool),
-                isExpanded: true,
-                decoration: const InputDecoration(
-                  labelText: 'Select School',
-                  prefixIcon: Icon(
-                    Icons.school_rounded,
-                    color: AppColors.primary,
-                    size: 20,
-                  ),
-                  isDense: true,
-                  contentPadding:
-                      EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-                ),
-                hint: const Text('Choose your school'),
-                items: schools
-                    .map(
-                      (s) => DropdownMenuItem(
-                        value: s,
-                        child: Text(
-                          s.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 14),
+            child: Row(
+              children: [
+                const Icon(Icons.school_rounded,
+                    color: AppColors.primary, size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        selectedSchool?.name ?? 'School',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primaryDark,
                         ),
                       ),
-                    )
-                    .toList(),
-                onChanged: loading ? null : onSchoolChanged,
-                validator: (v) => v == null ? 'Select your school' : null,
-              ),
-            const SizedBox(height: 9),
-            TextFormField(
-              controller: identifierCtrl,
-              keyboardType: TextInputType.emailAddress,
-              style: const TextStyle(fontSize: 14),
-              decoration: const InputDecoration(
-                prefixIcon: Icon(
-                  Icons.person_outline,
-                  color: AppColors.primary,
-                  size: 20,
-                ),
-                hintText: 'Email',
-                isDense: true,
-                contentPadding:
-                    EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-              ),
-              validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
-            ),
-            const SizedBox(height: 9),
-            TextFormField(
-              controller: passwordCtrl,
-              obscureText: obscure,
-              textInputAction: TextInputAction.done,
-              onFieldSubmitted: (_) {
-                if (!loading) onLogin();
-              },
-              style: const TextStyle(fontSize: 14),
-              decoration: InputDecoration(
-                prefixIcon: const Icon(
-                  Icons.lock_outline,
-                  color: AppColors.primary,
-                  size: 20,
-                ),
-                hintText: 'Password',
-                isDense: true,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    obscure
-                        ? Icons.visibility_off_outlined
-                        : Icons.visibility_outlined,
-                    color: AppColors.textMuted,
-                    size: 20,
-                  ),
-                  onPressed: onToggleObscure,
-                ),
-              ),
-              validator: (v) =>
-                  v != null && v.length >= 6 ? null : 'Min 6 characters',
-            ),
-            Row(
-              children: [
-                SizedBox(
-                  height: 32,
-                  width: 32,
-                  child: Checkbox(
-                    value: remember,
-                    activeColor: AppColors.primary,
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    onChanged: onRememberChanged,
+                      if ((selectedSchool?.code ?? '').isNotEmpty)
+                        Text(
+                          selectedSchool!.code,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 4),
-                const Text('Remember Me', style: TextStyle(fontSize: 12.5)),
-                const Spacer(),
                 TextButton(
-                  onPressed: () {},
+                  onPressed: loading ? null : onChangeSchool,
                   style: TextButton.styleFrom(
                     foregroundColor: AppColors.primary,
-                    padding: EdgeInsets.zero,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
                     minimumSize: const Size(0, 32),
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
                   child: const Text(
-                    'Forgot Password?',
-                    style: TextStyle(fontSize: 12.5),
+                    'Change',
+                    style: TextStyle(
+                        fontSize: 12.5, fontWeight: FontWeight.w700),
                   ),
                 ),
               ],
             ),
-            if (status != null) ...[
-              const SizedBox(height: 6),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (loading)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 2, right: 8),
-                      child: SizedBox(
-                        height: 14,
-                        width: 14,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    ),
-                  Expanded(
-                    child: Text(
-                      status!,
-                      style: const TextStyle(
-                        color: AppColors.primary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
+          ),
+          const SizedBox(height: 10),
+          TextFormField(
+            controller: identifierCtrl,
+            keyboardType: TextInputType.emailAddress,
+            style: const TextStyle(fontSize: 14),
+            decoration: const InputDecoration(
+              prefixIcon: Icon(
+                Icons.person_outline,
+                color: AppColors.primary,
+                size: 20,
               ),
-            ],
-            if (error != null) ...[
-              const SizedBox(height: 6),
-              Text(
-                error!,
-                style: const TextStyle(color: Colors.red, fontSize: 12),
+              hintText: 'Email',
+              isDense: true,
+              contentPadding:
+                  EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            ),
+            validator: (v) =>
+                v == null || v.trim().isEmpty ? 'Required' : null,
+          ),
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: passwordCtrl,
+            obscureText: obscure,
+            textInputAction: TextInputAction.done,
+            onFieldSubmitted: (_) {
+              if (!loading) onLogin();
+            },
+            style: const TextStyle(fontSize: 14),
+            decoration: InputDecoration(
+              prefixIcon: const Icon(
+                Icons.lock_outline,
+                color: AppColors.primary,
+                size: 20,
               ),
-            ],
-            const SizedBox(height: 10),
-            Material(
-              color: Colors.transparent,
-              borderRadius: BorderRadius.circular(16),
-              child: Ink(
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [AppColors.primaryDark, AppColors.primary, AppColors.primaryLight],
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primary.withValues(alpha: 0.40),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
+              hintText: 'Password',
+              isDense: true,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              suffixIcon: IconButton(
+                icon: Icon(
+                  obscure
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
+                  color: AppColors.textMuted,
+                  size: 20,
                 ),
-                child: InkWell(
-                  onTap: loading ? null : onLogin,
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 13),
-                    alignment: Alignment.center,
-                    child: loading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2.5,
-                            ),
-                          )
-                        : const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                'Sign In',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 15.5,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.3,
-                                ),
-                              ),
-                              SizedBox(width: 10),
-                              Icon(
-                                Icons.arrow_forward_rounded,
-                                color: Colors.white,
-                                size: 18,
-                              ),
-                            ],
-                          ),
-                  ),
-                ),
+                onPressed: onToggleObscure,
               ),
             ),
+            validator: (v) =>
+                v != null && v.length >= 6 ? null : 'Min 6 characters',
+          ),
+          Row(
+            children: [
+              SizedBox(
+                height: 32,
+                width: 32,
+                child: Checkbox(
+                  value: remember,
+                  activeColor: AppColors.primary,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  onChanged: onRememberChanged,
+                ),
+              ),
+              const SizedBox(width: 4),
+              const Text('Remember Me', style: TextStyle(fontSize: 12.5)),
+              const Spacer(),
+              TextButton(
+                onPressed: () {},
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  padding: EdgeInsets.zero,
+                  minimumSize: const Size(0, 32),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Text(
+                  'Forgot Password?',
+                  style: TextStyle(fontSize: 12.5),
+                ),
+              ),
+            ],
+          ),
+          if (status != null) ...[
+            const SizedBox(height: 6),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (loading)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 2, right: 8),
+                    child: SizedBox(
+                      height: 14,
+                      width: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+                Expanded(
+                  child: Text(
+                    status!,
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ],
+          if (error != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              error!,
+              style: const TextStyle(color: Colors.red, fontSize: 12),
+            ),
+          ],
+          const SizedBox(height: 8),
+          _GradientButton(
+            label: 'Sign In',
+            icon: Icons.arrow_forward_rounded,
+            loading: loading,
+            onTap: loading ? null : onLogin,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Full-width gradient action button used for both "Continue" and "Sign In".
+class _GradientButton extends StatelessWidget {
+  const _GradientButton({
+    required this.label,
+    required this.icon,
+    required this.loading,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool loading;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(16),
+      child: Ink(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [
+              AppColors.primaryDark,
+              AppColors.primary,
+              AppColors.primaryLight
+            ],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.40),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            alignment: Alignment.center,
+            child: loading
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2.5,
+                    ),
+                  )
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        label,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 15.5,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Icon(icon, color: Colors.white, size: 18),
+                    ],
+                  ),
+          ),
         ),
       ),
     );
