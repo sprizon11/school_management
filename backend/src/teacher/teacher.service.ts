@@ -104,37 +104,72 @@ export class TeacherService {
     });
   }
 
-  async schedule(teacherId: string) {
+  /**
+   * Per-day timetable. `day` is a JS weekday index (0=Sun … 6=Sat);
+   * defaults to today. Periods are generated deterministically from the
+   * teacher's assigned classes and subjects so every weekday is stable
+   * but different. Sunday is a holiday (empty).
+   */
+  async schedule(teacherId: string, day?: number) {
+    const now = new Date();
+    const today = now.getDay();
+    const weekday =
+      day !== undefined && day >= 0 && day <= 6 ? Math.trunc(day) : today;
+    if (weekday === 0) return [];
+
     const teacher = await this.prisma.teacher.findUnique({
       where: { id: teacherId },
       include: { classes: true },
     });
-    const subjects = teacher?.subjects ?? ['Mathematics'];
+    const subjects = teacher?.subjects?.length
+      ? teacher.subjects
+      : ['Mathematics'];
     const classes = await this.prisma.class.findMany({
       where: { id: { in: await this.classIdsForTeacher(teacherId) } },
+      orderBy: [{ grade: 'asc' }, { section: 'asc' }],
     });
+    if (classes.length === 0) return [];
+
     const times = [
       { start: '08:00 AM', end: '08:45 AM' },
       { start: '09:00 AM', end: '09:45 AM' },
       { start: '10:00 AM', end: '10:45 AM' },
       { start: '11:00 AM', end: '11:45 AM' },
+      { start: '12:00 PM', end: '12:45 PM' },
+      { start: '02:00 PM', end: '02:45 PM' },
     ];
+
+    const toMinutes = (label: string) => {
+      const [time, meridiem] = label.split(' ');
+      const [h, m] = time.split(':').map(Number);
+      const hour = (h % 12) + (meridiem === 'PM' ? 12 : 0);
+      return hour * 60 + m;
+    };
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const isToday = weekday === today;
+
     return times.map((t, i) => {
-      const cls = classes[i % Math.max(classes.length, 1)];
-      const gradeSection = cls ? `${cls.grade}${cls.section}` : '9A';
+      const cls = classes[(i + weekday) % classes.length];
+      const gradeSection = `${cls.grade}${cls.section}`;
+      const roomRaw = cls.room?.trim();
+      const room = roomRaw
+        ? /^(room|lab|hall)/i.test(roomRaw)
+          ? roomRaw
+          : `Room ${roomRaw}`
+        : 'Room 101';
       return {
+        period: i + 1,
         start: t.start,
         end: t.end,
         timeLabel: `${t.start} - ${t.end}`,
-        subject: subjects[i % subjects.length] ?? 'Science',
-        classLabel: `Class $gradeSection`,
-        room: cls?.room ? `${cls.room}` : 'Room 203',
-        location: cls?.room?.toLowerCase().includes('lab')
-          ? cls.room
-          : cls?.room
-            ? `Room ${cls.room}`
-            : 'Science Lab',
-        current: i === 0,
+        subject: subjects[(i + weekday) % subjects.length],
+        classLabel: `Class ${gradeSection}`,
+        room,
+        location: room,
+        current:
+          isToday &&
+          nowMinutes >= toMinutes(t.start) &&
+          nowMinutes <= toMinutes(t.end),
       };
     });
   }

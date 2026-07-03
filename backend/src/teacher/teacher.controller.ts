@@ -74,9 +74,17 @@ export class TeacherController {
 
   @Get('dashboard/schedule')
 
-  schedule(@CurrentUser() user: { teacherId: string }) {
+  schedule(
+    @CurrentUser() user: { teacherId: string },
+    @Query('day') day?: string,
+  ) {
 
-    return this.teacher.schedule(user.teacherId);
+    const parsed = day !== undefined ? Number(day) : undefined;
+
+    return this.teacher.schedule(
+      user.teacherId,
+      parsed !== undefined && Number.isFinite(parsed) ? parsed : undefined,
+    );
 
   }
 

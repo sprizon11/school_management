@@ -39,54 +39,96 @@ class TeacherPageHeader extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.fromLTRB(16, top + 12, 16, bottomChild != null ? 20 : 28),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
           colors: [teacherHeaderStart, teacherHeaderEnd],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
+        borderRadius:
+            const BorderRadius.vertical(bottom: Radius.circular(28)),
+        boxShadow: [
+          BoxShadow(
+            color: teacherHeaderStart.withValues(alpha: 0.3),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
+          // Decorative circles
+          Positioned(
+            right: -30,
+            top: -30,
+            child: Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.08),
+              ),
+            ),
+          ),
+          Positioned(
+            left: -20,
+            bottom: -40,
+            child: Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.05),
+              ),
+            ),
+          ),
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+                16, top + 12, 16, bottomChild != null ? 20 : 28),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        height: 1.15,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.w800,
+                              height: 1.15,
+                              letterSpacing: -0.4,
+                            ),
+                          ),
+                          if (subtitle != null) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              subtitle!,
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.82),
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
-                    if (subtitle != null) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        subtitle!,
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.82),
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
+                    if (trailing != null) trailing!,
                   ],
                 ),
-              ),
-              if (trailing != null) trailing!,
-            ],
+                if (bottomChild != null) ...[
+                  const SizedBox(height: 16),
+                  bottomChild!,
+                ],
+              ],
+            ),
           ),
-          if (bottomChild != null) ...[
-            const SizedBox(height: 16),
-            bottomChild!,
-          ],
         ],
       ),
     );

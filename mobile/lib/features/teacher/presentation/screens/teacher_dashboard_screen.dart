@@ -14,8 +14,6 @@ import 'teacher_announcements_screen.dart';
 const _dashBg = Color(0xFFF8F9FE);
 const _headerPurple = Color(0xFF1E1B4B);
 const _hPad = 16.0;
-const _scheduleCardW = 108.0;
-const _scheduleCardH = 88.0;
 
 BoxDecoration _premiumCard({Color? color, Border? border}) => BoxDecoration(
       color: color ?? Colors.white,
@@ -48,10 +46,18 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
   List<dynamic> _classes = [];
   List<dynamic> _homework = [];
   bool _loading = true;
+  bool _scheduleLoading = false;
+
+  /// Selected weekday in JS convention (0=Sun … 6=Sat) to match the API.
+  /// Defaults to today; Sundays fall back to Monday since it's a holiday.
+  late int _selectedDay;
+
+  static int get _todayIndex => DateTime.now().weekday % 7;
 
   @override
   void initState() {
     super.initState();
+    _selectedDay = _todayIndex == 0 ? 1 : _todayIndex;
     _load();
   }
 
@@ -60,7 +66,10 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
     try {
       final dio = ref.read(dioProvider);
       final summary = await dio.get('/teacher/dashboard/summary');
-      final schedule = await dio.get('/teacher/dashboard/schedule');
+      final schedule = await dio.get(
+        '/teacher/dashboard/schedule',
+        queryParameters: {'day': _selectedDay},
+      );
       final classes = await dio.get('/teacher/classes');
       List<dynamic> homework = [];
       try {
@@ -77,6 +86,29 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
       });
     } catch (_) {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _selectDay(int day) async {
+    if (day == _selectedDay && !_scheduleLoading) return;
+    setState(() {
+      _selectedDay = day;
+      _scheduleLoading = true;
+    });
+    try {
+      final res = await ref.read(dioProvider).get(
+        '/teacher/dashboard/schedule',
+        queryParameters: {'day': day},
+      );
+      if (!mounted || _selectedDay != day) return;
+      setState(() {
+        _schedule = res.data as List<dynamic>? ?? [];
+        _scheduleLoading = false;
+      });
+    } catch (_) {
+      if (mounted && _selectedDay == day) {
+        setState(() => _scheduleLoading = false);
+      }
     }
   }
 
@@ -105,12 +137,6 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
     return 'Subject Teacher';
   }
 
-  String _scheduleTimeLabel(Map<String, dynamic> p) {
-    final existing = p['timeLabel']?.toString();
-    if (existing != null && existing.contains('AM')) return existing;
-    return '${_formatClock(p['start'])} - ${_formatClock(p['end'])}';
-  }
-
   String _formatClock(dynamic raw) {
     final s = '$raw'.trim();
     if (s.contains('AM') || s.contains('PM')) return s;
@@ -120,33 +146,6 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
     final m = int.tryParse(parts[1].replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
     final dt = DateTime(2024, 1, 1, h, m);
     return DateFormat('hh:mm a').format(dt);
-  }
-
-  String _scheduleClassLabel(Map<String, dynamic> p, int index) {
-    final label = p['classLabel']?.toString();
-    if (label != null && label != 'Class' && label.length > 5) return label;
-    if (_classes.isNotEmpty) {
-      final c = _classes[index % _classes.length] as Map<String, dynamic>;
-      return 'Class ${c['grade']}${c['section']}';
-    }
-    return label ?? 'Class';
-  }
-
-  String _scheduleLocation(Map<String, dynamic> p, int index) {
-    final loc = p['location']?.toString();
-    if (loc != null && loc.isNotEmpty && loc != '—') return loc;
-    final room = p['room']?.toString();
-    if (room != null && room.isNotEmpty) {
-      return room.toLowerCase().contains('room') || room.toLowerCase().contains('lab')
-          ? room
-          : 'Room $room';
-    }
-    if (_classes.isNotEmpty) {
-      final c = _classes[index % _classes.length] as Map<String, dynamic>;
-      final r = c['room'];
-      if (r != null && '$r'.isNotEmpty) return 'Room $r';
-    }
-    return '—';
   }
 
   @override
@@ -171,9 +170,7 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
                 delegate: SliverChildListDelegate([
                   _buildProfileAndStats(displayName, teacher),
                   const SizedBox(height: 18),
-                  _buildScheduleHeader(today),
-                  const SizedBox(height: 8),
-                  _buildScheduleRow(),
+                  _buildTimetable(today),
                   const SizedBox(height: 22),
                   const _SectionTitle('Quick Actions'),
                   const SizedBox(height: 14),
@@ -527,134 +524,349 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
     );
   }
 
-  Widget _buildScheduleHeader(String today) {
-    final shortDate = _shortDate(today);
-    return Row(
-      children: [
-        const Icon(Icons.calendar_today_rounded, size: 15, color: AppColors.teacherPrimary),
-        const SizedBox(width: 6),
-        const Text(
-          "Today's Schedule",
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w800,
-            color: _headerPurple,
+  // ---------------------------------------------------------------------
+  // Weekly timetable — day selector chips + vertical period timeline
+  // ---------------------------------------------------------------------
+  static const _dayChips = <({int day, String label})>[
+    (day: 1, label: 'Mon'),
+    (day: 2, label: 'Tue'),
+    (day: 3, label: 'Wed'),
+    (day: 4, label: 'Thu'),
+    (day: 5, label: 'Fri'),
+    (day: 6, label: 'Sat'),
+  ];
+
+  static const _periodColors = [
+    AppColors.teacherPrimary,
+    AppColors.statGreen,
+    AppColors.statOrange,
+    Color(0xFF3B82F6),
+    AppColors.statPink,
+    Color(0xFF0D9488),
+  ];
+
+  Widget _buildTimetable(String today) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+      decoration: _premiumCard(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: AppColors.teacherPrimary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.calendar_month_rounded,
+                  size: 16,
+                  color: AppColors.teacherPrimary,
+                ),
+              ),
+              const SizedBox(width: 9),
+              const Expanded(
+                child: Text(
+                  'Timetable',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: _headerPurple,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+              ),
+              Text(
+                _shortDate(today),
+                style: const TextStyle(fontSize: 10.5, color: AppColors.textMuted),
+              ),
+            ],
           ),
-        ),
-        const SizedBox(width: 6),
-        Expanded(
-          child: Text(
-            shortDate,
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 10, color: AppColors.textMuted),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              for (final chip in _dayChips) ...[
+                Expanded(child: _dayChip(chip.day, chip.label)),
+                if (chip.day != 6) const SizedBox(width: 6),
+              ],
+            ],
           ),
-        ),
-        _purplePillButton('View Timetable', () {}),
-      ],
+          const SizedBox(height: 6),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            alignment: Alignment.topCenter,
+            child: _buildTimetableBody(),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _purplePillButton(String label, VoidCallback onTap) {
-    return Material(
-      color: AppColors.teacherPrimary,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          child: Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 9,
-              fontWeight: FontWeight.w700,
+  Widget _dayChip(int day, String label) {
+    final selected = day == _selectedDay;
+    final isToday = day == _todayIndex;
+
+    return GestureDetector(
+      onTap: () => _selectDay(day),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(
+          gradient: selected
+              ? const LinearGradient(
+                  colors: [teacherHeaderStart, teacherHeaderEnd],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : null,
+          color: selected ? null : const Color(0xFFF3F4F8),
+          borderRadius: BorderRadius.circular(11),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: AppColors.teacherPrimary.withValues(alpha: 0.35),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : null,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+                color: selected ? Colors.white : const Color(0xFF6B7280),
+              ),
             ),
-          ),
+            const SizedBox(height: 3),
+            Container(
+              width: 4,
+              height: 4,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isToday
+                    ? (selected ? Colors.white : AppColors.teacherPrimary)
+                    : Colors.transparent,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildScheduleRow() {
-    if (_loading) {
-      return const SizedBox(
-        height: _scheduleCardH,
-        child: Center(child: CircularProgressIndicator(color: AppColors.teacherPrimary, strokeWidth: 2)),
+  Widget _buildTimetableBody() {
+    if (_loading || _scheduleLoading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 28),
+        child: Center(
+          child: SizedBox(
+            height: 22,
+            width: 22,
+            child: CircularProgressIndicator(
+              color: AppColors.teacherPrimary,
+              strokeWidth: 2,
+            ),
+          ),
+        ),
       );
     }
     if (_schedule.isEmpty) {
-      return _emptyCard('No schedule for today.');
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 22),
+        child: Center(
+          child: Column(
+            children: [
+              Icon(Icons.event_busy_rounded,
+                  size: 30, color: Colors.grey.shade300),
+              const SizedBox(height: 8),
+              const Text(
+                'No classes on this day',
+                style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
-    return SizedBox(
-      height: _scheduleCardH,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        clipBehavior: Clip.none,
-        itemCount: _schedule.length,
-        separatorBuilder: (_, index) => const SizedBox(width: 8),
-        itemBuilder: (_, i) {
-          final p = _schedule[i] as Map<String, dynamic>;
-          final current = p['current'] == true;
-          return Container(
-            width: _scheduleCardW,
-            padding: const EdgeInsets.fromLTRB(10, 9, 10, 8),
-            decoration: BoxDecoration(
-              color: current ? const Color(0xFFF5F3FF) : Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: current ? AppColors.teacherPrimary.withValues(alpha: 0.45) : const Color(0xFFE5E7EB),
-              ),
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Column(
+        children: [
+          for (var i = 0; i < _schedule.length; i++)
+            _periodRow(
+              _schedule[i] as Map<String, dynamic>,
+              i,
+              isLast: i == _schedule.length - 1,
             ),
-            child: Stack(
+        ],
+      ),
+    );
+  }
+
+  Widget _periodRow(Map<String, dynamic> p, int index, {required bool isLast}) {
+    final current = p['current'] == true;
+    final color = _periodColors[index % _periodColors.length];
+    final subject = '${p['subject'] ?? 'Class'}';
+    final classLabel = '${p['classLabel'] ?? ''}';
+    final room = '${p['location'] ?? p['room'] ?? '—'}';
+
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Time column
+          SizedBox(
+            width: 58,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _scheduleTimeLabel(p),
-                      maxLines: 2,
-                      style: TextStyle(
-                        fontSize: 8.5,
-                        fontWeight: FontWeight.w700,
-                        color: current ? AppColors.teacherPrimary : AppColors.textMuted,
-                        height: 1.25,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      _scheduleClassLabel(p, i),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        color: _headerPurple,
-                        height: 1.1,
-                      ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      _scheduleLocation(p, i),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 9, color: AppColors.textMuted, height: 1.1),
-                    ),
-                  ],
+                Text(
+                  _formatClock(p['start']),
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w800,
+                    color: current ? AppColors.teacherPrimary : _headerPurple,
+                  ),
                 ),
-                if (current)
-                  const Positioned(
-                    right: 0,
-                    bottom: 0,
-                    child: Icon(Icons.menu_book_rounded, size: 14, color: AppColors.teacherPrimary),
+                const SizedBox(height: 2),
+                Text(
+                  _formatClock(p['end']),
+                  style: const TextStyle(
+                    fontSize: 9.5,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Timeline rail
+          SizedBox(
+            width: 26,
+            child: Column(
+              children: [
+                Container(
+                  width: 10,
+                  height: 10,
+                  margin: const EdgeInsets.only(top: 3),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: current ? color : Colors.white,
+                    border: Border.all(color: color, width: 2.5),
+                    boxShadow: current
+                        ? [
+                            BoxShadow(
+                              color: color.withValues(alpha: 0.4),
+                              blurRadius: 8,
+                            ),
+                          ]
+                        : null,
+                  ),
+                ),
+                if (!isLast)
+                  Expanded(
+                    child: Container(
+                      width: 2,
+                      margin: const EdgeInsets.symmetric(vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE8EAF2),
+                        borderRadius: BorderRadius.circular(1),
+                      ),
+                    ),
                   ),
               ],
             ),
-          );
-        },
+          ),
+          // Period card
+          Expanded(
+            child: Container(
+              margin: EdgeInsets.only(bottom: isLast ? 2 : 10),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: current
+                    ? const Color(0xFFF5F3FF)
+                    : const Color(0xFFF8F9FC),
+                borderRadius: BorderRadius.circular(13),
+                border: Border.all(
+                  color: current
+                      ? AppColors.teacherPrimary.withValues(alpha: 0.4)
+                      : const Color(0xFFEDEFF5),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 3.5,
+                    height: 30,
+                    decoration: BoxDecoration(
+                      color: color,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          subject,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w800,
+                            color: _headerPurple,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '$classLabel · $room',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 10.5,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (current)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [teacherHeaderStart, teacherHeaderEnd],
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Text(
+                        'Now',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -780,19 +992,8 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
               ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-            decoration: BoxDecoration(
-              color: const Color(0xFFDCFCE7),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Text(
-              '85%',
-              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.statGreen),
-            ),
-          ),
-          const SizedBox(width: 4),
-          const Icon(Icons.more_vert, size: 18, color: AppColors.textMuted),
+          const Icon(Icons.chevron_right_rounded,
+              size: 20, color: Color(0xFF9CA3AF)),
         ],
       ),
     );
