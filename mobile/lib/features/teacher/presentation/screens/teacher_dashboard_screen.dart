@@ -112,6 +112,64 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
     }
   }
 
+  Future<void> _openTimetableEditor() async {
+    final dayLabel =
+        _dayChips.firstWhere((c) => c.day == _selectedDay).label;
+    final classOptions = <String>{
+      for (final c in _classes)
+        'Class ${(c as Map<String, dynamic>)['grade']}${c['section']}',
+    }.toList();
+
+    final result = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _TimetableEditorSheet(
+        dayLabel: dayLabel,
+        classOptions: classOptions,
+        initial: _schedule
+            .map((p) => Map<String, dynamic>.from(p as Map))
+            .toList(),
+      ),
+    );
+    if (result == null || !mounted) return;
+
+    setState(() => _scheduleLoading = true);
+    try {
+      final res = await ref.read(dioProvider).post(
+        '/teacher/dashboard/schedule',
+        data: {
+          'day': _selectedDay,
+          'slots': result['reset'] == true ? <dynamic>[] : result['slots'],
+        },
+      );
+      if (!mounted) return;
+      setState(() {
+        _schedule = res.data as List<dynamic>? ?? [];
+        _scheduleLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result['reset'] == true
+              ? 'Timetable reset to default'
+              : 'Timetable saved'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.teacherPrimary,
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _scheduleLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not save timetable. Try again.'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   void _goToTab(int index) {
     ref.read(teacherShellTabProvider.notifier).state = index;
   }
@@ -581,6 +639,31 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
               Text(
                 _shortDate(today),
                 style: const TextStyle(fontSize: 10.5, color: AppColors.textMuted),
+              ),
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: _scheduleLoading ? null : _openTimetableEditor,
+                child: Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [teacherHeaderStart, teacherHeaderEnd],
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.teacherPrimary.withValues(alpha: 0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.edit_rounded,
+                    size: 14,
+                    color: Colors.white,
+                  ),
+                ),
               ),
             ],
           ),
@@ -1120,6 +1203,487 @@ class _SectionTitle extends StatelessWidget {
         ),
         ?trailing,
       ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Timetable editor bottom sheet
+// ---------------------------------------------------------------------------
+class _EditSlot {
+  _EditSlot({
+    required this.start,
+    required this.end,
+    required String subject,
+    required String room,
+    this.classLabel,
+  })  : subjectCtrl = TextEditingController(text: subject),
+        roomCtrl = TextEditingController(text: room);
+
+  String start;
+  String end;
+  final TextEditingController subjectCtrl;
+  final TextEditingController roomCtrl;
+  String? classLabel;
+
+  void dispose() {
+    subjectCtrl.dispose();
+    roomCtrl.dispose();
+  }
+}
+
+class _TimetableEditorSheet extends StatefulWidget {
+  const _TimetableEditorSheet({
+    required this.dayLabel,
+    required this.classOptions,
+    required this.initial,
+  });
+
+  final String dayLabel;
+  final List<String> classOptions;
+  final List<Map<String, dynamic>> initial;
+
+  @override
+  State<_TimetableEditorSheet> createState() => _TimetableEditorSheetState();
+}
+
+class _TimetableEditorSheetState extends State<_TimetableEditorSheet> {
+  late final List<_EditSlot> _slots;
+
+  @override
+  void initState() {
+    super.initState();
+    _slots = widget.initial
+        .map(
+          (p) => _EditSlot(
+            start: '${p['start'] ?? '08:00 AM'}',
+            end: '${p['end'] ?? '08:45 AM'}',
+            subject: '${p['subject'] ?? ''}',
+            room: '${p['location'] ?? p['room'] ?? ''}',
+            classLabel: widget.classOptions.contains('${p['classLabel']}')
+                ? '${p['classLabel']}'
+                : null,
+          ),
+        )
+        .toList();
+    if (_slots.isEmpty) _addSlot();
+  }
+
+  @override
+  void dispose() {
+    for (final s in _slots) {
+      s.dispose();
+    }
+    super.dispose();
+  }
+
+  void _addSlot() {
+    final last = _slots.isNotEmpty ? _slots.last : null;
+    setState(() {
+      _slots.add(
+        _EditSlot(
+          start: last != null ? _shiftHour(last.start) : '08:00 AM',
+          end: last != null ? _shiftHour(last.end) : '08:45 AM',
+          subject: '',
+          room: last?.roomCtrl.text ?? '',
+          classLabel:
+              widget.classOptions.isNotEmpty ? widget.classOptions.first : null,
+        ),
+      );
+    });
+  }
+
+  static String _shiftHour(String label) {
+    final t = _parseTime(label);
+    if (t == null) return label;
+    final dt = DateTime(2024, 1, 1, t.hour, t.minute)
+        .add(const Duration(hours: 1));
+    return DateFormat('hh:mm a').format(dt);
+  }
+
+  static TimeOfDay? _parseTime(String label) {
+    final match =
+        RegExp(r'^(\d{1,2}):(\d{2})\s*(AM|PM)$', caseSensitive: false)
+            .firstMatch(label.trim());
+    if (match == null) return null;
+    var hour = int.parse(match.group(1)!);
+    final minute = int.parse(match.group(2)!);
+    final pm = match.group(3)!.toUpperCase() == 'PM';
+    hour = (hour % 12) + (pm ? 12 : 0);
+    return TimeOfDay(hour: hour, minute: minute);
+  }
+
+  Future<void> _pickTime(_EditSlot slot, {required bool isStart}) async {
+    final current = _parseTime(isStart ? slot.start : slot.end) ??
+        const TimeOfDay(hour: 8, minute: 0);
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: current,
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: const ColorScheme.light(
+            primary: AppColors.teacherPrimary,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked == null) return;
+    final label = DateFormat('hh:mm a')
+        .format(DateTime(2024, 1, 1, picked.hour, picked.minute));
+    setState(() {
+      if (isStart) {
+        slot.start = label;
+      } else {
+        slot.end = label;
+      }
+    });
+  }
+
+  void _save() {
+    final slots = _slots
+        .map(
+          (s) => {
+            'start': s.start,
+            'end': s.end,
+            'subject': s.subjectCtrl.text.trim().isEmpty
+                ? 'Class'
+                : s.subjectCtrl.text.trim(),
+            'classLabel': s.classLabel ?? '',
+            'room': s.roomCtrl.text.trim(),
+          },
+        )
+        .toList();
+    Navigator.of(context).pop({'slots': slots});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    final maxH = MediaQuery.sizeOf(context).height * 0.86;
+
+    return Container(
+      constraints: BoxConstraints(maxHeight: maxH),
+      margin: EdgeInsets.only(bottom: bottomInset),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 10),
+          Container(
+            width: 42,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 14, 12, 4),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [teacherHeaderStart, teacherHeaderEnd],
+                    ),
+                    borderRadius: BorderRadius.circular(11),
+                  ),
+                  child: const Icon(Icons.edit_calendar_rounded,
+                      size: 17, color: Colors.white),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Edit Timetable · ${widget.dayLabel}',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: _headerPurple,
+                        ),
+                      ),
+                      const Text(
+                        'Tap times to change · swipe fields to edit',
+                        style: TextStyle(
+                            fontSize: 11, color: AppColors.textMuted),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close_rounded,
+                      color: AppColors.textMuted),
+                ),
+              ],
+            ),
+          ),
+          Flexible(
+            child: ListView.separated(
+              shrinkWrap: true,
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+              itemCount: _slots.length,
+              separatorBuilder: (_, i) => const SizedBox(height: 10),
+              itemBuilder: (_, i) => _slotEditor(i),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _addSlot,
+                    icon: const Icon(Icons.add_rounded, size: 18),
+                    label: const Text('Add Period'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.teacherPrimary,
+                      side: BorderSide(
+                        color:
+                            AppColors.teacherPrimary.withValues(alpha: 0.4),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  flex: 2,
+                  child: Material(
+                    color: Colors.transparent,
+                    borderRadius: BorderRadius.circular(14),
+                    child: Ink(
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [teacherHeaderStart, teacherHeaderEnd],
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: InkWell(
+                        onTap: _save,
+                        borderRadius: BorderRadius.circular(14),
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 13),
+                          child: Center(
+                            child: Text(
+                              'Save Timetable',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SafeArea(
+            top: false,
+            child: TextButton(
+              onPressed: () =>
+                  Navigator.of(context).pop({'reset': true}),
+              child: const Text(
+                'Reset this day to default',
+                style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _slotEditor(int index) {
+    final slot = _slots[index];
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F9FC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE8EAF2)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 24,
+                height: 24,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.teacherPrimary.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Text(
+                  '${index + 1}',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.teacherPrimary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              _timeChip(slot.start, () => _pickTime(slot, isStart: true)),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4),
+                child: Text('–',
+                    style: TextStyle(color: AppColors.textMuted)),
+              ),
+              _timeChip(slot.end, () => _pickTime(slot, isStart: false)),
+              const Spacer(),
+              GestureDetector(
+                onTap: _slots.length <= 1
+                    ? null
+                    : () => setState(() {
+                          _slots.removeAt(index).dispose();
+                        }),
+                child: Icon(
+                  Icons.delete_outline_rounded,
+                  size: 19,
+                  color: _slots.length <= 1
+                      ? Colors.grey.shade300
+                      : Colors.red.shade300,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                flex: 3,
+                child: _editorField(
+                  controller: slot.subjectCtrl,
+                  hint: 'Subject',
+                  icon: Icons.menu_book_rounded,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                flex: 2,
+                child: _editorField(
+                  controller: slot.roomCtrl,
+                  hint: 'Room',
+                  icon: Icons.location_on_outlined,
+                ),
+              ),
+            ],
+          ),
+          if (widget.classOptions.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(11),
+                border: Border.all(color: const Color(0xFFE5E7EB)),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: slot.classLabel,
+                  isExpanded: true,
+                  isDense: true,
+                  hint: const Text('Select class',
+                      style: TextStyle(fontSize: 12.5)),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: _headerPurple,
+                  ),
+                  items: widget.classOptions
+                      .map(
+                        (c) => DropdownMenuItem(value: c, child: Text(c)),
+                      )
+                      .toList(),
+                  onChanged: (v) => setState(() => slot.classLabel = v),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _timeChip(String label, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(9),
+          border: Border.all(
+            color: AppColors.teacherPrimary.withValues(alpha: 0.35),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.schedule_rounded,
+                size: 12, color: AppColors.teacherPrimary),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: _headerPurple,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _editorField({
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
+  }) {
+    return TextField(
+      controller: controller,
+      style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle:
+            TextStyle(fontSize: 12.5, color: Colors.grey.shade400),
+        prefixIcon: Icon(icon, size: 15, color: AppColors.teacherPrimary),
+        prefixIconConstraints:
+            const BoxConstraints(minWidth: 32, minHeight: 32),
+        isDense: true,
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(11),
+          borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(11),
+          borderSide: const BorderSide(color: AppColors.teacherPrimary),
+        ),
+      ),
     );
   }
 }

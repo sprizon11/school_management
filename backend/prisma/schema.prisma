@@ -93,6 +93,22 @@ model Teacher {
   marks             Mark[]
   homework          Homework[]
   chatConversations ChatConversation[]
+  timetableSlots    TimetableSlot[]
+}
+
+model TimetableSlot {
+  id         String  @id @default(cuid())
+  teacherId  String
+  teacher    Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  dayOfWeek  Int // 0=Sun … 6=Sat
+  period     Int
+  start      String // "08:00 AM"
+  end        String // "08:45 AM"
+  subject    String
+  classLabel String
+  room       String @default("")
+
+  @@unique([teacherId, dayOfWeek, period])
 }
 
 model TeacherTeachingClass {

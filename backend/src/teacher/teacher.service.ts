@@ -104,17 +104,63 @@ export class TeacherService {
     });
   }
 
+  private static toMinutes(label: string) {
+    const [time, meridiem] = label.split(' ');
+    const [h, m] = time.split(':').map(Number);
+    const hour = (h % 12) + (meridiem === 'PM' ? 12 : 0);
+    return hour * 60 + (m || 0);
+  }
+
   /**
    * Per-day timetable. `day` is a JS weekday index (0=Sun … 6=Sat);
-   * defaults to today. Periods are generated deterministically from the
+   * defaults to today. Slots the teacher saved via saveSchedule() take
+   * priority; otherwise periods are generated deterministically from the
    * teacher's assigned classes and subjects so every weekday is stable
-   * but different. Sunday is a holiday (empty).
+   * but different. Sunday is a holiday (empty unless explicitly saved).
    */
   async schedule(teacherId: string, day?: number) {
     const now = new Date();
     const today = now.getDay();
     const weekday =
       day !== undefined && day >= 0 && day <= 6 ? Math.trunc(day) : today;
+
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const isToday = weekday === today;
+    const withCurrent = (slot: {
+      period: number;
+      start: string;
+      end: string;
+      subject: string;
+      classLabel: string;
+      room: string;
+    }) => ({
+      ...slot,
+      timeLabel: `${slot.start} - ${slot.end}`,
+      location: slot.room,
+      current:
+        isToday &&
+        nowMinutes >= TeacherService.toMinutes(slot.start) &&
+        nowMinutes <= TeacherService.toMinutes(slot.end),
+    });
+
+    // Teacher-edited slots win over the generated defaults.
+    const saved = await this.prisma.timetableSlot.findMany({
+      where: { teacherId, dayOfWeek: weekday },
+      orderBy: { period: 'asc' },
+    });
+    if (saved.length > 0) {
+      return saved.map((s) =>
+        withCurrent({
+          period: s.period,
+          start: s.start,
+          end: s.end,
+          subject: s.subject,
+          classLabel: s.classLabel,
+          room: s.room,
+        }),
+      );
+    }
+
     if (weekday === 0) return [];
 
     const teacher = await this.prisma.teacher.findUnique({
@@ -139,15 +185,6 @@ export class TeacherService {
       { start: '02:00 PM', end: '02:45 PM' },
     ];
 
-    const toMinutes = (label: string) => {
-      const [time, meridiem] = label.split(' ');
-      const [h, m] = time.split(':').map(Number);
-      const hour = (h % 12) + (meridiem === 'PM' ? 12 : 0);
-      return hour * 60 + m;
-    };
-    const nowMinutes = now.getHours() * 60 + now.getMinutes();
-    const isToday = weekday === today;
-
     return times.map((t, i) => {
       const cls = classes[(i + weekday) % classes.length];
       const gradeSection = `${cls.grade}${cls.section}`;
@@ -157,21 +194,56 @@ export class TeacherService {
           ? roomRaw
           : `Room ${roomRaw}`
         : 'Room 101';
-      return {
+      return withCurrent({
         period: i + 1,
         start: t.start,
         end: t.end,
-        timeLabel: `${t.start} - ${t.end}`,
         subject: subjects[(i + weekday) % subjects.length],
         classLabel: `Class ${gradeSection}`,
         room,
-        location: room,
-        current:
-          isToday &&
-          nowMinutes >= toMinutes(t.start) &&
-          nowMinutes <= toMinutes(t.end),
-      };
+      });
     });
+  }
+
+  /**
+   * Replace the teacher's saved timetable for one weekday. An empty
+   * `slots` array clears the override so the generated defaults return.
+   */
+  async saveSchedule(
+    teacherId: string,
+    day: number,
+    slots: Array<{
+      start?: string;
+      end?: string;
+      subject?: string;
+      classLabel?: string;
+      room?: string;
+    }>,
+  ) {
+    if (!Number.isInteger(day) || day < 0 || day > 6) {
+      throw new BadRequestException('day must be 0–6');
+    }
+    const clean = (slots ?? []).slice(0, 12).map((s, i) => ({
+      teacherId,
+      dayOfWeek: day,
+      period: i + 1,
+      start: `${s.start ?? ''}`.trim() || '08:00 AM',
+      end: `${s.end ?? ''}`.trim() || '08:45 AM',
+      subject: `${s.subject ?? ''}`.trim() || 'Class',
+      classLabel: `${s.classLabel ?? ''}`.trim(),
+      room: `${s.room ?? ''}`.trim(),
+    }));
+
+    await this.prisma.$transaction([
+      this.prisma.timetableSlot.deleteMany({
+        where: { teacherId, dayOfWeek: day },
+      }),
+      ...(clean.length > 0
+        ? [this.prisma.timetableSlot.createMany({ data: clean })]
+        : []),
+    ]);
+
+    return this.schedule(teacherId, day);
   }
 
   async assignedClasses(teacherId: string) {

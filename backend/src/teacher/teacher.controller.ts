@@ -44,6 +44,22 @@ class SendMessageDto {
 
 
 
+class SaveScheduleDto {
+
+  day!: number;
+
+  slots!: Array<{
+    start?: string;
+    end?: string;
+    subject?: string;
+    classLabel?: string;
+    room?: string;
+  }>;
+
+}
+
+
+
 @Controller('teacher')
 
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -84,6 +100,23 @@ export class TeacherController {
     return this.teacher.schedule(
       user.teacherId,
       parsed !== undefined && Number.isFinite(parsed) ? parsed : undefined,
+    );
+
+  }
+
+
+
+  @Post('dashboard/schedule')
+
+  saveSchedule(
+    @CurrentUser() user: { teacherId: string },
+    @Body() body: SaveScheduleDto,
+  ) {
+
+    return this.teacher.saveSchedule(
+      user.teacherId,
+      Number(body?.day),
+      Array.isArray(body?.slots) ? body.slots : [],
     );
 
   }
