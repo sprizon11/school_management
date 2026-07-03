@@ -382,16 +382,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     ),
                                   ),
                                 ),
-                                // Two flexible gaps (instead of one) center
-                                // the card+footer group in the remaining
-                                // space below the header, rather than
-                                // pinning it to the very bottom.
-                                const Spacer(flex: 3),
+                                // Fixed gap after the header anchors the
+                                // card's TOP edge at the same position on
+                                // both steps — switching between the domain
+                                // and credentials step only changes the
+                                // card's content, not its placement.
+                                SizedBox(height: screenH * 0.05),
                                 cardColumn,
                                 const SizedBox(height: 16),
+                                const Spacer(),
                                 if (keyboardH == 0) const _SecurityFooterText(),
-                                const Spacer(flex: 2),
-                                const SizedBox(height: 10),
+                                const SizedBox(height: 14),
                               ],
                             ),
                           ),
