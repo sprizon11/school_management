@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -281,6 +283,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final isWide = screenW > 600;
     final contentMaxWidth = isWide ? 460.0 : screenW;
 
+    // The brand logo is baked into the background image (473×1024, drawn
+    // with BoxFit.cover + topCenter, so image top == screen top). Its
+    // bottom edge sits at y≈149px in image coordinates. Compute where that
+    // lands on this screen and keep the header below it — the fixed
+    // percentage alone overlapped the logo on devices with no/small top
+    // safe-area inset (e.g. web, older Androids).
+    final bgScale = math.max(screenW / 473.0, screenH / 1024.0);
+    final logoBottomOnScreen = 149.0 * bgScale;
+    final headerTopGap = math.max(
+      screenH * 0.125,
+      logoBottomOnScreen - media.padding.top + 16,
+    );
+
     // Step is derived from whether a school is selected. A returning user
     // whose school was remembered skips straight to the credentials step;
     // "Change" clears the selection and returns to the domain step.
@@ -364,7 +379,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ),
                             child: Column(
                               children: [
-                                SizedBox(height: screenH * 0.125),
+                                SizedBox(height: headerTopGap),
                                 // Constrain the brand block to the left ~60%
                                 // so the text can never bleed into the
                                 // illustration baked into the right side of
