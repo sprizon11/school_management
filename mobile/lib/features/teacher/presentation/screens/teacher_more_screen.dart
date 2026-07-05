@@ -21,12 +21,29 @@ class TeacherMoreScreen extends ConsumerWidget {
       color: teacherBg,
       child: Column(
         children: [
-          TeacherPageHeader(
+          TeacherPlainHeader(
+            icon: Icons.grid_view_rounded,
             title: 'More',
             subtitle: user?.email ?? '',
-            trailing: CircleAvatar(
-              radius: 24,
-              backgroundColor: Colors.white.withValues(alpha: 0.2),
+            trailing: Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(
+                  colors: [teacherHeaderStart, teacherHeaderEnd],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.teacherPrimary.withValues(alpha: 0.3),
+                    blurRadius: 12,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              alignment: Alignment.center,
               child: Text(
                 (user?.fullName ?? '').isNotEmpty
                     ? user!.fullName[0].toUpperCase()
@@ -41,7 +58,7 @@ class TeacherMoreScreen extends ConsumerWidget {
           ),
           Expanded(
             child: Transform.translate(
-              offset: const Offset(0, -12),
+              offset: Offset.zero,
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
                 children: [

@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { StudentStatus } from '@prisma/client';
+import { AttendanceStatus, StudentStatus } from '@prisma/client';
 import { ensureParentAccount } from '../common/parent-account';
 import { CreateStudentDto } from '../admin/dto/create-student.dto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -308,13 +308,403 @@ export class TeacherService {
     return { items, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
+  /** Subject names this teacher can record marks for in a given class. */
+  async subjectOptionsForClass(classId: string, teacherId: string) {
+    await this.assertClassAccess(classId, teacherId);
+    const [teaching, teacher] = await Promise.all([
+      this.prisma.teacherTeachingClass.findMany({
+        where: { teacherId, classId },
+        select: { subject: true },
+      }),
+      this.prisma.teacher.findUnique({
+        where: { id: teacherId },
+        select: { subjects: true },
+      }),
+    ]);
+    const names = new Set<string>();
+    for (const t of teaching) {
+      if (t.subject) names.add(t.subject);
+    }
+    for (const s of teacher?.subjects ?? []) {
+      names.add(s);
+    }
+    if (names.size === 0) {
+      ['English', 'Maths', 'Science', 'Social Science'].forEach((s) =>
+        names.add(s),
+      );
+    }
+    return [...names];
+  }
+
+  async createHomework(
+    teacherId: string,
+    dto: { classId: string; title: string; description?: string; dueDate: string },
+  ) {
+    await this.assertClassAccess(dto.classId, teacherId);
+    const title = dto.title?.trim();
+    if (!title) throw new BadRequestException('Title is required');
+    const dueDate = new Date(dto.dueDate);
+    if (Number.isNaN(dueDate.getTime())) {
+      throw new BadRequestException('Invalid due date');
+    }
+
+    return this.prisma.homework.create({
+      data: {
+        classId: dto.classId,
+        teacherId,
+        title,
+        description: dto.description?.trim() || null,
+        dueDate,
+      },
+    });
+  }
+
+  private static gradeForPercent(pct: number): string {
+    if (pct >= 90) return 'A+';
+    if (pct >= 80) return 'A';
+    if (pct >= 70) return 'B+';
+    if (pct >= 60) return 'B';
+    if (pct >= 50) return 'C';
+    if (pct >= 35) return 'D';
+    return 'F';
+  }
+
+  async saveMarks(
+    teacherId: string,
+    dto: {
+      classId: string;
+      subjectName: string;
+      termLabel: string;
+      maxMarks?: number;
+      entries: Array<{ studentId: string; marks: number; remarks?: string }>;
+    },
+  ) {
+    await this.assertClassAccess(dto.classId, teacherId);
+
+    const subjectName = dto.subjectName?.trim();
+    const termLabel = dto.termLabel?.trim();
+    if (!subjectName) throw new BadRequestException('Subject is required');
+    if (!termLabel) throw new BadRequestException('Exam name is required');
+    if (!Array.isArray(dto.entries) || dto.entries.length === 0) {
+      throw new BadRequestException('At least one mark is required');
+    }
+
+    const maxMarks = dto.maxMarks && dto.maxMarks > 0 ? dto.maxMarks : 100;
+
+    const subject = await this.prisma.subject.upsert({
+      where: { name: subjectName },
+      update: {},
+      create: { name: subjectName },
+    });
+
+    const classStudentIds = new Set(
+      (
+        await this.prisma.student.findMany({
+          where: { classId: dto.classId },
+          select: { id: true },
+        })
+      ).map((s) => s.id),
+    );
+
+    let saved = 0;
+    for (const entry of dto.entries) {
+      if (!classStudentIds.has(entry.studentId)) continue;
+      const marks = Math.max(0, Math.min(maxMarks, Math.round(entry.marks)));
+      const grade = TeacherService.gradeForPercent((marks / maxMarks) * 100);
+
+      const existing = await this.prisma.mark.findFirst({
+        where: {
+          studentId: entry.studentId,
+          subjectId: subject.id,
+          termLabel,
+        },
+      });
+
+      if (existing) {
+        await this.prisma.mark.update({
+          where: { id: existing.id },
+          data: { marks, maxMarks, grade, remarks: entry.remarks?.trim() || null, teacherId },
+        });
+      } else {
+        await this.prisma.mark.create({
+          data: {
+            studentId: entry.studentId,
+            subjectId: subject.id,
+            teacherId,
+            termLabel,
+            maxMarks,
+            marks,
+            grade,
+            remarks: entry.remarks?.trim() || null,
+          },
+        });
+      }
+      saved++;
+    }
+
+    return { saved, subject: subjectName, termLabel };
+  }
+
   async reportsOverview(classId: string) {
-    const total = await this.prisma.student.count({ where: { classId } });
+    const students = await this.prisma.student.findMany({
+      where: { classId },
+      select: {
+        id: true,
+        fullName: true,
+        rollNumber: true,
+        gender: true,
+        marks: { select: { marks: true, maxMarks: true } },
+        attendance: { select: { status: true } },
+      },
+    });
+
+    const withStats = students.map((s) => {
+      const totalMax = s.marks.reduce((a, m) => a + m.maxMarks, 0);
+      const totalGot = s.marks.reduce((a, m) => a + m.marks, 0);
+      const avgMarks =
+        totalMax > 0 ? Math.round((totalGot / totalMax) * 100) : null;
+
+      const attTotal = s.attendance.length;
+      const attPresent = s.attendance.filter(
+        (a) => a.status === AttendanceStatus.PRESENT,
+      ).length;
+      const attendancePercent =
+        attTotal > 0 ? Math.round((attPresent / attTotal) * 100) : null;
+
+      return {
+        id: s.id,
+        fullName: s.fullName,
+        rollNumber: s.rollNumber,
+        gender: s.gender,
+        avgMarks,
+        attendancePercent,
+      };
+    });
+
+    const marked = withStats.filter((s) => s.avgMarks !== null);
+    const attended = withStats.filter((s) => s.attendancePercent !== null);
+
+    const avg = (nums: number[]) =>
+      nums.length > 0
+        ? Math.round(nums.reduce((a, b) => a + b, 0) / nums.length)
+        : 0;
+
     return {
-      totalStudents: total,
-      averageAttendance: 85,
-      classAverageMarks: 78,
-      passPercentage: 92,
+      totalStudents: students.length,
+      averageAttendance: avg(attended.map((s) => s.attendancePercent!)),
+      classAverageMarks: avg(marked.map((s) => s.avgMarks!)),
+      passPercentage:
+        marked.length > 0
+          ? Math.round(
+              (marked.filter((s) => s.avgMarks! >= 35).length /
+                marked.length) *
+                100,
+            )
+          : 0,
+      topStudents: [...marked]
+        .sort((a, b) => b.avgMarks! - a.avgMarks!)
+        .slice(0, 5),
+      topAttendance: [...attended]
+        .sort((a, b) => b.attendancePercent! - a.attendancePercent!)
+        .slice(0, 5),
+    };
+  }
+
+  async attendanceReport(classId: string) {
+    const students = await this.prisma.student.findMany({
+      where: { classId },
+      orderBy: { rollNumber: 'asc' },
+      select: {
+        id: true,
+        fullName: true,
+        rollNumber: true,
+        gender: true,
+        attendance: { select: { status: true } },
+      },
+    });
+
+    const rows = students.map((s) => {
+      const total = s.attendance.length;
+      const present = s.attendance.filter(
+        (a) => a.status === AttendanceStatus.PRESENT,
+      ).length;
+      const absent = s.attendance.filter(
+        (a) => a.status === AttendanceStatus.ABSENT,
+      ).length;
+      const leave = s.attendance.filter(
+        (a) => a.status === AttendanceStatus.LEAVE,
+      ).length;
+      const percent = total > 0 ? Math.round((present / total) * 100) : null;
+
+      return {
+        id: s.id,
+        fullName: s.fullName,
+        rollNumber: s.rollNumber,
+        gender: s.gender,
+        present,
+        absent,
+        leave,
+        total,
+        percent,
+      };
+    });
+
+    const withData = rows.filter((r) => r.total > 0);
+    const classAverage =
+      withData.length > 0
+        ? Math.round(
+            withData.reduce((a, r) => a + (r.percent ?? 0), 0) /
+              withData.length,
+          )
+        : 0;
+    const totalSessions = rows.reduce((a, r) => a + r.total, 0);
+    const totalLeaves = rows.reduce((a, r) => a + r.leave, 0);
+    const totalAbsences = rows.reduce((a, r) => a + r.absent, 0);
+
+    return {
+      classAverage,
+      totalSessions,
+      totalLeaves,
+      totalAbsences,
+      students: rows,
+    };
+  }
+
+  async marksReport(classId: string) {
+    const students = await this.prisma.student.findMany({
+      where: { classId },
+      orderBy: { rollNumber: 'asc' },
+      select: {
+        id: true,
+        fullName: true,
+        rollNumber: true,
+        gender: true,
+        marks: {
+          select: {
+            marks: true,
+            maxMarks: true,
+            grade: true,
+            subject: { select: { name: true } },
+          },
+        },
+      },
+    });
+
+    const rows = students.map((s) => {
+      const totalMax = s.marks.reduce((a, m) => a + m.maxMarks, 0);
+      const totalGot = s.marks.reduce((a, m) => a + m.marks, 0);
+      const percent =
+        totalMax > 0 ? Math.round((totalGot / totalMax) * 100) : null;
+      return {
+        id: s.id,
+        fullName: s.fullName,
+        rollNumber: s.rollNumber,
+        gender: s.gender,
+        percent,
+        totalGot,
+        totalMax,
+        subjects: s.marks.map((m) => ({
+          name: m.subject.name,
+          marks: m.marks,
+          maxMarks: m.maxMarks,
+          grade: m.grade,
+        })),
+      };
+    });
+
+    const graded = rows.filter((r) => r.percent !== null);
+    const classAverage =
+      graded.length > 0
+        ? Math.round(
+            graded.reduce((a, r) => a + (r.percent ?? 0), 0) / graded.length,
+          )
+        : 0;
+    const passRate =
+      graded.length > 0
+        ? Math.round(
+            (graded.filter((r) => (r.percent ?? 0) >= 35).length /
+              graded.length) *
+              100,
+          )
+        : 0;
+
+    return {
+      classAverage,
+      passRate,
+      gradedCount: graded.length,
+      students: rows,
+    };
+  }
+
+  async performanceReport(classId: string) {
+    const students = await this.prisma.student.findMany({
+      where: { classId },
+      orderBy: { rollNumber: 'asc' },
+      select: {
+        id: true,
+        fullName: true,
+        rollNumber: true,
+        gender: true,
+        marks: { select: { marks: true, maxMarks: true } },
+        attendance: { select: { status: true } },
+      },
+    });
+
+    const rows = students.map((s) => {
+      const tm = s.marks.reduce((a, m) => a + m.maxMarks, 0);
+      const tg = s.marks.reduce((a, m) => a + m.marks, 0);
+      const marksPercent = tm > 0 ? Math.round((tg / tm) * 100) : null;
+      const at = s.attendance.length;
+      const ap = s.attendance.filter(
+        (a) => a.status === AttendanceStatus.PRESENT,
+      ).length;
+      const attendancePercent = at > 0 ? Math.round((ap / at) * 100) : null;
+      let score: number | null = null;
+      if (marksPercent !== null && attendancePercent !== null) {
+        score = Math.round(marksPercent * 0.7 + attendancePercent * 0.3);
+      } else {
+        score = marksPercent ?? attendancePercent;
+      }
+      return {
+        id: s.id,
+        fullName: s.fullName,
+        rollNumber: s.rollNumber,
+        gender: s.gender,
+        marksPercent,
+        attendancePercent,
+        score,
+        rank: null as number | null,
+      };
+    });
+
+    const ranked = rows
+      .filter((r) => r.score !== null)
+      .sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+    ranked.forEach((r, i) => {
+      r.rank = i + 1;
+    });
+
+    return { students: rows };
+  }
+
+  async assignmentsReport(classId: string) {
+    const items = await this.prisma.homework.findMany({
+      where: { classId },
+      orderBy: { dueDate: 'desc' },
+    });
+    const now = new Date();
+    return {
+      total: items.length,
+      upcoming: items.filter((h) => h.dueDate >= now).length,
+      past: items.filter((h) => h.dueDate < now).length,
+      items: items.map((h) => ({
+        id: h.id,
+        title: h.title,
+        description: h.description,
+        dueDate: h.dueDate,
+        createdAt: h.createdAt,
+        status: h.dueDate >= now ? 'upcoming' : 'past',
+      })),
     };
   }
 

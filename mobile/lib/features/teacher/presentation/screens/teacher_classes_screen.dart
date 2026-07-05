@@ -45,13 +45,14 @@ class _TeacherClassesScreenState extends ConsumerState<TeacherClassesScreen> {
       color: teacherBg,
       child: Column(
         children: [
-          TeacherPageHeader(
+          TeacherPlainHeader(
+            icon: Icons.school_rounded,
             title: 'My Classes',
             subtitle: '${_classes.length} assigned class${_classes.length == 1 ? '' : 'es'}',
           ),
           Expanded(
             child: Transform.translate(
-              offset: const Offset(0, -12),
+              offset: Offset.zero,
               child: _loading
                   ? const Center(child: CircularProgressIndicator(color: AppColors.teacherPrimary))
                   : RefreshIndicator(

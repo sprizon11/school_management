@@ -48,10 +48,19 @@ class _TeacherAnnouncementsScreenState extends ConsumerState<TeacherAnnouncement
     return Scaffold(
       backgroundColor: teacherBg,
       appBar: AppBar(
-        title: const Text('Announcements'),
-        backgroundColor: teacherHeaderStart,
-        foregroundColor: Colors.white,
+        title: const Text(
+          'Announcements',
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            fontSize: 18,
+            letterSpacing: -0.3,
+            color: Color(0xFF1E1B4B),
+          ),
+        ),
+        backgroundColor: teacherBg,
+        foregroundColor: const Color(0xFF1E1B4B),
         elevation: 0,
+        surfaceTintColor: Colors.transparent,
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: AppColors.teacherPrimary))

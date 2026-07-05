@@ -60,6 +60,36 @@ class SaveScheduleDto {
 
 
 
+class CreateHomeworkDto {
+
+  classId!: string;
+
+  title!: string;
+
+  description?: string;
+
+  dueDate!: string;
+
+}
+
+
+
+class SaveMarksDto {
+
+  classId!: string;
+
+  subjectName!: string;
+
+  termLabel!: string;
+
+  maxMarks?: number;
+
+  entries!: Array<{ studentId: string; marks: number; remarks?: string }>;
+
+}
+
+
+
 @Controller('teacher')
 
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -219,6 +249,54 @@ export class TeacherController {
 
 
 
+  @Get('classes/:classId/subjects')
+
+  subjectOptions(
+
+    @Param('classId') classId: string,
+
+    @CurrentUser() user: { teacherId: string },
+
+  ) {
+
+    return this.teacher.subjectOptionsForClass(classId, user.teacherId);
+
+  }
+
+
+
+  @Post('homework')
+
+  createHomework(
+
+    @Body() dto: CreateHomeworkDto,
+
+    @CurrentUser() user: { teacherId: string },
+
+  ) {
+
+    return this.teacher.createHomework(user.teacherId, dto);
+
+  }
+
+
+
+  @Post('marks')
+
+  saveMarks(
+
+    @Body() dto: SaveMarksDto,
+
+    @CurrentUser() user: { teacherId: string },
+
+  ) {
+
+    return this.teacher.saveMarks(user.teacherId, dto);
+
+  }
+
+
+
   @Get('chat/conversations')
 
   chatConversations(
@@ -282,6 +360,46 @@ export class TeacherController {
   performanceChart(@Query('classId') classId: string) {
 
     return this.teacher.performanceChart(classId);
+
+  }
+
+
+
+  @Get('reports/attendance')
+
+  attendanceReport(@Query('classId') classId: string) {
+
+    return this.teacher.attendanceReport(classId);
+
+  }
+
+
+
+  @Get('reports/marks')
+
+  marksReport(@Query('classId') classId: string) {
+
+    return this.teacher.marksReport(classId);
+
+  }
+
+
+
+  @Get('reports/performance')
+
+  performanceReport(@Query('classId') classId: string) {
+
+    return this.teacher.performanceReport(classId);
+
+  }
+
+
+
+  @Get('reports/assignments')
+
+  assignmentsReport(@Query('classId') classId: string) {
+
+    return this.teacher.assignmentsReport(classId);
 
   }
 
