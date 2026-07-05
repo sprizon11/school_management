@@ -191,9 +191,12 @@ export class TeacherController {
 
   @Get('classes/:classId/stats')
 
-  classStats(@Param('classId') classId: string) {
+  classStats(
+    @Param('classId') classId: string,
+    @CurrentUser() user: { teacherId: string },
+  ) {
 
-    return this.teacher.classStats(classId);
+    return this.teacher.classStats(classId, user.teacherId);
 
   }
 
@@ -347,9 +350,12 @@ export class TeacherController {
 
   @Get('reports/overview')
 
-  reportsOverview(@Query('classId') classId: string) {
+  reportsOverview(
+    @Query('classId') classId: string,
+    @CurrentUser() user: { teacherId: string },
+  ) {
 
-    return this.teacher.reportsOverview(classId);
+    return this.teacher.reportsOverview(classId, user.teacherId);
 
   }
 
@@ -357,9 +363,12 @@ export class TeacherController {
 
   @Get('reports/performance-chart')
 
-  performanceChart(@Query('classId') classId: string) {
+  performanceChart(
+    @Query('classId') classId: string,
+    @CurrentUser() user: { teacherId: string },
+  ) {
 
-    return this.teacher.performanceChart(classId);
+    return this.teacher.performanceChart(classId, user.teacherId);
 
   }
 
@@ -367,9 +376,12 @@ export class TeacherController {
 
   @Get('reports/attendance')
 
-  attendanceReport(@Query('classId') classId: string) {
+  attendanceReport(
+    @Query('classId') classId: string,
+    @CurrentUser() user: { teacherId: string },
+  ) {
 
-    return this.teacher.attendanceReport(classId);
+    return this.teacher.attendanceReport(classId, user.teacherId);
 
   }
 
@@ -377,9 +389,12 @@ export class TeacherController {
 
   @Get('reports/marks')
 
-  marksReport(@Query('classId') classId: string) {
+  marksReport(
+    @Query('classId') classId: string,
+    @CurrentUser() user: { teacherId: string },
+  ) {
 
-    return this.teacher.marksReport(classId);
+    return this.teacher.marksReport(classId, user.teacherId);
 
   }
 
@@ -387,9 +402,12 @@ export class TeacherController {
 
   @Get('reports/performance')
 
-  performanceReport(@Query('classId') classId: string) {
+  performanceReport(
+    @Query('classId') classId: string,
+    @CurrentUser() user: { teacherId: string },
+  ) {
 
-    return this.teacher.performanceReport(classId);
+    return this.teacher.performanceReport(classId, user.teacherId);
 
   }
 
@@ -397,9 +415,12 @@ export class TeacherController {
 
   @Get('reports/assignments')
 
-  assignmentsReport(@Query('classId') classId: string) {
+  assignmentsReport(
+    @Query('classId') classId: string,
+    @CurrentUser() user: { teacherId: string },
+  ) {
 
-    return this.teacher.assignmentsReport(classId);
+    return this.teacher.assignmentsReport(classId, user.teacherId);
 
   }
 

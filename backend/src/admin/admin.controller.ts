@@ -55,33 +55,37 @@ export class AdminController {
   }
 
   @Get('dashboard/attendance-chart')
-  attendanceChart() {
-    return this.admin.attendanceChart();
+  attendanceChart(@CurrentUser() user: { schoolId: string }) {
+    return this.admin.attendanceChart(user.schoolId);
   }
 
   @Get('dashboard/fee-chart')
-  feeChart() {
-    return this.admin.feeChart();
+  feeChart(@CurrentUser() user: { schoolId: string }) {
+    return this.admin.feeChart(user.schoolId);
   }
 
   @Get('students/stats')
-  studentStats() {
-    return this.admin.studentStats();
+  studentStats(@CurrentUser() user: { schoolId: string }) {
+    return this.admin.studentStats(user.schoolId);
   }
 
   @Get('students/:id')
-  getStudent(@Param('id') id: string) {
-    return this.admin.getStudent(id);
+  getStudent(
+    @CurrentUser() user: { schoolId: string },
+    @Param('id') id: string,
+  ) {
+    return this.admin.getStudent(user.schoolId, id);
   }
 
   @Get('students')
   listStudents(
+    @CurrentUser() user: { schoolId: string },
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('search') search?: string,
     @Query('classId') classId?: string,
   ) {
-    return this.admin.listStudents({
+    return this.admin.listStudents(user.schoolId, {
       page: page ? +page : 1,
       limit: limit ? +limit : 10,
       search,
@@ -135,8 +139,11 @@ export class AdminController {
   }
 
   @Get('classes/:id')
-  getClass(@Param('id') id: string) {
-    return this.admin.getClass(id);
+  getClass(
+    @CurrentUser() user: { schoolId: string },
+    @Param('id') id: string,
+  ) {
+    return this.admin.getClass(user.schoolId, id);
   }
 
   @Get('classes')
@@ -148,13 +155,20 @@ export class AdminController {
   }
 
   @Post('students')
-  createStudent(@Body() dto: CreateStudentDto) {
-    return this.admin.createStudent(dto);
+  createStudent(
+    @CurrentUser() user: { schoolId: string },
+    @Body() dto: CreateStudentDto,
+  ) {
+    return this.admin.createStudent(user.schoolId, dto);
   }
 
   @Patch('students/:id')
-  updateStudent(@Param('id') id: string, @Body() dto: UpdateStudentDto) {
-    return this.admin.updateStudent(id, dto);
+  updateStudent(
+    @CurrentUser() user: { schoolId: string },
+    @Param('id') id: string,
+    @Body() dto: UpdateStudentDto,
+  ) {
+    return this.admin.updateStudent(user.schoolId, id, dto);
   }
 
   @Post('teachers')
@@ -174,27 +188,27 @@ export class AdminController {
   }
 
   @Get('attendance/overview')
-  attendanceOverview() {
-    return this.admin.attendanceOverview();
+  attendanceOverview(@CurrentUser() user: { schoolId: string }) {
+    return this.admin.attendanceOverview(user.schoolId);
   }
 
   @Get('fees/overview')
-  feesOverview() {
-    return this.admin.feesOverview();
+  feesOverview(@CurrentUser() user: { schoolId: string }) {
+    return this.admin.feesOverview(user.schoolId);
   }
 
   @Get('examinations/overview')
-  examinationsOverview() {
-    return this.admin.examinationsOverview();
+  examinationsOverview(@CurrentUser() user: { schoolId: string }) {
+    return this.admin.examinationsOverview(user.schoolId);
   }
 
   @Get('timetable')
-  timetable() {
-    return this.admin.timetable();
+  timetable(@CurrentUser() user: { schoolId: string }) {
+    return this.admin.timetable(user.schoolId);
   }
 
   @Get('reports/overview')
-  reportsOverview() {
-    return this.admin.reportsOverview();
+  reportsOverview(@CurrentUser() user: { schoolId: string }) {
+    return this.admin.reportsOverview(user.schoolId);
   }
 }

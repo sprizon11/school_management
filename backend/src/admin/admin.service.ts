@@ -30,39 +30,34 @@ import { UpdateStudentDto } from './dto/update-student.dto';
 export class AdminService {
   constructor(private prisma: PrismaService) {}
 
-  private async resolveSchoolId() {
-    let school = await this.prisma.school.findFirst({
-      where: { isActive: true },
-      orderBy: { createdAt: 'asc' },
-    });
-    if (!school) {
-      school = await this.prisma.school.create({
-        data: {
-          name: 'My School',
-          code: `school-${Date.now()}`,
-          isActive: true,
-        },
-      });
-    }
-    return school.id;
-  }
-
   async dashboardSummary(schoolId: string) {
     const [students, teachers, classes, paid, totalFees, boys, girls, maleTeachers, femaleTeachers] =
       await Promise.all([
-      this.prisma.student.count({ where: { status: StudentStatus.ACTIVE } }),
-      this.prisma.teacher.count(),
-      this.prisma.class.count(),
-      this.prisma.feePayment.aggregate({ _sum: { amount: true } }),
-      this.prisma.feeStructure.aggregate({ _sum: { totalAmount: true } }),
       this.prisma.student.count({
-        where: { status: StudentStatus.ACTIVE, gender: 'MALE' },
+        where: { status: StudentStatus.ACTIVE, class: { schoolId } },
+      }),
+      this.prisma.teacher.count({ where: { user: { schoolId } } }),
+      this.prisma.class.count({ where: { schoolId } }),
+      this.prisma.feePayment.aggregate({
+        _sum: { amount: true },
+        where: {
+          installment: { assignment: { student: { class: { schoolId } } } },
+        },
+      }),
+      this.prisma.feeStructure.aggregate({
+        _sum: { totalAmount: true },
+        where: {
+          assignments: { some: { student: { class: { schoolId } } } },
+        },
       }),
       this.prisma.student.count({
-        where: { status: StudentStatus.ACTIVE, gender: 'FEMALE' },
+        where: { status: StudentStatus.ACTIVE, gender: 'MALE', class: { schoolId } },
       }),
-      this.prisma.teacher.count({ where: { gender: 'MALE' } }),
-      this.prisma.teacher.count({ where: { gender: 'FEMALE' } }),
+      this.prisma.student.count({
+        where: { status: StudentStatus.ACTIVE, gender: 'FEMALE', class: { schoolId } },
+      }),
+      this.prisma.teacher.count({ where: { gender: 'MALE', user: { schoolId } } }),
+      this.prisma.teacher.count({ where: { gender: 'FEMALE', user: { schoolId } } }),
     ]);
 
     const monthAgo = new Date();
@@ -71,10 +66,11 @@ export class AdminService {
       where: {
         status: 'PRESENT',
         date: { gte: monthAgo },
+        student: { class: { schoolId } },
       },
     });
     const totalAtt = await this.prisma.attendanceRecord.count({
-      where: { date: { gte: monthAgo } },
+      where: { date: { gte: monthAgo }, student: { class: { schoolId } } },
     });
 
     const [announcements, activities, recentTransactions, topStudents] =
@@ -267,7 +263,7 @@ export class AdminService {
     return blocks;
   }
 
-  async attendanceChart() {
+  async attendanceChart(schoolId: string) {
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const data: { day: string; percent: number }[] = [];
     for (let i = 0; i < 6; i++) {
@@ -277,10 +273,14 @@ export class AdminService {
       const end = new Date(d.setHours(23, 59, 59, 999));
       const [present, total] = await Promise.all([
         this.prisma.attendanceRecord.count({
-          where: { date: { gte: start, lte: end }, status: 'PRESENT' },
+          where: {
+            date: { gte: start, lte: end },
+            status: 'PRESENT',
+            student: { class: { schoolId } },
+          },
         }),
         this.prisma.attendanceRecord.count({
-          where: { date: { gte: start, lte: end } },
+          where: { date: { gte: start, lte: end }, student: { class: { schoolId } } },
         }),
       ]);
       data.push({
@@ -293,12 +293,18 @@ export class AdminService {
     return { average: Math.round(avg), points: data };
   }
 
-  async feeChart() {
+  async feeChart(schoolId: string) {
     const paid = await this.prisma.feePayment.aggregate({
       _sum: { amount: true },
+      where: {
+        installment: { assignment: { student: { class: { schoolId } } } },
+      },
     });
     const pending = await this.prisma.feeInstallment.aggregate({
-      where: { status: 'PENDING' },
+      where: {
+        status: 'PENDING',
+        assignment: { student: { class: { schoolId } } },
+      },
       _sum: { amount: true },
     });
     const total = (paid._sum.amount ?? 0) + (pending._sum.amount ?? 0);
@@ -314,13 +320,14 @@ export class AdminService {
     };
   }
 
-  async studentStats() {
+  async studentStats(schoolId: string) {
     const [total, boys, girls, newMonth] = await Promise.all([
-      this.prisma.student.count(),
-      this.prisma.student.count({ where: { gender: 'MALE' } }),
-      this.prisma.student.count({ where: { gender: 'FEMALE' } }),
+      this.prisma.student.count({ where: { class: { schoolId } } }),
+      this.prisma.student.count({ where: { gender: 'MALE', class: { schoolId } } }),
+      this.prisma.student.count({ where: { gender: 'FEMALE', class: { schoolId } } }),
       this.prisma.student.count({
         where: {
+          class: { schoolId },
           createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
         },
       }),
@@ -335,7 +342,7 @@ export class AdminService {
     };
   }
 
-  async getStudent(id: string) {
+  async getStudent(schoolId: string, id: string) {
     const student = await this.prisma.student.findUnique({
       where: { id },
       include: {
@@ -346,7 +353,9 @@ export class AdminService {
         },
       },
     });
-    if (!student) throw new NotFoundException('Student not found');
+    if (!student || student.class.schoolId !== schoolId) {
+      throw new NotFoundException('Student not found');
+    }
 
     const monthAgo = new Date();
     monthAgo.setMonth(monthAgo.getMonth() - 1);
@@ -402,13 +411,20 @@ export class AdminService {
     };
   }
 
-  async updateStudent(id: string, dto: UpdateStudentDto) {
-    const existing = await this.prisma.student.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException('Student not found');
+  async updateStudent(schoolId: string, id: string, dto: UpdateStudentDto) {
+    const existing = await this.prisma.student.findUnique({
+      where: { id },
+      include: { class: true },
+    });
+    if (!existing || existing.class.schoolId !== schoolId) {
+      throw new NotFoundException('Student not found');
+    }
 
     if (dto.classId) {
       const cls = await this.prisma.class.findUnique({ where: { id: dto.classId } });
-      if (!cls) throw new BadRequestException('Class not found');
+      if (!cls || cls.schoolId !== schoolId) {
+        throw new BadRequestException('Class not found');
+      }
     }
 
     const data: Prisma.StudentUpdateInput = {};
@@ -450,18 +466,21 @@ export class AdminService {
       },
     });
 
-    return this.getStudent(id);
+    return this.getStudent(schoolId, id);
   }
 
-  async listStudents(params: {
-    page?: number;
-    limit?: number;
-    search?: string;
-    classId?: string;
-  }) {
+  async listStudents(
+    schoolId: string,
+    params: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      classId?: string;
+    },
+  ) {
     const page = params.page ?? 1;
     const limit = params.limit ?? 10;
-    const where: Prisma.StudentWhereInput = {};
+    const where: Prisma.StudentWhereInput = { class: { schoolId } };
     if (params.classId) where.classId = params.classId;
     if (params.search) {
       where.OR = [
@@ -580,7 +599,7 @@ export class AdminService {
       where: { id },
       include: { user: true },
     });
-    if (!teacher) {
+    if (!teacher || teacher.user.schoolId !== schoolId) {
       throw new NotFoundException('Teacher not found');
     }
 
@@ -647,31 +666,7 @@ export class AdminService {
   }
 
   /** Move classes saved under the wrong school (legacy create bug) into the admin's school. */
-  private async reassignMisplacedClasses(targetSchoolId: string) {
-    const ownCount = await this.prisma.class.count({
-      where: { schoolId: targetSchoolId },
-    });
-    if (ownCount > 0) return;
-
-    const misplaced = await this.prisma.class.findMany({
-      where: { schoolId: { not: targetSchoolId } },
-      select: { schoolId: true },
-      take: 100,
-    });
-    if (misplaced.length === 0) return;
-
-    const sourceSchoolIds = [...new Set(misplaced.map((c) => c.schoolId))];
-    if (sourceSchoolIds.length !== 1) return;
-
-    await this.prisma.class.updateMany({
-      where: { schoolId: sourceSchoolIds[0] },
-      data: { schoolId: targetSchoolId },
-    });
-  }
-
   async classStats(schoolId: string) {
-    await this.reassignMisplacedClasses(schoolId);
-
     const schoolFilter = { schoolId };
     const [totalClasses, sections, students, newMonth] = await Promise.all([
       this.prisma.class.count({ where: schoolFilter }),
@@ -693,8 +688,6 @@ export class AdminService {
   }
 
   async listClasses(schoolId: string, search?: string) {
-    await this.reassignMisplacedClasses(schoolId);
-
     const where: Prisma.ClassWhereInput = { schoolId };
     if (search) {
       where.OR = [
@@ -730,7 +723,7 @@ export class AdminService {
     }));
   }
 
-  async getClass(id: string) {
+  async getClass(schoolId: string, id: string) {
     const cls = await this.prisma.class.findUnique({
       where: { id },
       include: {
@@ -739,7 +732,9 @@ export class AdminService {
         students: { orderBy: [{ rollNumber: 'asc' }, { fullName: 'asc' }] },
       },
     });
-    if (!cls) throw new NotFoundException('Class not found');
+    if (!cls || cls.schoolId !== schoolId) {
+      throw new NotFoundException('Class not found');
+    }
 
     const boys = cls.students.filter((s) => s.gender === 'MALE').length;
     const girls = cls.students.filter((s) => s.gender === 'FEMALE').length;
@@ -780,9 +775,11 @@ export class AdminService {
     };
   }
 
-  async createStudent(dto: CreateStudentDto) {
+  async createStudent(schoolId: string, dto: CreateStudentDto) {
     const cls = await this.prisma.class.findUnique({ where: { id: dto.classId } });
-    if (!cls) throw new BadRequestException('Class not found');
+    if (!cls || cls.schoolId !== schoolId) {
+      throw new BadRequestException('Class not found');
+    }
 
     const count = await this.prisma.student.count({ where: { classId: dto.classId } });
     const rollNumber = dto.rollNumber ?? count + 1;
@@ -840,7 +837,9 @@ export class AdminService {
     });
     if (existing) throw new ConflictException('Email already registered');
 
-    const count = await this.prisma.teacher.count();
+    const count = await this.prisma.teacher.count({
+      where: { user: { schoolId } },
+    });
     const employeeCode = `TCH${String(count + 1).padStart(4, '0')}`;
     const passwordHash = await bcrypt.hash(dto.password ?? 'Admin@123', 10);
 
@@ -1014,7 +1013,7 @@ export class AdminService {
     };
   }
 
-  async attendanceOverview() {
+  async attendanceOverview(schoolId: string) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
@@ -1022,19 +1021,34 @@ export class AdminService {
 
     const [present, absent, leave, totalStudents] = await Promise.all([
       this.prisma.attendanceRecord.count({
-        where: { date: { gte: today, lt: tomorrow }, status: 'PRESENT' },
+        where: {
+          date: { gte: today, lt: tomorrow },
+          status: 'PRESENT',
+          student: { class: { schoolId } },
+        },
       }),
       this.prisma.attendanceRecord.count({
-        where: { date: { gte: today, lt: tomorrow }, status: 'ABSENT' },
+        where: {
+          date: { gte: today, lt: tomorrow },
+          status: 'ABSENT',
+          student: { class: { schoolId } },
+        },
       }),
       this.prisma.attendanceRecord.count({
-        where: { date: { gte: today, lt: tomorrow }, status: 'LEAVE' },
+        where: {
+          date: { gte: today, lt: tomorrow },
+          status: 'LEAVE',
+          student: { class: { schoolId } },
+        },
       }),
-      this.prisma.student.count({ where: { status: StudentStatus.ACTIVE } }),
+      this.prisma.student.count({
+        where: { status: StudentStatus.ACTIVE, class: { schoolId } },
+      }),
     ]);
 
-    const chart = await this.attendanceChart();
+    const chart = await this.attendanceChart(schoolId);
     const byClass = await this.prisma.class.findMany({
+      where: { schoolId },
       include: {
         students: {
           include: {
@@ -1077,26 +1091,28 @@ export class AdminService {
     };
   }
 
-  async feesOverview() {
+  async feesOverview(schoolId: string) {
+    const inSchool = { assignment: { student: { class: { schoolId } } } };
     const [paid, pending, upcoming, recentPayments] = await Promise.all([
       this.prisma.feeInstallment.aggregate({
-        where: { status: 'PAID' },
+        where: { status: 'PAID', ...inSchool },
         _sum: { amount: true },
         _count: true,
       }),
       this.prisma.feeInstallment.aggregate({
-        where: { status: 'PENDING' },
+        where: { status: 'PENDING', ...inSchool },
         _sum: { amount: true },
         _count: true,
       }),
       this.prisma.feeInstallment.aggregate({
-        where: { status: 'UPCOMING' },
+        where: { status: 'UPCOMING', ...inSchool },
         _sum: { amount: true },
         _count: true,
       }),
       this.prisma.feePayment.findMany({
         take: 8,
         orderBy: { paidAt: 'desc' },
+        where: { installment: inSchool },
         include: {
           installment: {
             include: {
@@ -1127,9 +1143,10 @@ export class AdminService {
     };
   }
 
-  async examinationsOverview() {
+  async examinationsOverview(schoolId: string) {
     const marks = await this.prisma.mark.findMany({
       take: 50,
+      where: { student: { class: { schoolId } } },
       include: {
         student: { include: { class: true } },
         subject: true,
@@ -1168,8 +1185,9 @@ export class AdminService {
     };
   }
 
-  async timetable() {
+  async timetable(schoolId: string) {
     const classes = await this.prisma.class.findMany({
+      where: { schoolId },
       include: { classTeacher: { include: { user: true } } },
       orderBy: [{ grade: 'asc' }, { section: 'asc' }],
       take: 12,
@@ -1338,15 +1356,14 @@ export class AdminService {
     return announcement;
   }
 
-  async reportsOverview() {
-    const schoolId = await this.resolveSchoolId();
+  async reportsOverview(schoolId: string) {
     const [students, teachers, classes, activities, feeChart] =
       await Promise.all([
-        this.studentStats(),
+        this.studentStats(schoolId),
         this.teacherStats(schoolId),
         this.classStats(schoolId),
         this.prisma.activityLog.findMany({ orderBy: { createdAt: 'desc' }, take: 6 }),
-        this.feeChart(),
+        this.feeChart(schoolId),
       ]);
 
     return {

@@ -272,7 +272,8 @@ export class TeacherService {
     return cls;
   }
 
-  async classStats(classId: string) {
+  async classStats(classId: string, teacherId: string) {
+    await this.assertClassAccess(classId, teacherId);
     const [total, boys, girls] = await Promise.all([
       this.prisma.student.count({ where: { classId } }),
       this.prisma.student.count({ where: { classId, gender: 'MALE' } }),
@@ -445,7 +446,8 @@ export class TeacherService {
     return { saved, subject: subjectName, termLabel };
   }
 
-  async reportsOverview(classId: string) {
+  async reportsOverview(classId: string, teacherId: string) {
+    await this.assertClassAccess(classId, teacherId);
     const students = await this.prisma.student.findMany({
       where: { classId },
       select: {
@@ -510,7 +512,8 @@ export class TeacherService {
     };
   }
 
-  async attendanceReport(classId: string) {
+  async attendanceReport(classId: string, teacherId: string) {
+    await this.assertClassAccess(classId, teacherId);
     const students = await this.prisma.student.findMany({
       where: { classId },
       orderBy: { rollNumber: 'asc' },
@@ -570,7 +573,8 @@ export class TeacherService {
     };
   }
 
-  async marksReport(classId: string) {
+  async marksReport(classId: string, teacherId: string) {
+    await this.assertClassAccess(classId, teacherId);
     const students = await this.prisma.student.findMany({
       where: { classId },
       orderBy: { rollNumber: 'asc' },
@@ -636,7 +640,8 @@ export class TeacherService {
     };
   }
 
-  async performanceReport(classId: string) {
+  async performanceReport(classId: string, teacherId: string) {
+    await this.assertClassAccess(classId, teacherId);
     const students = await this.prisma.student.findMany({
       where: { classId },
       orderBy: { rollNumber: 'asc' },
@@ -687,7 +692,8 @@ export class TeacherService {
     return { students: rows };
   }
 
-  async assignmentsReport(classId: string) {
+  async assignmentsReport(classId: string, teacherId: string) {
+    await this.assertClassAccess(classId, teacherId);
     const items = await this.prisma.homework.findMany({
       where: { classId },
       orderBy: { dueDate: 'desc' },
@@ -708,7 +714,8 @@ export class TeacherService {
     };
   }
 
-  async performanceChart(classId: string) {
+  async performanceChart(classId: string, teacherId: string) {
+    await this.assertClassAccess(classId, teacherId);
     const subjects = ['Science', 'Maths', 'English', 'Computer', 'Social Science'];
     return subjects.map((name) => ({
       subject: name,
