@@ -1,4 +1,3 @@
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -8,14 +7,10 @@ import '../../../../core/providers/auth_provider.dart';
 import '../../../../core/providers/school_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/skeleton.dart';
-import 'admin_add_class_screen.dart';
-import 'admin_add_student_flow_screen.dart';
-import 'admin_add_teacher_screen.dart';
 import 'admin_attendance_screen.dart';
 import 'admin_examinations_screen.dart';
 import 'admin_fee_collection_screen.dart';
 import 'admin_reports_screen.dart';
-import 'admin_timetable_screen.dart';
 import 'admin_announcements_screen.dart';
 import '../widgets/admin_sidebar.dart';
 
@@ -31,11 +26,9 @@ class AdminDashboardScreen extends ConsumerStatefulWidget {
 
 class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   static const _hPad = 16.0;
-  static const _cardRadius = 20.0;
-  static const _statsCardHeight = 112.0;
+  static const _ink = Color(0xFF1A1533);
 
   Map<String, dynamic>? _summary;
-  List<dynamic>? _chartPoints;
   Map<String, dynamic>? _feeChart;
   final _scaffoldKey = GlobalKey<ScaffoldState>();
 
@@ -45,9 +38,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     _load();
   }
 
-  void _openSidebar() {
-    _scaffoldKey.currentState?.openDrawer();
-  }
+  void _openSidebar() => _scaffoldKey.currentState?.openDrawer();
 
   Map<String, dynamic> _emptySummary() => {
         'students': {'count': 0, 'boys': 0, 'girls': 0},
@@ -61,15 +52,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         'topStudents': <dynamic>[],
       };
 
-  Map<String, dynamic> _emptyFeeChart() => {
-        'total': 0,
-        'segments': <dynamic>[],
-      };
+  Map<String, dynamic> _emptyFeeChart() => {'total': 0, 'segments': <dynamic>[]};
 
   Future<void> _load() async {
     final dio = ref.read(dioProvider);
     Map<String, dynamic>? summary;
-    List<dynamic>? chartPoints;
     Map<String, dynamic>? feeChart;
 
     try {
@@ -77,13 +64,6 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       summary = res.data as Map<String, dynamic>;
     } catch (_) {
       summary = _emptySummary();
-    }
-
-    try {
-      final res = await dio.get('/admin/dashboard/attendance-chart');
-      chartPoints = (res.data as Map)['points'] as List<dynamic>? ?? [];
-    } catch (_) {
-      chartPoints = [];
     }
 
     try {
@@ -96,7 +76,6 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     if (!mounted) return;
     setState(() {
       _summary = summary ?? _emptySummary();
-      _chartPoints = chartPoints ?? [];
       _feeChart = feeChart ?? _emptyFeeChart();
     });
   }
@@ -106,18 +85,18 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     final fullName = ref.watch(
       authProvider.select((a) => a.user?.fullName ?? 'Admin'),
     );
-    final schoolName = ref.watch(authProvider.select((a) => a.user?.schoolName));
+    final schoolName =
+        ref.watch(authProvider.select((a) => a.user?.schoolName));
     final role = ref.watch(authProvider.select((a) => a.user?.role ?? 'ADMIN'));
     final selectedSchool = ref.watch(selectedSchoolProvider);
     final displaySchool = (schoolName != null && schoolName.isNotEmpty)
         ? schoolName
         : (selectedSchool?.name ?? 'Your School');
-    final hasSummary = _summary != null;
     final bottomInset = MediaQuery.paddingOf(context).bottom + 96;
 
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: const Color(0xFFF0F4FC),
+      backgroundColor: const Color(0xFFF5F5FB),
       drawer: AdminSidebar(onTabSelect: widget.onTabSelect),
       drawerEnableOpenDragGesture: false,
       body: RefreshIndicator(
@@ -127,217 +106,199 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           physics: const AlwaysScrollableScrollPhysics(),
           padding: EdgeInsets.only(bottom: bottomInset),
           children: [
-            _headerSection(displaySchool, fullName, role),
-            _sectionTitle('Quick Access'),
-            const SizedBox(height: 12),
-            _quickAccessGrid(),
-            const SizedBox(height: 20),
-            if (hasSummary)
-              FadeInContent(child: _overviewSection())
-            else
-              _overviewSkeleton(),
-            const SizedBox(height: 20),
-            if (hasSummary)
-              FadeInContent(child: _announcementsSection())
-            else
-              _announcementsSkeleton(),
-            const SizedBox(height: 20),
-            if (hasSummary)
-              FadeInContent(child: _recentTransactionsSection())
-            else
-              const SizedBox.shrink(),
-            const SizedBox(height: 20),
-            if (hasSummary)
-              FadeInContent(child: _topStudentsSection())
-            else
-              const SizedBox.shrink(),
-            const SizedBox(height: 12),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _overviewSkeleton() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: _hPad),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _sectionTitle('Overview', trailing: 'More'),
-          const SizedBox(height: 12),
-          const SkeletonBox(height: 200, borderRadius: 20),
-          const SizedBox(height: 14),
-          const SkeletonBox(height: 220, borderRadius: 20),
-        ],
-      ),
-    );
-  }
-
-  Widget _announcementsSkeleton() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: _hPad),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _sectionTitle('Announcements', trailing: 'View All'),
-          const SizedBox(height: 12),
-          const SkeletonBox(height: 120, borderRadius: 20),
-        ],
-      ),
-    );
-  }
-
-  Widget _headerSection(String schoolName, String fullName, String role) {
-    const statsOverhang = 52.0;
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Stack(
-          clipBehavior: Clip.none,
-          children: [
-            _blueHeader(schoolName, fullName, role, statsInset: statsOverhang),
-            Positioned(
-              left: _hPad,
-              right: _hPad,
-              bottom: -statsOverhang,
-              child: _statsStrip(),
+            _header(fullName, role, displaySchool),
+            const SizedBox(height: 4),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: _hPad),
+              child: _overviewCard(),
             ),
+            const SizedBox(height: 24),
+            _sectionHeader(
+              'Quick Access',
+              trailing: 'View All',
+              onTap: () => widget.onTabSelect?.call(4),
+            ),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: _hPad),
+              child: _quickAccessGrid(),
+            ),
+            const SizedBox(height: 24),
+            _sectionHeader(
+              'Recent Activity',
+              trailing: 'View All',
+              onTap: () =>
+                  openSmoothPage(context, const AdminReportsScreen()),
+            ),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: _hPad),
+              child: _recentActivityCard(),
+            ),
+            const SizedBox(height: 24),
+            _sectionHeader('Fee Collection Overview', trailingPill: 'This Month'),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: _hPad),
+              child: _feeCollectionCard(),
+            ),
+            const SizedBox(height: 12),
           ],
         ),
-        const SizedBox(height: statsOverhang + 14),
-      ],
+      ),
     );
   }
 
-  Widget _blueHeader(String schoolName, String fullName, String role,
-      {double statsInset = 0}) {
-    final topPad = MediaQuery.paddingOf(context).top;
+  // ---------------------------------------------------------------------
+  // Header — logo, greeting, notification bell
+  // ---------------------------------------------------------------------
+  Widget _header(String fullName, String role, String school) {
+    final top = MediaQuery.paddingOf(context).top;
+    final announcements =
+        (_summary?['announcements'] as List<dynamic>? ?? []).length;
 
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.fromLTRB(
-        _hPad,
-        topPad + 12,
-        _hPad,
-        22 + statsInset,
+    return Padding(
+      padding: EdgeInsets.fromLTRB(_hPad, top + 12, _hPad, 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          GestureDetector(
+            onTap: _openSidebar,
+            child: Container(
+              width: 54,
+              height: 54,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF7367F0), Color(0xFF5A4FD4)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF6355E0).withValues(alpha: 0.35),
+                    blurRadius: 14,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              alignment: Alignment.center,
+              child: const Icon(Icons.account_balance_rounded,
+                  color: Colors.white, size: 26),
+            ),
+          ),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${_greeting()},',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: _ink.withValues(alpha: 0.5),
+                    height: 1.1,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '$fullName 👋',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: _ink,
+                    height: 1.1,
+                    letterSpacing: -0.4,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  '${_roleLabel(role)} • $school',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w500,
+                    color: _ink.withValues(alpha: 0.5),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          _notificationBell(announcements),
+        ],
       ),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF051C6E), Color(0xFF0D3DD4), Color(0xFF2563EB), Color(0xFF4F8CFF)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
-      ),
+    );
+  }
+
+  Widget _notificationBell(int count) {
+    return GestureDetector(
+      onTap: () => openSmoothPage(context, const AdminAnnouncementsScreen()),
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          // Decorative blobs for depth
-          Positioned(
-            right: -30,
-            top: -30,
-            child: Container(
-              width: 130,
-              height: 130,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.07),
-              ),
+          Container(
+            height: 50,
+            width: 50,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF6355E0).withValues(alpha: 0.12),
+                  blurRadius: 14,
+                  offset: const Offset(0, 6),
+                ),
+              ],
             ),
+            child: const Icon(Icons.notifications_none_rounded,
+                color: _ink, size: 24),
           ),
-          Positioned(
-            right: 30,
-            bottom: 10,
-            child: Container(
-              width: 70,
-              height: 70,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.05),
-              ),
-            ),
-          ),
-          Positioned(
-            left: -20,
-            bottom: -10,
-            child: Container(
-              width: 90,
-              height: 90,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.05),
-              ),
-            ),
-          ),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.translucent,
-                  onHorizontalDragEnd: (details) {
-                    if ((details.primaryVelocity ?? 0) > 300) {
-                      _openSidebar();
-                    }
-                  },
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Welcome back,',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.8),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        schoolName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 22,
-                          height: 1.1,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.4,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _roleLabel(role),
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.78),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
+          if (count > 0)
+            Positioned(
+              top: -4,
+              right: -4,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                constraints: const BoxConstraints(minWidth: 20),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF3B5C),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFF5F5FB), width: 2),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  count > 9 ? '9+' : '$count',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    height: 1.1,
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
-              _headerCircleButton(
-                icon: Icons.notifications_none_rounded,
-                showBadge: true,
-                onTap: () =>
-                    openSmoothPage(context, const AdminAnnouncementsScreen()),
-              ),
-            ],
-          ),
+            ),
         ],
       ),
     );
+  }
+
+  String _greeting() {
+    final h = DateTime.now().hour;
+    if (h < 12) return 'Good Morning';
+    if (h < 17) return 'Good Afternoon';
+    return 'Good Evening';
   }
 
   String _roleLabel(String role) {
     switch (role.toUpperCase()) {
       case 'ADMIN':
-        return 'Super Administrator';
+        return 'Administrator';
       case 'TEACHER':
         return 'Teacher';
       case 'PARENT':
@@ -347,958 +308,430 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     }
   }
 
-  Widget _headerCircleButton({
-    required IconData icon,
-    required VoidCallback onTap,
-    bool showBadge = false,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Container(
-            height: 50,
-            width: 50,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.15),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Icon(icon, color: const Color(0xFF1F2D5A), size: 23),
-          ),
-          if (showBadge)
-            Positioned(
-              top: 3,
-              right: 3,
-              child: Container(
-                height: 11,
-                width: 11,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFF3B5C),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _statsStrip() {
+  // ---------------------------------------------------------------------
+  // School Overview — purple gradient stat card
+  // ---------------------------------------------------------------------
+  Widget _overviewCard() {
     if (_summary == null) {
-      return const SkeletonBox(height: _statsCardHeight, borderRadius: 18);
+      return const SkeletonBox(height: 150, borderRadius: 22);
     }
 
-    final stats = [
+    final stats = <({IconData icon, String value, String label, String? sub})>[
       (
-        label: 'Classes',
-        value: _formatNumber(_summary?['classes']?['count']),
-        detail: '${_formatNumber(_summary?['classes']?['students'])} enrolled',
-        icon: Icons.menu_book_rounded,
-        color: const Color(0xFFF5A623),
-        onTap: () => widget.onTabSelect?.call(3),
-      ),
-      (
-        label: 'Students',
-        value: _formatNumber(_summary?['students']?['count']),
-        detail:
-            'Boys ${_formatNumber(_summary?['students']?['boys'])} · Girls ${_formatNumber(_summary?['students']?['girls'])}',
         icon: Icons.groups_rounded,
-        color: const Color(0xFF4F6FFF),
-        onTap: () => widget.onTabSelect?.call(1),
+        value: _formatNumber(_summary?['students']?['count']),
+        label: 'Students',
+        sub: null,
       ),
       (
-        label: 'Teachers',
+        icon: Icons.person_rounded,
         value: _formatNumber(_summary?['teachers']?['count']),
-        detail:
-            'Gents ${_formatNumber(_summary?['teachers']?['male'])} · Ladies ${_formatNumber(_summary?['teachers']?['female'])}',
+        label: 'Teachers',
+        sub: null,
+      ),
+      (
         icon: Icons.school_rounded,
-        color: const Color(0xFF3CCB6F),
-        onTap: () => widget.onTabSelect?.call(2),
+        value: _formatNumber(_summary?['classes']?['count']),
+        label: 'Classes',
+        sub: null,
+      ),
+      (
+        icon: Icons.fact_check_rounded,
+        value: '${_toInt(_summary?['attendancePercent'])}%',
+        label: 'Attendance',
+        sub: 'Today',
       ),
     ];
 
     return Container(
-      height: _statsCardHeight,
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2E9F8), width: 1.2),
+        borderRadius: BorderRadius.circular(24),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF7C6FF2), Color(0xFF6355E0), Color(0xFF5344CC)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF1B3FBF).withValues(alpha: 0.13),
-            blurRadius: 28,
-            offset: const Offset(0, 10),
-          ),
-          BoxShadow(
-            color: Colors.white.withValues(alpha: 0.9),
-            blurRadius: 0,
-            offset: const Offset(0, 0),
+            color: const Color(0xFF6355E0).withValues(alpha: 0.4),
+            blurRadius: 26,
+            offset: const Offset(0, 14),
           ),
         ],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(18),
-        child: Row(
-          children: [
-            for (var i = 0; i < stats.length; i++) ...[
-              if (i > 0)
-                Container(
-                  width: 1,
-                  height: 56,
-                  color: const Color(0xFFEEF1F6),
-                ),
-              Expanded(
-                child: _statColumn(stats[i]),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _statColumn(
-    ({
-      String label,
-      String value,
-      String detail,
-      IconData icon,
-      Color color,
-      VoidCallback? onTap,
-    }) stat,
-  ) {
-    return Material(
-      color: Colors.white,
-      child: InkWell(
-        onTap: stat.onTap,
-        splashColor: stat.color.withValues(alpha: 0.08),
-        highlightColor: stat.color.withValues(alpha: 0.04),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                height: 36,
-                width: 36,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [stat.color, stat.color.withValues(alpha: 0.70)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: stat.color.withValues(alpha: 0.35),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'School Overview',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      "Today's at-a-glance summary",
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.78),
+                        fontSize: 12.5,
+                      ),
                     ),
                   ],
                 ),
-                child: Icon(stat.icon, color: Colors.white, size: 18),
               ),
-              const SizedBox(height: 6),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  stat.value,
-                  style: const TextStyle(
-                    fontSize: 19,
-                    height: 1,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF0F172A),
-                    letterSpacing: -0.4,
-                  ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(20),
                 ),
-              ),
-              const SizedBox(height: 1),
-              Text(
-                stat.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 10,
-                  height: 1.1,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF475569),
-                ),
-              ),
-              const SizedBox(height: 3),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  stat.detail,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 8.5,
-                    height: 1.1,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF94A3B8),
-                  ),
+                child: Row(
+                  children: [
+                    const Text(
+                      'Today',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    Icon(Icons.keyboard_arrow_down_rounded,
+                        size: 16, color: Colors.white.withValues(alpha: 0.9)),
+                  ],
                 ),
               ),
             ],
           ),
-        ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              for (var i = 0; i < stats.length; i++) ...[
+                if (i > 0)
+                  Container(
+                    width: 1,
+                    height: 58,
+                    color: Colors.white.withValues(alpha: 0.16),
+                  ),
+                Expanded(child: _overviewStat(stats[i])),
+              ],
+            ],
+          ),
+        ],
       ),
     );
   }
 
-  Widget _sectionTitle(
+  Widget _overviewStat(
+      ({IconData icon, String value, String label, String? sub}) s) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.18),
+            borderRadius: BorderRadius.circular(13),
+          ),
+          child: Icon(s.icon, color: Colors.white, size: 21),
+        ),
+        const SizedBox(height: 9),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            s.value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              height: 1,
+              letterSpacing: -0.5,
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          s.label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.85),
+            fontSize: 10.5,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        if (s.sub != null)
+          Text(
+            s.sub!,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.6),
+              fontSize: 9,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+      ],
+    );
+  }
+
+  // ---------------------------------------------------------------------
+  // Section header
+  // ---------------------------------------------------------------------
+  Widget _sectionHeader(
     String title, {
     String? trailing,
-    VoidCallback? onTrailingTap,
+    String? trailingPill,
+    VoidCallback? onTap,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: _hPad),
       child: Row(
         children: [
-          Container(
-            width: 4,
-            height: 20,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [AppColors.primaryDark, AppColors.primaryLight],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
-              borderRadius: BorderRadius.circular(3),
-            ),
-          ),
-          const SizedBox(width: 10),
           Text(
             title,
             style: const TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.w800,
-              letterSpacing: -0.2,
-              color: Color(0xFF131B2E),
+              color: _ink,
+              letterSpacing: -0.3,
             ),
           ),
           const Spacer(),
           if (trailing != null)
             GestureDetector(
-              onTap: onTrailingTap,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  trailing,
-                  style: const TextStyle(
-                    color: AppColors.primary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _quickAccessGrid() {
-    final items = [
-      ('Student', Icons.person_add_alt_1_rounded, const Color(0xFF5B6CFF), () => const AdminAddStudentFlowScreen()),
-      ('Teacher', Icons.manage_accounts_rounded, const Color(0xFF3DD16E), () => const AdminAddTeacherScreen()),
-      ('Class', Icons.menu_book_rounded, const Color(0xFFF5A623), () => const AdminAddClassScreen()),
-      ('Attendance', Icons.fact_check_rounded, const Color(0xFF2F8DFF), () => const AdminAttendanceScreen()),
-      ('Fees', Icons.currency_rupee_rounded, const Color(0xFF34B356), () => const AdminFeeCollectionScreen()),
-      ('Exams', Icons.edit_note_rounded, const Color(0xFF6B5CE7), () => const AdminExaminationsScreen()),
-      ('Schedule', Icons.calendar_month_rounded, const Color(0xFF3B9EFF), () => const AdminTimetableScreen()),
-      ('Reports', Icons.bar_chart_rounded, const Color(0xFFFF5D6E), () => const AdminReportsScreen()),
-    ];
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: _hPad),
-      child: GridView.builder(
-        itemCount: items.length,
-        shrinkWrap: true,
-        padding: EdgeInsets.zero,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 4,
-          crossAxisSpacing: 10,
-          mainAxisSpacing: 10,
-          childAspectRatio: 0.82,
-        ),
-        itemBuilder: (_, i) {
-          final item = items[i];
-          return _quickAccessCard(
-            label: item.$1,
-            icon: item.$2,
-            color: item.$3,
-            onTap: () => openSmoothPage(context, item.$4()),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _quickAccessCard({
-    required String label,
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.18),
-            blurRadius: 18,
-            offset: const Offset(0, 6),
-          ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(18),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          splashColor: color.withValues(alpha: 0.10),
-          highlightColor: color.withValues(alpha: 0.05),
-          child: Ink(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.white, Color.lerp(Colors.white, color, 0.04)!],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: color.withValues(alpha: 0.12), width: 1.2),
-            ),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                Positioned(
-                  right: -6,
-                  bottom: -6,
-                  child: Icon(
-                    icon,
-                    size: 40,
-                    color: color.withValues(alpha: 0.06),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          Container(
-                            height: 36,
-                            width: 36,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [color, color.withValues(alpha: 0.72)],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              borderRadius: BorderRadius.circular(11),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: color.withValues(alpha: 0.28),
-                                  blurRadius: 6,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Icon(icon, color: Colors.white, size: 18),
-                          ),
-                          Positioned(
-                            right: -5,
-                            bottom: -5,
-                            child: Container(
-                              height: 17,
-                              width: 17,
-                              decoration: BoxDecoration(
-                                color: color,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: Colors.white,
-                                  width: 1.5,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: color.withValues(alpha: 0.3),
-                                    blurRadius: 4,
-                                    offset: const Offset(0, 1),
-                                  ),
-                                ],
-                              ),
-                              child: const Icon(
-                                Icons.add,
-                                color: Colors.white,
-                                size: 11,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF334155),
-                          letterSpacing: -0.1,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _overviewSection() {
-    return Column(
-      children: [
-        _sectionTitle('Overview', trailing: 'More'),
-        const SizedBox(height: 12),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: _hPad),
-          child: Column(
-            children: [
-              _attendanceCard(),
-              const SizedBox(height: 14),
-              _feeCard(),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _attendanceCard() {
-    final points = _chartPoints ?? [];
-    final avg = _toInt(_summary?['attendancePercent']);
-    final maxX = points.isEmpty ? 6.0 : (points.length - 1).toDouble();
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-      decoration: _overviewCardDecoration(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'Attendance Overview',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF1F2937),
-                  ),
-                ),
-              ),
-              _capsule('This Week'),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '$avg%',
-                style: const TextStyle(
-                  color: AppColors.primary,
-                  fontSize: 32,
-                  fontWeight: FontWeight.w800,
-                  height: 1,
-                  letterSpacing: -0.5,
-                ),
-              ),
-              const SizedBox(width: 8),
-              const Padding(
-                padding: EdgeInsets.only(bottom: 4),
-                child: Text(
-                  'Average Attendance',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textMuted,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          RepaintBoundary(
-            child: SizedBox(
-            height: 140,
-            child: LineChart(
-              LineChartData(
-                minX: 0,
-                maxX: maxX,
-                minY: 0,
-                maxY: 100,
-                gridData: FlGridData(
-                  show: true,
-                  drawVerticalLine: false,
-                  horizontalInterval: 25,
-                  getDrawingHorizontalLine: (value) => FlLine(
-                    color: const Color(0xFFEEF1F6),
-                    strokeWidth: 1,
-                  ),
-                ),
-                titlesData: FlTitlesData(
-                  leftTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  topTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  rightTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 28,
-                      interval: 1,
-                      getTitlesWidget: (value, _) {
-                        if (value != value.roundToDouble()) {
-                          return const SizedBox.shrink();
-                        }
-                        final i = value.toInt();
-                        if (i < 0 || i >= points.length) {
-                          return const SizedBox.shrink();
-                        }
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 6),
-                          child: Text(
-                            '${points[i]['day'] ?? ''}',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                              color: Color(0xFF9CA3AF),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-                borderData: FlBorderData(show: false),
-                lineTouchData: const LineTouchData(enabled: false),
-                lineBarsData: [
-                  LineChartBarData(
-                    spots: List.generate(
-                      points.length,
-                      (i) => FlSpot(
-                        i.toDouble(),
-                        (points[i]['percent'] as num).toDouble(),
-                      ),
-                    ),
-                    isCurved: true,
-                    curveSmoothness: 0.35,
-                    color: AppColors.primary,
-                    barWidth: 3,
-                    dotData: FlDotData(
-                      show: true,
-                      getDotPainter: (spot, _, __, ___) => FlDotCirclePainter(
-                        radius: 4,
-                        color: Colors.white,
-                        strokeWidth: 2.5,
-                        strokeColor: AppColors.primary,
-                      ),
-                    ),
-                    belowBarData: BarAreaData(
-                      show: true,
-                      gradient: LinearGradient(
-                        colors: [
-                          AppColors.primary.withValues(alpha: 0.22),
-                          AppColors.primary.withValues(alpha: 0.02),
-                        ],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _feeCard() {
-    final segments = (_feeChart?['segments'] as List<dynamic>? ?? []);
-    final total = _toInt(_feeChart?['total']);
-    final colors = <Color>[
-      const Color(0xFF3BC75A),
-      const Color(0xFFF8C22A),
-      const Color(0xFFFF5D5D),
-    ];
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: _overviewCardDecoration(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'Fee Collection Overview',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF1F2937),
-                  ),
-                ),
-              ),
-              _capsule('This Month'),
-            ],
-          ),
-          const SizedBox(height: 16),
-          RepaintBoundary(
-            child: SizedBox(
-            height: 150,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                PieChart(
-                  PieChartData(
-                    sectionsSpace: 3,
-                    centerSpaceRadius: 42,
-                    startDegreeOffset: -90,
-                    sections: List.generate(segments.length, (i) {
-                      final seg = segments[i] as Map<String, dynamic>;
-                      return PieChartSectionData(
-                        value: (seg['percent'] as num?)?.toDouble() ?? 0,
-                        color: colors[i % colors.length],
-                        radius: 36,
-                        showTitle: false,
-                      );
-                    }),
-                  ),
-                ),
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      _formatCurrency(total),
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF111827),
-                      ),
-                    ),
-                    const Text(
-                      'Total',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: AppColors.textMuted,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          ),
-          const SizedBox(height: 12),
-          ...List.generate(segments.length, (i) {
-            final seg = segments[i] as Map<String, dynamic>;
-            final label = '${seg['label']}';
-            final amount = _formatCurrency(seg['amount']);
-            final percent = _toInt(seg['percent']);
-            return Padding(
-              padding: EdgeInsets.only(top: i == 0 ? 0 : 10),
+              onTap: onTap,
+              behavior: HitTestBehavior.opaque,
               child: Row(
                 children: [
-                  Container(
-                    width: 10,
-                    height: 10,
-                    decoration: BoxDecoration(
-                      color: colors[i % colors.length],
-                      borderRadius: BorderRadius.circular(3),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      label,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF374151),
-                      ),
-                    ),
-                  ),
                   Text(
-                    amount,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF111827),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '$percent%',
-                    style: const TextStyle(
-                      fontSize: 12,
+                    trailing,
+                    style: TextStyle(
+                      fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.textMuted,
+                      color: _ink.withValues(alpha: 0.5),
                     ),
                   ),
+                  const SizedBox(width: 2),
+                  Icon(Icons.chevron_right_rounded,
+                      size: 18, color: _ink.withValues(alpha: 0.5)),
                 ],
               ),
-            );
-          }),
+            ),
+          if (trailingPill != null)
+            Row(
+              children: [
+                Text(
+                  trailingPill,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: _ink.withValues(alpha: 0.5),
+                  ),
+                ),
+                const SizedBox(width: 2),
+                Icon(Icons.keyboard_arrow_down_rounded,
+                    size: 18, color: _ink.withValues(alpha: 0.5)),
+              ],
+            ),
         ],
       ),
     );
   }
 
-  Widget _announcementsSection() {
-    final items = (_summary?['announcements'] as List<dynamic>? ?? []);
-    final latest = items.isNotEmpty ? items.first as Map<String, dynamic> : null;
-    final older = items.length > 1 ? items.sublist(1, items.length > 3 ? 3 : items.length) : <dynamic>[];
+  // ---------------------------------------------------------------------
+  // Quick Access grid — 4×2
+  // ---------------------------------------------------------------------
+  Widget _quickAccessGrid() {
+    final items = <({IconData icon, String label, Color color, VoidCallback onTap})>[
+      (
+        icon: Icons.groups_rounded,
+        label: 'Students',
+        color: const Color(0xFF6366F1),
+        onTap: () => widget.onTabSelect?.call(1),
+      ),
+      (
+        icon: Icons.person_rounded,
+        label: 'Teachers',
+        color: const Color(0xFF22C55E),
+        onTap: () => widget.onTabSelect?.call(2),
+      ),
+      (
+        icon: Icons.menu_book_rounded,
+        label: 'Classes',
+        color: const Color(0xFF3B82F6),
+        onTap: () => widget.onTabSelect?.call(3),
+      ),
+      (
+        icon: Icons.fact_check_rounded,
+        label: 'Attendance',
+        color: const Color(0xFFF59E0B),
+        onTap: () =>
+            openSmoothPage(context, const AdminAttendanceScreen()),
+      ),
+      (
+        icon: Icons.currency_rupee_rounded,
+        label: 'Fees',
+        color: const Color(0xFF22C55E),
+        onTap: () =>
+            openSmoothPage(context, const AdminFeeCollectionScreen()),
+      ),
+      (
+        icon: Icons.description_rounded,
+        label: 'Exams & Marks',
+        color: const Color(0xFFEF4444),
+        onTap: () =>
+            openSmoothPage(context, const AdminExaminationsScreen()),
+      ),
+      (
+        icon: Icons.campaign_rounded,
+        label: 'Announcements',
+        color: const Color(0xFF8B5CF6),
+        onTap: () =>
+            openSmoothPage(context, const AdminAnnouncementsScreen()),
+      ),
+      (
+        icon: Icons.bar_chart_rounded,
+        label: 'Reports',
+        color: const Color(0xFF3B82F6),
+        onTap: () => openSmoothPage(context, const AdminReportsScreen()),
+      ),
+    ];
 
-    return Column(
+    return GridView.count(
+      crossAxisCount: 4,
+      shrinkWrap: true,
+      padding: EdgeInsets.zero,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisSpacing: 11,
+      mainAxisSpacing: 11,
+      childAspectRatio: 0.82,
       children: [
-        _sectionTitle(
-          'Announcements',
-          trailing: 'View All',
-          onTrailingTap: () =>
-              openSmoothPage(context, const AdminAnnouncementsScreen()),
-        ),
-        const SizedBox(height: 12),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: _hPad),
-          child: items.isEmpty
-              ? Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: _overviewCardDecoration(),
-                  child: const Text(
-                    'No announcements yet.',
-                    style: TextStyle(color: AppColors.textMuted),
-                  ),
-                )
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (latest != null) _latestAnnouncementCard(latest),
-                    if (older.isNotEmpty) ...[
-                      const SizedBox(height: 14),
-                      const Padding(
-                        padding: EdgeInsets.only(left: 4, bottom: 8),
-                        child: Text(
-                          'Previous announcements',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textMuted,
-                          ),
-                        ),
-                      ),
-                      Container(
-                        decoration: _overviewCardDecoration(),
-                        child: Column(
-                          children: List.generate(older.length, (i) {
-                            final item = older[i] as Map<String, dynamic>;
-                            final isLast = i == older.length - 1;
-                            return Column(
-                              children: [
-                                _announcementRow(item, compact: true),
-                                if (!isLast)
-                                  const Divider(
-                                    height: 1,
-                                    indent: 14,
-                                    endIndent: 14,
-                                    color: Color(0xFFEEF1F6),
-                                  ),
-                              ],
-                            );
-                          }),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-        ),
+        for (final it in items) _quickAccessCard(it),
       ],
     );
   }
 
-  Widget _latestAnnouncementCard(Map<String, dynamic> item) {
-    final body = '${item['body'] ?? item['content'] ?? item['title'] ?? ''}';
-    final audience = item['audience'] == 'TEACHERS_AND_PARENTS'
-        ? 'Teachers & parents'
-        : 'Teachers';
-
+  Widget _quickAccessCard(
+      ({IconData icon, String label, Color color, VoidCallback onTap}) it) {
     return Material(
-      color: Colors.transparent,
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(18),
       child: InkWell(
-        onTap: () => openSmoothPage(context, const AdminAnnouncementsScreen()),
-        borderRadius: BorderRadius.circular(_cardRadius),
+        onTap: it.onTap,
+        borderRadius: BorderRadius.circular(18),
+        splashColor: it.color.withValues(alpha: 0.1),
         child: Ink(
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF0835B8), Color(0xFF1B5FFF), Color(0xFF4F8CFF)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(_cardRadius),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
             boxShadow: [
               BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.22),
-                blurRadius: 16,
+                color: const Color(0xFF6355E0).withValues(alpha: 0.06),
+                blurRadius: 14,
                 offset: const Offset(0, 6),
               ),
             ],
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFF3B58),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Text(
-                        'NEW',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.6,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      _formatRelativeDate(item['createdAt']),
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.85),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.16),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        audience,
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.92),
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: it.color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(13),
                 ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Latest announcement',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  body,
-                  maxLines: 4,
+                child: Icon(it.icon, color: it.color, size: 21),
+              ),
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Text(
+                  it.label,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.92),
-                    fontSize: 13,
-                    height: 1.45,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF475569),
                   ),
                 ),
-                const SizedBox(height: 10),
-                Text(
-                  'Posted by ${item['postedBy'] ?? 'Admin'}',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.75),
-                    fontSize: 11,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _announcementRow(Map<String, dynamic> item, {bool compact = false}) {
+  // ---------------------------------------------------------------------
+  // Recent Activity
+  // ---------------------------------------------------------------------
+  Widget _recentActivityCard() {
+    if (_summary == null) {
+      return const SkeletonBox(height: 180, borderRadius: 20);
+    }
+    final items = (_summary?['activities'] as List<dynamic>? ?? []);
+    final show = items.take(4).toList();
+
+    return Container(
+      decoration: _cardDecoration(),
+      child: show.isEmpty
+          ? const Padding(
+              padding: EdgeInsets.all(20),
+              child: Text(
+                'No recent activity yet.',
+                style: TextStyle(color: AppColors.textMuted),
+              ),
+            )
+          : Column(
+              children: [
+                for (var i = 0; i < show.length; i++) ...[
+                  _activityRow(show[i] as Map<String, dynamic>),
+                  if (i < show.length - 1)
+                    const Divider(
+                      height: 1,
+                      indent: 62,
+                      endIndent: 14,
+                      color: Color(0xFFF0F1F6),
+                    ),
+                ],
+              ],
+            ),
+    );
+  }
+
+  Widget _activityRow(Map<String, dynamic> item) {
+    final action = '${item['action'] ?? 'Activity'}';
+    final (icon, color) = _activityIcon(action);
+    final actor = '${item['actorName'] ?? ''}';
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+      padding: const EdgeInsets.fromLTRB(14, 13, 12, 13),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            height: 40,
-            width: 40,
+            width: 38,
+            height: 38,
             decoration: BoxDecoration(
-              color: const Color(0xFFE8F8EE),
-              borderRadius: BorderRadius.circular(12),
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(11),
             ),
-            child: const Icon(
-              Icons.campaign_rounded,
-              color: Color(0xFF22A750),
-              size: 20,
-            ),
+            child: Icon(icon, color: color, size: 19),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -1306,34 +739,111 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${item['title'] ?? 'School Notice'}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
-                    color: Color(0xFF1F2937),
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  '${item['body'] ?? item['content'] ?? ''}',
-                  maxLines: compact ? 2 : 3,
+                  action,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 12,
-                    height: 1.35,
-                    color: AppColors.textMuted,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1F2937),
+                    height: 1.3,
                   ),
                 ),
+                if (actor.isNotEmpty && actor != 'Admin') ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    'by $actor',
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
           const SizedBox(width: 8),
           Text(
             _formatRelativeDate(item['createdAt']),
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w500,
-              color: AppColors.textMuted.withValues(alpha: 0.9),
+              color: AppColors.textMuted,
+            ),
+          ),
+          const SizedBox(width: 2),
+          const Icon(Icons.chevron_right_rounded,
+              size: 18, color: Color(0xFFC2C8D4)),
+        ],
+      ),
+    );
+  }
+
+  (IconData, Color) _activityIcon(String action) {
+    final a = action.toLowerCase();
+    if (a.contains('student')) {
+      return (Icons.person_add_alt_1_rounded, const Color(0xFF3B82F6));
+    }
+    if (a.contains('fee') || a.contains('paid') || a.contains('payment')) {
+      return (Icons.currency_rupee_rounded, const Color(0xFF22C55E));
+    }
+    if (a.contains('attendance')) {
+      return (Icons.fact_check_rounded, const Color(0xFF8B5CF6));
+    }
+    if (a.contains('announcement')) {
+      return (Icons.campaign_rounded, const Color(0xFFF59E0B));
+    }
+    if (a.contains('teacher')) {
+      return (Icons.school_rounded, const Color(0xFF22C55E));
+    }
+    if (a.contains('class')) {
+      return (Icons.menu_book_rounded, const Color(0xFF3B82F6));
+    }
+    return (Icons.bolt_rounded, const Color(0xFF6366F1));
+  }
+
+  // ---------------------------------------------------------------------
+  // Fee Collection — Collected | ring | Pending
+  // ---------------------------------------------------------------------
+  Widget _feeCollectionCard() {
+    if (_feeChart == null) {
+      return const SkeletonBox(height: 150, borderRadius: 20);
+    }
+    final segments = (_feeChart?['segments'] as List<dynamic>? ?? []);
+    int collected = 0;
+    int pending = 0;
+    for (final raw in segments) {
+      final seg = raw as Map<String, dynamic>;
+      final label = '${seg['label']}'.toLowerCase();
+      if (label.contains('collect')) collected = _toInt(seg['amount']);
+      if (label.contains('pending')) pending = _toInt(seg['amount']);
+    }
+    final total = collected + pending;
+    final collectedPct = total > 0 ? (collected / total * 100).round() : 0;
+    final pendingPct = total > 0 ? 100 - collectedPct : 0;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+      decoration: _cardDecoration(),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: _feeStat(
+              'Collected',
+              _formatCurrency(collected),
+              '$collectedPct% of total',
+              const Color(0xFF16A34A),
+            ),
+          ),
+          _feeRing(collectedPct),
+          Expanded(
+            child: _feeStat(
+              'Pending',
+              _formatCurrency(pending),
+              '$pendingPct% of total',
+              const Color(0xFFF59E0B),
+              alignEnd: true,
             ),
           ),
         ],
@@ -1341,278 +851,99 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     );
   }
 
-  Widget _recentTransactionsSection() {
-    final items = (_summary?['recentTransactions'] as List<dynamic>? ?? []);
-
+  Widget _feeStat(String label, String amount, String sub, Color color,
+      {bool alignEnd = false}) {
+    final align =
+        alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start;
+    final textAlign = alignEnd ? TextAlign.right : TextAlign.left;
     return Column(
+      crossAxisAlignment: align,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        _sectionTitle(
-          'Recent Transactions',
-          trailing: 'View All',
-          onTrailingTap: () =>
-              openSmoothPage(context, const AdminFeeCollectionScreen()),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textMuted,
+          ),
         ),
-        const SizedBox(height: 12),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: _hPad),
-          child: Container(
-            decoration: _overviewCardDecoration(),
-            child: items.isEmpty
-                ? const Padding(
-                    padding: EdgeInsets.all(20),
-                    child: Text(
-                      'No fee payments recorded yet.',
-                      style: TextStyle(color: AppColors.textMuted),
-                    ),
-                  )
-                : Column(
-                    children: List.generate(
-                      items.length > 5 ? 5 : items.length,
-                      (i) {
-                        final item = items[i] as Map<String, dynamic>;
-                        final isLast = i == (items.length > 5 ? 4 : items.length - 1);
-                        return Column(
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Container(
-                                    height: 42,
-                                    width: 42,
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFE8F2FF),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: const Icon(
-                                      Icons.payments_rounded,
-                                      color: AppColors.primary,
-                                      size: 22,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          '${item['description'] ?? '${item['studentName']} paid fee online'}',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w700,
-                                            fontSize: 13,
-                                            color: Color(0xFF1F2937),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          'Grade ${item['grade'] ?? '—'} · ${item['className'] ?? 'Class'}',
-                                          style: const TextStyle(
-                                            fontSize: 12,
-                                            color: AppColors.textMuted,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      Text(
-                                        _formatCurrency(item['amount']),
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w800,
-                                          fontSize: 13,
-                                          color: Color(0xFF16A34A),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        _formatRelativeDate(item['paidAt']),
-                                        style: const TextStyle(
-                                          fontSize: 10,
-                                          color: AppColors.textMuted,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                            if (!isLast)
-                              const Divider(
-                                height: 1,
-                                indent: 68,
-                                endIndent: 14,
-                                color: Color(0xFFEEF1F6),
-                              ),
-                          ],
-                        );
-                      },
-                    ),
-                  ),
+        const SizedBox(height: 6),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: alignEnd ? Alignment.centerRight : Alignment.centerLeft,
+          child: Text(
+            amount,
+            textAlign: textAlign,
+            style: TextStyle(
+              fontSize: 19,
+              fontWeight: FontWeight.w800,
+              color: color,
+              letterSpacing: -0.4,
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          sub,
+          textAlign: textAlign,
+          style: const TextStyle(
+            fontSize: 11,
+            color: AppColors.textMuted,
           ),
         ),
       ],
     );
   }
 
-  Widget _topStudentsSection() {
-    final blocks = (_summary?['topStudents'] as List<dynamic>? ?? []);
-
-    return Column(
-      children: [
-        _sectionTitle('Top 5 Students (Academic)'),
-        const SizedBox(height: 12),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: _hPad),
-          child: Column(
-            children: blocks.map((raw) {
-              final block = raw as Map<String, dynamic>;
-              final label = '${block['label'] ?? 'Standard'}';
-              final students = block['students'] as List<dynamic>? ?? [];
-
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 14),
-                child: Container(
-                  width: double.infinity,
-                  decoration: _overviewCardDecoration(),
-                  padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              label,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w800,
-                                fontSize: 12,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      if (students.isEmpty)
-                        const Text(
-                          'No exam marks recorded for this standard yet.',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textMuted,
-                          ),
-                        )
-                      else
-                        ...students.map((rawStudent) {
-                          final s = rawStudent as Map<String, dynamic>;
-                          final rank = _toInt(s['rank']);
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: Row(
-                              children: [
-                                Container(
-                                  height: 32,
-                                  width: 32,
-                                  alignment: Alignment.center,
-                                  decoration: BoxDecoration(
-                                    color: _rankColor(rank).withValues(alpha: 0.12),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Text(
-                                    '#$rank',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 11,
-                                      color: _rankColor(rank),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        '${s['fullName'] ?? 'Student'}',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 13,
-                                        ),
-                                      ),
-                                      Text(
-                                        '${s['classLabel'] ?? ''} · Roll ${s['rollNumber'] ?? '—'}',
-                                        style: const TextStyle(
-                                          fontSize: 11,
-                                          color: AppColors.textMuted,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Text(
-                                  '${s['averagePercent'] ?? 0}%',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 13,
-                                    color: Color(0xFF16A34A),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        }),
-                    ],
-                  ),
-                ),
-              );
-            }).toList(),
+  Widget _feeRing(int pct) {
+    return SizedBox(
+      width: 96,
+      height: 96,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          SizedBox(
+            width: 96,
+            height: 96,
+            child: CircularProgressIndicator(
+              value: (pct / 100).clamp(0.0, 1.0),
+              strokeWidth: 9,
+              strokeCap: StrokeCap.round,
+              backgroundColor: const Color(0xFFEDEFF4),
+              valueColor:
+                  const AlwaysStoppedAnimation(Color(0xFF16A34A)),
+            ),
           ),
-        ),
-      ],
+          Text(
+            '$pct%',
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF111827),
+              letterSpacing: -0.5,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  Color _rankColor(int rank) {
-    if (rank == 1) return const Color(0xFFF5A623);
-    if (rank == 2) return const Color(0xFF94A3B8);
-    if (rank == 3) return const Color(0xFFCD7F32);
-    return AppColors.primary;
-  }
-
-  String _formatRelativeDate(dynamic value) {
-    final dt = DateTime.tryParse('$value');
-    if (dt == null) return '';
-    final diff = DateTime.now().difference(dt);
-    if (diff.inDays == 0) return 'Today';
-    if (diff.inDays == 1) return 'Yesterday';
-    if (diff.inDays < 7) return '${diff.inDays} days ago';
-    return DateFormat('d MMM').format(dt.toLocal());
-  }
-
-  BoxDecoration _overviewCardDecoration() {
+  // ---------------------------------------------------------------------
+  // Shared helpers
+  // ---------------------------------------------------------------------
+  BoxDecoration _cardDecoration() {
     return BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(_cardRadius),
-      border: Border.all(color: const Color(0xFFE4EAF6), width: 1.2),
+      borderRadius: BorderRadius.circular(20),
       boxShadow: [
         BoxShadow(
-          color: const Color(0xFF1B3FBF).withValues(alpha: 0.08),
-          blurRadius: 24,
-          spreadRadius: 0,
+          color: const Color(0xFF6355E0).withValues(alpha: 0.06),
+          blurRadius: 20,
           offset: const Offset(0, 8),
         ),
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.03),
+          color: Colors.black.withValues(alpha: 0.02),
           blurRadius: 6,
           offset: const Offset(0, 2),
         ),
@@ -1620,34 +951,19 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     );
   }
 
-  Widget _capsule(String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF5F7FB),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            text,
-            style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF4B5563),
-            ),
-          ),
-          const SizedBox(width: 2),
-          const Icon(
-            Icons.keyboard_arrow_down_rounded,
-            size: 16,
-            color: Color(0xFF6B7280),
-          ),
-        ],
-      ),
-    );
+  String _formatRelativeDate(dynamic value) {
+    final dt = DateTime.tryParse('$value');
+    if (dt == null) return '';
+    final local = dt.toLocal();
+    final now = DateTime.now();
+    final sameDay = local.year == now.year &&
+        local.month == now.month &&
+        local.day == now.day;
+    if (sameDay) return DateFormat('h:mm a').format(local);
+    final diff = now.difference(local);
+    if (diff.inDays == 1) return 'Yesterday';
+    if (diff.inDays < 7) return '${diff.inDays} days ago';
+    return DateFormat('d MMM').format(local);
   }
 
   String _formatNumber(dynamic value) {
@@ -1663,17 +979,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     return buf.toString();
   }
 
-  String _formatCurrency(dynamic value) {
-    return '₹${_formatNumber(value)}';
-  }
-
-  String _formatCompactCurrency(dynamic value) {
-    final n = _toInt(value);
-    if (n >= 10000000) return '₹${(n / 10000000).toStringAsFixed(1)}Cr';
-    if (n >= 100000) return '₹${(n / 100000).toStringAsFixed(1)}L';
-    if (n >= 1000) return '₹${(n / 1000).toStringAsFixed(1)}K';
-    return '₹$n';
-  }
+  String _formatCurrency(dynamic value) => '₹${_formatNumber(value)}';
 
   int _toInt(dynamic value) {
     if (value is int) return value;

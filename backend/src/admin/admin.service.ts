@@ -508,6 +508,8 @@ export class AdminService {
         section: s.class.section,
         status: s.status,
         gender: s.gender,
+        email: s.email,
+        phone: s.phone,
         avatarUrl: s.avatarUrl,
         classId: s.classId,
       })),

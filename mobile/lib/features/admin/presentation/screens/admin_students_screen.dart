@@ -19,6 +19,10 @@ class AdminStudentsScreen extends ConsumerStatefulWidget {
 }
 
 class _AdminStudentsScreenState extends ConsumerState<AdminStudentsScreen> {
+  static const _hPad = 16.0;
+  static const _ink = Color(0xFF1A1533);
+  static const _purple = Color(0xFF6D5DE8);
+
   List<dynamic> _items = [];
   List<dynamic> _classes = [];
   Map<String, dynamic>? _stats;
@@ -26,6 +30,7 @@ class _AdminStudentsScreenState extends ConsumerState<AdminStudentsScreen> {
   bool _loading = true;
   String? _classFilter;
   String? _genderFilter;
+  String _sort = 'name_asc';
   final _search = TextEditingController();
 
   @override
@@ -67,6 +72,7 @@ class _AdminStudentsScreenState extends ConsumerState<AdminStudentsScreen> {
           !classes.any((c) => '${(c as Map)['id']}' == classFilter)) {
         classFilter = null;
       }
+      if (!mounted) return;
       setState(() {
         _stats = statsRes.data as Map<String, dynamic>;
         _items = list['items'] as List<dynamic>? ?? [];
@@ -75,7 +81,7 @@ class _AdminStudentsScreenState extends ConsumerState<AdminStudentsScreen> {
         _loading = false;
       });
     } catch (_) {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -85,10 +91,33 @@ class _AdminStudentsScreenState extends ConsumerState<AdminStudentsScreen> {
       _genderFilter != null;
 
   List<dynamic> get _visibleItems {
-    if (_genderFilter == null) return _items;
-    return _items
-        .where((i) => '${(i as Map)['gender']}' == _genderFilter)
-        .toList();
+    var list = _genderFilter == null
+        ? [..._items]
+        : _items
+            .where((i) => '${(i as Map)['gender']}' == _genderFilter)
+            .toList();
+    switch (_sort) {
+      case 'name_asc':
+        list.sort((a, b) => '${(a as Map)['fullName']}'
+            .toLowerCase()
+            .compareTo('${(b as Map)['fullName']}'.toLowerCase()));
+      case 'name_desc':
+        list.sort((a, b) => '${(b as Map)['fullName']}'
+            .toLowerCase()
+            .compareTo('${(a as Map)['fullName']}'.toLowerCase()));
+      case 'roll':
+        list.sort((a, b) => _toInt((a as Map)['rollNumber'])
+            .compareTo(_toInt((b as Map)['rollNumber'])));
+      case 'class':
+        list.sort((a, b) {
+          final am = a as Map;
+          final bm = b as Map;
+          final g = _toInt(am['grade']).compareTo(_toInt(bm['grade']));
+          if (g != 0) return g;
+          return '${am['section']}'.compareTo('${bm['section']}');
+        });
+    }
+    return list;
   }
 
   ImageProvider? _studentAvatar(String? url) {
@@ -110,14 +139,7 @@ class _AdminStudentsScreenState extends ConsumerState<AdminStudentsScreen> {
         _items.where((i) => '${(i as Map)['gender']}' == 'MALE').length;
     final girls =
         _items.where((i) => '${(i as Map)['gender']}' == 'FEMALE').length;
-    final total = _items.length;
-    return {
-      'total': total,
-      'boys': boys,
-      'girls': girls,
-      'boysPercent': total > 0 ? (boys / total * 1000).round() / 10 : 0,
-      'girlsPercent': total > 0 ? (girls / total * 1000).round() / 10 : 0,
-    };
+    return {'total': _items.length, 'boys': boys, 'girls': girls};
   }
 
   void _openStudent(Map<String, dynamic> student) {
@@ -133,6 +155,886 @@ class _AdminStudentsScreenState extends ConsumerState<AdminStudentsScreen> {
     if (added == true) _load();
   }
 
+  @override
+  Widget build(BuildContext context) {
+    final visible = _visibleItems;
+    final bottomInset = MediaQuery.paddingOf(context).bottom + 96;
+
+    return ColoredBox(
+      color: const Color(0xFFF5F5FB),
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            _header(),
+            Expanded(
+              child: _loading && _stats == null
+                  ? _loadingSkeleton()
+                  : RefreshIndicator(
+                      color: _purple,
+                      onRefresh: () => _load(showOverlay: true),
+                      child: CustomScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        slivers: [
+                          SliverToBoxAdapter(child: _statsRow()),
+                          SliverToBoxAdapter(child: _searchRow()),
+                          SliverToBoxAdapter(child: _listHeader(visible.length)),
+                          if (visible.isEmpty)
+                            SliverToBoxAdapter(child: _emptyState())
+                          else
+                            SliverPadding(
+                              padding: EdgeInsets.only(
+                                  left: _hPad, right: _hPad, bottom: bottomInset),
+                              sliver: SliverList.builder(
+                                itemCount: visible.length,
+                                itemBuilder: (_, i) => _studentRow(
+                                  visible[i] as Map<String, dynamic>,
+                                  first: i == 0,
+                                  last: i == visible.length - 1,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _loadingSkeleton() {
+    return const Padding(
+      padding: EdgeInsets.all(16),
+      child: Column(
+        children: [
+          SkeletonBox(height: 96, borderRadius: 18),
+          SizedBox(height: 12),
+          SkeletonBox(height: 52, borderRadius: 14),
+          SizedBox(height: 12),
+          SkeletonBox(height: 300, borderRadius: 18),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------
+  // Header
+  // ---------------------------------------------------------------------
+  Widget _header() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(_hPad, 8, _hPad, 10),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Students',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    color: _ink,
+                    letterSpacing: -0.5,
+                    height: 1.1,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Manage and view all students',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: _ink.withValues(alpha: 0.5),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          _squareIconButton(
+            Icons.download_rounded,
+            onTap: () => _snack('Export coming soon'),
+          ),
+          const SizedBox(width: 10),
+          _addButton(),
+        ],
+      ),
+    );
+  }
+
+  Widget _squareIconButton(IconData icon, {required VoidCallback onTap}) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          height: 48,
+          width: 48,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(
+                color: _purple.withValues(alpha: 0.1),
+                blurRadius: 12,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: Icon(icon, color: _ink, size: 22),
+        ),
+      ),
+    );
+  }
+
+  Widget _addButton() {
+    return Material(
+      borderRadius: BorderRadius.circular(14),
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: _openAddStudent,
+        borderRadius: BorderRadius.circular(14),
+        child: Ink(
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF7C6FF2), Color(0xFF6355E0)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(
+                color: _purple.withValues(alpha: 0.35),
+                blurRadius: 14,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.add_rounded, color: Colors.white, size: 20),
+                SizedBox(width: 6),
+                Text(
+                  'Add Student',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------
+  // Stat cards
+  // ---------------------------------------------------------------------
+  Widget _statsRow() {
+    final stats = _displayStats;
+    final total = _toInt(stats['total']);
+    final boys = _toInt(stats['boys']);
+    final girls = _toInt(stats['girls']);
+    final classes = _classes.length;
+
+    return SizedBox(
+      height: 128,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(_hPad, 4, _hPad, 8),
+        physics: const BouncingScrollPhysics(),
+        children: [
+          _statCard(
+            icon: Icons.groups_rounded,
+            color: _purple,
+            value: _formatNum(total),
+            label: 'Total Students',
+            fraction: 1,
+            selected: _genderFilter == null,
+            onTap: () => setState(() => _genderFilter = null),
+          ),
+          const SizedBox(width: 12),
+          _statCard(
+            icon: Icons.man_rounded,
+            color: const Color(0xFF22C55E),
+            value: _formatNum(boys),
+            label: 'Boys',
+            fraction: total > 0 ? boys / total : 0,
+            selected: _genderFilter == 'MALE',
+            onTap: () => setState(() =>
+                _genderFilter = _genderFilter == 'MALE' ? null : 'MALE'),
+          ),
+          const SizedBox(width: 12),
+          _statCard(
+            icon: Icons.woman_rounded,
+            color: const Color(0xFFEC4899),
+            value: _formatNum(girls),
+            label: 'Girls',
+            fraction: total > 0 ? girls / total : 0,
+            selected: _genderFilter == 'FEMALE',
+            onTap: () => setState(() =>
+                _genderFilter = _genderFilter == 'FEMALE' ? null : 'FEMALE'),
+          ),
+          const SizedBox(width: 12),
+          _statCard(
+            icon: Icons.school_rounded,
+            color: const Color(0xFF3B82F6),
+            value: _formatNum(classes),
+            label: 'Total Classes',
+            fraction: 1,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _statCard({
+    required IconData icon,
+    required Color color,
+    required String value,
+    required String label,
+    required double fraction,
+    bool selected = false,
+    VoidCallback? onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 148,
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: selected ? color.withValues(alpha: 0.5) : Colors.transparent,
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: color.withValues(alpha: 0.1),
+              blurRadius: 14,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(13),
+              ),
+              child: Icon(icon, color: color, size: 21),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              value,
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w800,
+                color: _ink,
+                height: 1,
+                letterSpacing: -0.5,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w500,
+                color: _ink.withValues(alpha: 0.55),
+              ),
+            ),
+            const SizedBox(height: 9),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: fraction.clamp(0.0, 1.0),
+                minHeight: 4,
+                backgroundColor: color.withValues(alpha: 0.12),
+                valueColor: AlwaysStoppedAnimation(color),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------
+  // Search + filter
+  // ---------------------------------------------------------------------
+  Widget _searchRow() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(_hPad, 4, _hPad, 4),
+      child: Container(
+        height: 50,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: _purple.withValues(alpha: 0.06),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.search_rounded, size: 21, color: _purple),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
+                controller: _search,
+                style: const TextStyle(fontSize: 13.5),
+                textInputAction: TextInputAction.search,
+                onChanged: (_) => setState(() {}),
+                onSubmitted: (_) => _load(),
+                decoration: const InputDecoration(
+                  isDense: true,
+                  border: InputBorder.none,
+                  hintText: 'Search students by name, roll no., class...',
+                  hintStyle:
+                      TextStyle(fontSize: 12.5, color: Color(0xFF9CA3AF)),
+                ),
+              ),
+            ),
+            if (_search.text.isNotEmpty)
+              GestureDetector(
+                onTap: () {
+                  _search.clear();
+                  _load();
+                },
+                child: const Icon(Icons.close_rounded,
+                    size: 18, color: Color(0xFF9CA3AF)),
+              ),
+            Container(
+              height: 22,
+              width: 1,
+              margin: const EdgeInsets.symmetric(horizontal: 10),
+              color: const Color(0xFFE5E7EB),
+            ),
+            GestureDetector(
+              onTap: _showFilterSheet,
+              behavior: HitTestBehavior.opaque,
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.tune_rounded,
+                    size: 18,
+                    color: _classFilter != null ? _purple : const Color(0xFF6B7280),
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    'Filter',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: _classFilter != null
+                          ? _purple
+                          : const Color(0xFF6B7280),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------
+  // List header (All Students + sort)
+  // ---------------------------------------------------------------------
+  Widget _listHeader(int count) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(_hPad, 12, _hPad, 10),
+      child: Row(
+        children: [
+          Text(
+            'All Students ($count)',
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: _ink,
+              letterSpacing: -0.3,
+            ),
+          ),
+          const Spacer(),
+          GestureDetector(
+            onTap: _showSortSheet,
+            behavior: HitTestBehavior.opaque,
+            child: Row(
+              children: [
+                Text(
+                  'Sort by: ',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: _ink.withValues(alpha: 0.5),
+                  ),
+                ),
+                Text(
+                  _sortLabel(_sort),
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: _purple,
+                  ),
+                ),
+                const Icon(Icons.keyboard_arrow_down_rounded,
+                    size: 18, color: _purple),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _sortLabel(String s) {
+    switch (s) {
+      case 'name_desc':
+        return 'Name Z-A';
+      case 'roll':
+        return 'Roll No.';
+      case 'class':
+        return 'Class';
+      default:
+        return 'Name A-Z';
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // Student row
+  // ---------------------------------------------------------------------
+  Widget _studentRow(Map<String, dynamic> s,
+      {required bool first, required bool last}) {
+    final gender = '${s['gender']}';
+    final isFemale = gender == 'FEMALE';
+    final tint = isFemale ? const Color(0xFFEC4899) : const Color(0xFF3B82F6);
+    final avatar = _studentAvatar(s['avatarUrl'] as String?);
+    final email = '${s['email'] ?? ''}';
+    final phone = '${s['phone'] ?? ''}';
+    final code = '${s['studentCode'] ?? ''}';
+    final line2 = email.isNotEmpty ? email : code;
+    final grade = '${s['grade'] ?? ''}';
+    final section = '${s['section'] ?? ''}';
+    final roll = '${s['rollNumber'] ?? '—'}';
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(
+          top: first ? const Radius.circular(18) : Radius.zero,
+          bottom: last ? const Radius.circular(18) : Radius.zero,
+        ),
+        border: Border(
+          bottom: last
+              ? BorderSide.none
+              : const BorderSide(color: Color(0xFFF0F1F6)),
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _openStudent(s),
+          borderRadius: BorderRadius.vertical(
+            top: first ? const Radius.circular(18) : Radius.zero,
+            bottom: last ? const Radius.circular(18) : Radius.zero,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 8, 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: tint.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(14),
+                    image: avatar != null
+                        ? DecorationImage(image: avatar, fit: BoxFit.cover)
+                        : null,
+                  ),
+                  alignment: Alignment.center,
+                  child: avatar == null
+                      ? Icon(
+                          isFemale ? Icons.face_3_rounded : Icons.face_rounded,
+                          color: tint,
+                          size: 24,
+                        )
+                      : null,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '${s['fullName']}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w800,
+                          color: _ink,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        line2,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: _ink.withValues(alpha: 0.5),
+                        ),
+                      ),
+                      if (phone.isNotEmpty) ...[
+                        const SizedBox(height: 1),
+                        Text(
+                          phone,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            color: _ink.withValues(alpha: 0.5),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 9, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _purple.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        'Class $grade - $section',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: _purple,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Roll No. ${roll.padLeft(2, '0')}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: _ink.withValues(alpha: 0.5),
+                      ),
+                    ),
+                  ],
+                ),
+                _rowMenu(s),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _rowMenu(Map<String, dynamic> s) {
+    return PopupMenuButton<String>(
+      icon: const Icon(Icons.more_vert_rounded, size: 20, color: Color(0xFF9CA3AF)),
+      padding: EdgeInsets.zero,
+      color: Colors.white,
+      shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      onSelected: (v) {
+        if (v == 'view') _openStudent(s);
+      },
+      itemBuilder: (_) => const [
+        PopupMenuItem(
+          value: 'view',
+          child: Row(
+            children: [
+              Icon(Icons.visibility_outlined, size: 18, color: _purple),
+              SizedBox(width: 10),
+              Text('View details'),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ---------------------------------------------------------------------
+  // Filter + sort sheets
+  // ---------------------------------------------------------------------
+  void _showFilterSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+      ),
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setSheet) => Padding(
+          padding: EdgeInsets.fromLTRB(
+              20, 14, 20, 20 + MediaQuery.paddingOf(ctx).bottom),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 42,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              const Text('Filter Students',
+                  style: TextStyle(
+                      fontSize: 17, fontWeight: FontWeight.w800, color: _ink)),
+              const SizedBox(height: 16),
+              const Text('Gender',
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF6B7280))),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  _filterChip('All', _genderFilter == null,
+                      () => setSheet(() => _genderFilter = null)),
+                  const SizedBox(width: 8),
+                  _filterChip('Boys', _genderFilter == 'MALE',
+                      () => setSheet(() => _genderFilter = 'MALE')),
+                  const SizedBox(width: 8),
+                  _filterChip('Girls', _genderFilter == 'FEMALE',
+                      () => setSheet(() => _genderFilter = 'FEMALE')),
+                ],
+              ),
+              const SizedBox(height: 18),
+              const Text('Class',
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF6B7280))),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _filterChip('All Classes', _classFilter == null,
+                      () => setSheet(() => _classFilter = null)),
+                  for (final c in _classes)
+                    _filterChip(
+                      'Class ${(c as Map)['grade']}${c['section']}',
+                      _classFilter == '${c['id']}',
+                      () => setSheet(() => _classFilter = '${c['id']}'),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 22),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _load();
+                  },
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _purple,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                  ),
+                  child: const Text('Apply Filters',
+                      style: TextStyle(
+                          fontSize: 15, fontWeight: FontWeight.w700)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _filterChip(String label, bool selected, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        decoration: BoxDecoration(
+          color: selected ? _purple : const Color(0xFFF3F4F8),
+          borderRadius: BorderRadius.circular(11),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w700,
+            color: selected ? Colors.white : const Color(0xFF6B7280),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showSortSheet() {
+    const options = {
+      'name_asc': 'Name A-Z',
+      'name_desc': 'Name Z-A',
+      'roll': 'Roll No.',
+      'class': 'Class',
+    };
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+      ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.fromLTRB(
+            12, 14, 12, 12 + MediaQuery.paddingOf(ctx).bottom),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 42,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 10),
+            for (final e in options.entries)
+              ListTile(
+                title: Text(e.value,
+                    style: const TextStyle(
+                        fontSize: 14, fontWeight: FontWeight.w600)),
+                trailing: _sort == e.key
+                    ? const Icon(Icons.check_rounded, color: _purple)
+                    : null,
+                onTap: () {
+                  setState(() => _sort = e.key);
+                  Navigator.pop(ctx);
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------
+  // Empty state
+  // ---------------------------------------------------------------------
+  Widget _emptyState() {
+    final filtered = _isFiltered;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(_hPad, 40, _hPad, 40),
+      child: Column(
+        children: [
+          Container(
+            height: 92,
+            width: 92,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: _purple.withValues(alpha: 0.08),
+            ),
+            child: Icon(
+              filtered ? Icons.search_off_rounded : Icons.groups_2_outlined,
+              size: 44,
+              color: _purple.withValues(alpha: 0.7),
+            ),
+          ),
+          const SizedBox(height: 18),
+          Text(
+            filtered ? 'No matching students' : 'No students yet',
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: _ink,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            filtered
+                ? 'Try adjusting your search or filters.'
+                : 'Add your first student to get started.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+          ),
+          const SizedBox(height: 20),
+          if (filtered)
+            OutlinedButton.icon(
+              onPressed: () {
+                setState(() {
+                  _search.clear();
+                  _classFilter = null;
+                  _genderFilter = null;
+                });
+                _load();
+              },
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('Clear filters'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: _purple,
+                side: BorderSide(color: _purple.withValues(alpha: 0.4)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _snack(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: _purple,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
   String _formatNum(int n) {
     final s = n.toString();
     if (s.length <= 3) return s;
@@ -145,829 +1047,9 @@ class _AdminStudentsScreenState extends ConsumerState<AdminStudentsScreen> {
     return buf.toString();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final topPad = MediaQuery.paddingOf(context).top;
-
-    return ColoredBox(
-      color: const Color(0xFFF4F6FA),
-      child: Column(
-        children: [
-          _header(topPad),
-          Expanded(
-            child: Transform.translate(
-              offset: const Offset(0, -16),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF051C6E).withValues(alpha: 0.18),
-                      blurRadius: 20,
-                      offset: const Offset(0, -6),
-                    ),
-                  ],
-                ),
-                child: _loading && _stats == null
-                    ? const Padding(
-                        padding: EdgeInsets.all(16),
-                        child: Column(
-                          children: [
-                            SkeletonBox(height: 72, borderRadius: 16),
-                            SizedBox(height: 12),
-                            SkeletonBox(height: 48, borderRadius: 14),
-                            SizedBox(height: 12),
-                            SkeletonBox(height: 200, borderRadius: 16),
-                          ],
-                        ),
-                      )
-                    : Column(
-                        children: [
-                          const SizedBox(height: 14),
-                          _statsRow(),
-                          const SizedBox(height: 12),
-                          _actionButtons(),
-                          const SizedBox(height: 12),
-                          _searchRow(),
-                          const SizedBox(height: 8),
-                          _tableHeader(),
-                          Expanded(
-                            child: _loading
-                                ? const Center(
-                                    child: CircularProgressIndicator(),
-                                  )
-                                : _visibleItems.isEmpty
-                                ? _emptyState()
-                                : ListView.separated(
-                                    padding: const EdgeInsets.only(bottom: 88),
-                                    itemCount: _visibleItems.length,
-                                    separatorBuilder: (_, __) => const Divider(
-                                      height: 1,
-                                      color: Color(0xFFF0F2F5),
-                                    ),
-                                    itemBuilder: (_, i) =>
-                                        _studentRow(_visibleItems[i]),
-                                  ),
-                          ),
-                        ],
-                      ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+  int _toInt(dynamic v) {
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    return int.tryParse('$v') ?? 0;
   }
-
-  Widget _header(double topPad) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.fromLTRB(16, topPad + 12, 16, 32),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Color(0xFF051C6E),
-            Color(0xFF0D3DD4),
-            Color(0xFF2563EB),
-            Color(0xFF4F8CFF),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Positioned(
-            right: -28,
-            top: -34,
-            child: Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.07),
-              ),
-            ),
-          ),
-          Positioned(
-            right: 44,
-            bottom: 0,
-            child: Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.05),
-              ),
-            ),
-          ),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Students',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 28,
-                        fontWeight: FontWeight.w800,
-                        height: 1.1,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Manage and view all student details',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.85),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              _headerIconButton(Icons.refresh_rounded, onTap: () => _load(showOverlay: true)),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _headerIconButton(IconData icon, {VoidCallback? onTap}) {
-    return Material(
-      color: Colors.white.withValues(alpha: 0.18),
-      borderRadius: BorderRadius.circular(20),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: SizedBox(
-          height: 36,
-          width: 36,
-          child: Icon(icon, color: Colors.white, size: 18),
-        ),
-      ),
-    );
-  }
-
-  Widget _statsRow() {
-    final stats = _displayStats;
-    final total = stats['total'] as int? ?? 0;
-    final boys = stats['boys'] as int? ?? 0;
-    final girls = stats['girls'] as int? ?? 0;
-    final boysPct = stats['boysPercent'] ?? 0;
-    final girlsPct = stats['girlsPercent'] ?? 0;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Row(
-        children: [
-          Expanded(
-            child: _statCard(
-              accent: const Color(0xFF3B6FF5),
-              accentLight: const Color(0xFFE8EFFF),
-              icon: Icons.groups_rounded,
-              label: 'Total',
-              value: _formatNum(total),
-              badge: 'All',
-              selected: _genderFilter == null,
-              onTap: () => setState(() => _genderFilter = null),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _statCard(
-              accent: const Color(0xFF16A34A),
-              accentLight: const Color(0xFFE8F8EE),
-              icon: Icons.boy_rounded,
-              label: 'Boys',
-              value: _formatNum(boys),
-              badge: '$boysPct%',
-              selected: _genderFilter == 'MALE',
-              onTap: () => setState(() => _genderFilter = 'MALE'),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _statCard(
-              accent: const Color(0xFFDB2777),
-              accentLight: const Color(0xFFFCE8F1),
-              icon: Icons.girl_rounded,
-              label: 'Girls',
-              value: _formatNum(girls),
-              badge: '$girlsPct%',
-              selected: _genderFilter == 'FEMALE',
-              onTap: () => setState(() => _genderFilter = 'FEMALE'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _statCard({
-    required Color accent,
-    required Color accentLight,
-    required IconData icon,
-    required String label,
-    required String value,
-    required String badge,
-    bool selected = false,
-    VoidCallback? onTap,
-  }) {
-    return Material(
-      color: selected ? accentLight : Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-      padding: const EdgeInsets.fromLTRB(10, 10, 8, 10),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: selected ? accent : accentLight,
-          width: selected ? 2 : 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: accent.withValues(alpha: selected ? 0.18 : 0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                height: 32,
-                width: 32,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [accent, accent.withValues(alpha: 0.75)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, color: Colors.white, size: 18),
-              ),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                decoration: BoxDecoration(
-                  color: accentLight,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  badge,
-                  style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w700,
-                    color: accent,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              value,
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF111827),
-                height: 1,
-              ),
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: accent,
-            ),
-          ),
-        ],
-      ),
-        ),
-      ),
-    );
-  }
-
-  Widget _actionButtons() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 2,
-            child: _primaryAction(
-              'Add Student',
-              Icons.add_rounded,
-              onTap: _openAddStudent,
-            ),
-          ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: _outlineAction('Import', Icons.upload_rounded),
-          ),
-          const SizedBox(width: 6),
-          Expanded(child: _outlineAction('Export', Icons.download_rounded)),
-        ],
-      ),
-    );
-  }
-
-  Widget _primaryAction(String label, IconData icon, {VoidCallback? onTap}) {
-    return Material(
-      color: AppColors.primary,
-      borderRadius: BorderRadius.circular(10),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: Colors.white, size: 18),
-              const SizedBox(width: 5),
-              Flexible(
-                child: Text(
-                  label,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _outlineAction(String label, IconData icon) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(10),
-      child: InkWell(
-        onTap: () {},
-        borderRadius: BorderRadius.circular(10),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 4),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 16, color: const Color(0xFF6B7280)),
-              const SizedBox(width: 5),
-              Flexible(
-                child: Text(
-                  label,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF6B7280),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _searchRow() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _search,
-              style: const TextStyle(fontSize: 13),
-              decoration: InputDecoration(
-                hintText: 'Search by name, roll number, class...',
-                hintStyle: const TextStyle(
-                  fontSize: 12,
-                  color: Color(0xFF9CA3AF),
-                ),
-                prefixIcon: const Icon(
-                  Icons.search,
-                  size: 20,
-                  color: Color(0xFF9CA3AF),
-                ),
-                isDense: true,
-                contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                filled: true,
-                fillColor: Colors.white,
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: AppColors.primary),
-                ),
-              ),
-              onSubmitted: (_) => _load(),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            constraints: const BoxConstraints(minWidth: 110, maxWidth: 130),
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            decoration: BoxDecoration(
-              color: _classFilter != null
-                  ? const Color(0xFFEEF4FF)
-                  : Colors.white,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: _classFilter != null
-                    ? AppColors.primary.withValues(alpha: 0.4)
-                    : const Color(0xFFE2E8F0),
-              ),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String?>(
-                value: _classFilter,
-                isDense: true,
-                isExpanded: true,
-                hint: const Text(
-                  'All Classes',
-                  style: TextStyle(fontSize: 12, color: Color(0xFF374151)),
-                  overflow: TextOverflow.ellipsis,
-                ),
-                selectedItemBuilder: (_) => [
-                  const Text(
-                    'All Classes',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF374151),
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  ..._classes.map((c) {
-                    final m = c as Map<String, dynamic>;
-                    return Text(
-                      '${m['grade']}${m['section']}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.primary,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    );
-                  }),
-                ],
-                items: [
-                  const DropdownMenuItem<String?>(
-                    value: null,
-                    child: Text('All Classes', style: TextStyle(fontSize: 12)),
-                  ),
-                  ..._classes.map((c) {
-                    final m = c as Map<String, dynamic>;
-                    final id = '${m['id']}';
-                    return DropdownMenuItem<String?>(
-                      value: id,
-                      child: Text(
-                        'Class ${m['grade']}${m['section']}',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    );
-                  }),
-                ],
-                onChanged: (v) {
-                  setState(() => _classFilter = v);
-                  _load();
-                },
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _tableHeader() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: const BoxDecoration(
-        color: Color(0xFFF0F4FA),
-        border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
-      ),
-      child: const Row(
-        children: [
-          Expanded(
-            flex: 3,
-            child: Text(
-              'Student Name',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF374151),
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              'Roll No.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF374151),
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              'Class',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF374151),
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              'Section',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF374151),
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              'Status',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF374151),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _emptyState() {
-    final filtered = _isFiltered;
-    final title = _genderFilter == 'MALE'
-        ? 'No boys found'
-        : _genderFilter == 'FEMALE'
-            ? 'No girls found'
-            : filtered
-                ? 'No matching students'
-                : 'No students yet';
-    final subtitle = filtered
-        ? 'Try adjusting your search or filters.'
-        : 'Add your first student to get started.';
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              height: 96,
-              width: 96,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  colors: [
-                    AppColors.primary.withValues(alpha: 0.12),
-                    AppColors.primary.withValues(alpha: 0.04),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-              child: Icon(
-                filtered ? Icons.search_off_rounded : Icons.groups_rounded,
-                size: 46,
-                color: AppColors.primary.withValues(alpha: 0.7),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF1F2937),
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              subtitle,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 13,
-                color: AppColors.textMuted,
-                height: 1.4,
-              ),
-            ),
-            const SizedBox(height: 22),
-            if (filtered)
-              OutlinedButton.icon(
-                onPressed: () {
-                  setState(() {
-                    _search.clear();
-                    _classFilter = null;
-                    _genderFilter = null;
-                  });
-                  _load();
-                },
-                icon: const Icon(Icons.refresh_rounded, size: 18),
-                label: const Text('Clear filters'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.primary,
-                  side: BorderSide(color: AppColors.primary.withValues(alpha: 0.4)),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-              )
-            else
-              ElevatedButton.icon(
-                onPressed: _openAddStudent,
-                icon: const Icon(Icons.add_rounded, size: 20),
-                label: const Text('Add Student'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 13),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  textStyle: const TextStyle(
-                      fontSize: 14, fontWeight: FontWeight.w700),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _studentRow(dynamic item) {
-    final s = item as Map<String, dynamic>;
-    final status = '${s['status']}';
-    final isActive = status == 'ACTIVE';
-    final gender = '${s['gender']}';
-    final avatarColor = gender == 'FEMALE'
-        ? const Color(0xFFFCE7F3)
-        : const Color(0xFFDBEAFE);
-    final avatarIconColor = gender == 'FEMALE'
-        ? const Color(0xFFDB2777)
-        : const Color(0xFF2563EB);
-    final avatar = _studentAvatar(s['avatarUrl'] as String?);
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 3,
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () => _openStudent(s),
-                borderRadius: BorderRadius.circular(8),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 16,
-                        backgroundColor: avatarColor,
-                        backgroundImage: avatar,
-                        child: avatar == null
-                            ? Icon(Icons.person, size: 18, color: avatarIconColor)
-                            : null,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '${s['fullName']}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF1D4ED8),
-                              ),
-                            ),
-                            Text(
-                              '${s['studentCode']}',
-                              style: const TextStyle(
-                                fontSize: 10,
-                                color: Color(0xFF9CA3AF),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const Icon(
-                        Icons.chevron_right_rounded,
-                        size: 16,
-                        color: Color(0xFFCBD5E1),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              '${s['rollNumber'] ?? '-'}',
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 11, color: Color(0xFF374151)),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              '${s['grade']}',
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 11, color: Color(0xFF374151)),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              '${s['section']}',
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 11, color: Color(0xFF374151)),
-            ),
-          ),
-          Expanded(
-            child: Center(
-              child: Container(
-                constraints: const BoxConstraints(minWidth: 44),
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                decoration: BoxDecoration(
-                  color: isActive
-                      ? const Color(0xFFD1FAE5)
-                      : const Color(0xFFFFEDD5),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    isActive ? 'Active' : 'Inactive',
-                    maxLines: 1,
-                    style: TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w700,
-                      color: isActive
-                          ? const Color(0xFF166534)
-                          : const Color(0xFF9A3412),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
 }

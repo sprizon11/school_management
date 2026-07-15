@@ -283,17 +283,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final isWide = screenW > 600;
     final contentMaxWidth = isWide ? 460.0 : screenW;
 
-    // The brand logo is baked into the background image (473×1024, drawn
-    // with BoxFit.cover + topCenter, so image top == screen top). Its
-    // bottom edge sits at y≈149px in image coordinates. Compute where that
-    // lands on this screen and keep the header below it — the fixed
-    // percentage alone overlapped the logo on devices with no/small top
-    // safe-area inset (e.g. web, older Androids).
-    final bgScale = math.max(screenW / 473.0, screenH / 1024.0);
-    final logoBottomOnScreen = 149.0 * bgScale;
-    final headerTopGap = math.max(
-      screenH * 0.125,
-      logoBottomOnScreen - media.padding.top + 16,
+    // The full brand lockup (icon + "SmartUp" wordmark + tagline + school
+    // illustration) is baked into the background image (853×1843, drawn
+    // with BoxFit.cover + topCenter, so image top == screen top) — unlike
+    // the old asset, there's no separate Flutter-rendered header text.
+    // The illustration's curved bottom edge sits at y≈705px in image
+    // coordinates; compute where that lands on this screen and start the
+    // card right after it, with a safety-net minimum for unusual aspect
+    // ratios (e.g. very short/wide screens).
+    final bgScale = math.max(screenW / 853.0, screenH / 1843.0);
+    final contentBottomOnScreen = 705.0 * bgScale;
+    final cardTopGap = math.max(
+      screenH * 0.34,
+      contentBottomOnScreen - media.padding.top + 20,
     );
 
     // Step is derived from whether a school is selected. A returning user
@@ -379,30 +381,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ),
                             child: Column(
                               children: [
-                                SizedBox(height: headerTopGap),
-                                // Constrain the brand block to the left ~60%
-                                // so the text can never bleed into the
-                                // illustration baked into the right side of
-                                // the background image.
-                                Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: ConstrainedBox(
-                                    constraints: BoxConstraints(
-                                      maxWidth: contentMaxWidth * 0.6,
-                                    ),
-                                    child: const Padding(
-                                      padding:
-                                          EdgeInsets.symmetric(horizontal: 4),
-                                      child: _BrandHeader(),
-                                    ),
-                                  ),
-                                ),
-                                // Fixed gap after the header anchors the
+                                // Card sits right below the image's baked-in
+                                // logo/illustration; this gap anchors the
                                 // card's TOP edge at the same position on
                                 // both steps — switching between the domain
                                 // and credentials step only changes the
                                 // card's content, not its placement.
-                                SizedBox(height: screenH * 0.05),
+                                SizedBox(height: cardTopGap),
                                 cardColumn,
                                 const SizedBox(height: 16),
                                 const Spacer(),
@@ -425,74 +410,32 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 }
 
-class _BrandHeader extends StatelessWidget {
-  const _BrandHeader();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        RichText(
-          text: const TextSpan(
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, height: 1.1),
-            children: [
-              TextSpan(text: 'Smart ', style: TextStyle(color: AppColors.primaryDark)),
-              TextSpan(text: 'School', style: TextStyle(color: AppColors.primary)),
-            ],
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'MANAGEMENT SYSTEM',
-          style: TextStyle(
-            fontSize: 10,
-            letterSpacing: 3,
-            fontWeight: FontWeight.w600,
-            color: Colors.grey.shade500,
-          ),
-        ),
-        const SizedBox(height: 14),
-        RichText(
-          text: const TextSpan(
-            style: TextStyle(fontSize: 12.5, height: 1.4, fontWeight: FontWeight.w600),
-            children: [
-              TextSpan(text: 'Connecting ', style: TextStyle(color: AppColors.primaryDark)),
-              TextSpan(
-                text: 'Schools, Teachers\n& Students',
-                style: TextStyle(color: AppColors.primary),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// Plain text only — sits on the blue strip in the background image.
+/// Sits on the plain light-lavender lower section of the background image.
 class _SecurityFooterText extends StatelessWidget {
   const _SecurityFooterText();
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      'Your data is safe and secure with us',
-      textAlign: TextAlign.center,
-      style: TextStyle(
-        color: Colors.white.withValues(alpha: 0.95),
-        fontSize: 12,
-        fontWeight: FontWeight.w500,
-        letterSpacing: 0.15,
-        shadows: [
-          Shadow(
-            color: Colors.black.withValues(alpha: 0.25),
-            blurRadius: 4,
-            offset: const Offset(0, 1),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(
+          Icons.verified_user_rounded,
+          size: 14,
+          color: AppColors.primary.withValues(alpha: 0.6),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          'Your data is safe and secure with us',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: AppColors.primaryDark.withValues(alpha: 0.45),
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            letterSpacing: 0.15,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
