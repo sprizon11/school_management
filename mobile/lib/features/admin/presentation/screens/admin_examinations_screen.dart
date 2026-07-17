@@ -12,7 +12,8 @@ class AdminExaminationsScreen extends ConsumerStatefulWidget {
       _AdminExaminationsScreenState();
 }
 
-class _AdminExaminationsScreenState extends ConsumerState<AdminExaminationsScreen> {
+class _AdminExaminationsScreenState
+    extends ConsumerState<AdminExaminationsScreen> {
   Map<String, dynamic>? _data;
   bool _loading = true;
 
@@ -25,7 +26,9 @@ class _AdminExaminationsScreenState extends ConsumerState<AdminExaminationsScree
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final res = await ref.read(dioProvider).get('/admin/examinations/overview');
+      final res = await ref
+          .read(dioProvider)
+          .get('/admin/examinations/overview');
       setState(() {
         _data = res.data as Map<String, dynamic>;
         _loading = false;
@@ -65,7 +68,9 @@ class _AdminExaminationsScreenState extends ConsumerState<AdminExaminationsScree
                                   vertical: 8,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: AppColors.primary.withValues(alpha: 0.1),
+                                  color: AppColors.primary.withValues(
+                                    alpha: 0.1,
+                                  ),
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Text(
@@ -145,8 +150,10 @@ class _AdminExaminationsScreenState extends ConsumerState<AdminExaminationsScree
                     final m = r as Map<String, dynamic>;
                     return AdminListTilePremium(
                       title: '${m['studentName']}',
-                      subtitle: '${m['subject']} · ${m['className']} · ${m['termLabel']}',
-                      trailing: '${m['marks']}/${m['maxMarks']} (${m['grade']})',
+                      subtitle:
+                          '${m['subject']} · ${m['className']} · ${m['termLabel']}',
+                      trailing:
+                          '${m['marks']}/${m['maxMarks']} (${m['grade']})',
                       leadingIcon: Icons.grade_rounded,
                       leadingColor: const Color(0xFF6B5CE7),
                     );

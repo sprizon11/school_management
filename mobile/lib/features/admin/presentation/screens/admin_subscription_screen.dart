@@ -16,7 +16,8 @@ class AdminSubscriptionScreen extends ConsumerStatefulWidget {
       _AdminSubscriptionScreenState();
 }
 
-class _AdminSubscriptionScreenState extends ConsumerState<AdminSubscriptionScreen> {
+class _AdminSubscriptionScreenState
+    extends ConsumerState<AdminSubscriptionScreen> {
   bool _loading = true;
   bool _subscribing = false;
   bool _isActive = false;
@@ -55,9 +56,9 @@ class _AdminSubscriptionScreenState extends ConsumerState<AdminSubscriptionScree
   }
 
   SubscriptionQuote get _quote => SubscriptionPricing.calculate(
-        studentCount: _students,
-        teacherCount: _teachers,
-      );
+    studentCount: _students,
+    teacherCount: _teachers,
+  );
 
   Future<void> _subscribe() async {
     final quote = _quote;
@@ -75,7 +76,10 @@ class _AdminSubscriptionScreenState extends ConsumerState<AdminSubscriptionScree
     final until = DateTime.now().add(const Duration(days: 30));
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('subscription_active_$schoolId', true);
-    await prefs.setString('subscription_until_$schoolId', until.toIso8601String());
+    await prefs.setString(
+      'subscription_until_$schoolId',
+      until.toIso8601String(),
+    );
     await prefs.setInt('subscription_amount_$schoolId', quote.monthlyTotal);
 
     if (!mounted) return;
@@ -96,13 +100,17 @@ class _AdminSubscriptionScreenState extends ConsumerState<AdminSubscriptionScree
   @override
   Widget build(BuildContext context) {
     final quote = _quote;
-    final schoolName = ref.watch(authProvider.select((a) => a.user?.schoolName ?? 'Your school'));
+    final schoolName = ref.watch(
+      authProvider.select((a) => a.user?.schoolName ?? 'Your school'),
+    );
 
     return AdminSubPageScaffold(
       title: 'Subscription',
       subtitle: 'School app licensing & billing',
       child: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            )
           : RefreshIndicator(
               color: AppColors.primary,
               onRefresh: _load,
@@ -115,7 +123,10 @@ class _AdminSubscriptionScreenState extends ConsumerState<AdminSubscriptionScree
                   const AdminSectionTitle('Pricing', icon: Icons.sell_outlined),
                   _pricingCard(quote),
                   const SizedBox(height: 16),
-                  const AdminSectionTitle('Your bill estimate', icon: Icons.receipt_long_outlined),
+                  const AdminSectionTitle(
+                    'Your bill estimate',
+                    icon: Icons.receipt_long_outlined,
+                  ),
                   _billBreakdown(quote),
                   const SizedBox(height: 16),
                   _bulkNote(quote),
@@ -145,7 +156,9 @@ class _AdminSubscriptionScreenState extends ConsumerState<AdminSubscriptionScree
   }
 
   Widget _activeBanner() {
-    final until = _activeUntil != null ? DateTime.tryParse(_activeUntil!) : null;
+    final until = _activeUntil != null
+        ? DateTime.tryParse(_activeUntil!)
+        : null;
     final untilLabel = until != null
         ? '${until.day}/${until.month}/${until.year}'
         : 'Active';
@@ -161,7 +174,10 @@ class _AdminSubscriptionScreenState extends ConsumerState<AdminSubscriptionScree
               color: AppColors.success.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.check_circle_rounded, color: AppColors.success),
+            child: const Icon(
+              Icons.check_circle_rounded,
+              color: AppColors.success,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -174,7 +190,10 @@ class _AdminSubscriptionScreenState extends ConsumerState<AdminSubscriptionScree
                 ),
                 Text(
                   'Valid until $untilLabel',
-                  style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textMuted,
+                  ),
                 ),
               ],
             ),
@@ -233,7 +252,10 @@ class _AdminSubscriptionScreenState extends ConsumerState<AdminSubscriptionScree
           const SizedBox(height: 6),
           Text(
             '${quote.studentCount} students · ${quote.teacherCount} teachers',
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.88), fontSize: 13),
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.88),
+              fontSize: 13,
+            ),
           ),
           const SizedBox(height: 16),
           Row(
@@ -273,7 +295,9 @@ class _AdminSubscriptionScreenState extends ConsumerState<AdminSubscriptionScree
           _priceRow(
             'Per student',
             SubscriptionPricing.formatInr(quote.studentRate),
-            quote.isBulkStudentRate ? 'Bulk rate (1200+ students)' : 'Standard rate',
+            quote.isBulkStudentRate
+                ? 'Bulk rate (1200+ students)'
+                : 'Standard rate',
             Icons.groups_rounded,
             const Color(0xFF5B6CFF),
           ),
@@ -313,14 +337,30 @@ class _AdminSubscriptionScreenState extends ConsumerState<AdminSubscriptionScree
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-              Text(subtitle, style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                ),
+              ),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textMuted,
+                ),
+              ),
             ],
           ),
         ),
         Text(
           '$price/mo',
-          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: AppColors.primary),
+          style: const TextStyle(
+            fontWeight: FontWeight.w800,
+            fontSize: 14,
+            color: AppColors.primary,
+          ),
         ),
       ],
     );
@@ -343,7 +383,11 @@ class _AdminSubscriptionScreenState extends ConsumerState<AdminSubscriptionScree
             padding: EdgeInsets.symmetric(vertical: 14),
             child: Divider(height: 1),
           ),
-          _billLine('Monthly total', SubscriptionPricing.formatInr(quote.monthlyTotal), bold: true),
+          _billLine(
+            'Monthly total',
+            SubscriptionPricing.formatInr(quote.monthlyTotal),
+            bold: true,
+          ),
         ],
       ),
     );
@@ -384,7 +428,11 @@ class _AdminSubscriptionScreenState extends ConsumerState<AdminSubscriptionScree
             Expanded(
               child: Text(
                 'You qualify for bulk pricing: ${SubscriptionPricing.formatInr(SubscriptionPricing.bulkStudentRate)} per student because you have more than ${SubscriptionPricing.bulkStudentThreshold} students.',
-                style: const TextStyle(fontSize: 12, height: 1.45, color: Color(0xFF374151)),
+                style: const TextStyle(
+                  fontSize: 12,
+                  height: 1.45,
+                  color: Color(0xFF374151),
+                ),
               ),
             ),
           ],
@@ -392,7 +440,8 @@ class _AdminSubscriptionScreenState extends ConsumerState<AdminSubscriptionScree
       );
     }
 
-    final remaining = SubscriptionPricing.bulkStudentThreshold - quote.studentCount + 1;
+    final remaining =
+        SubscriptionPricing.bulkStudentThreshold - quote.studentCount + 1;
     return AdminPremiumCard(
       child: Row(
         children: [
@@ -402,7 +451,11 @@ class _AdminSubscriptionScreenState extends ConsumerState<AdminSubscriptionScree
             child: Text(
               'Add $remaining more students to unlock bulk rate of '
               '${SubscriptionPricing.formatInr(SubscriptionPricing.bulkStudentRate)} per student.',
-              style: const TextStyle(fontSize: 12, height: 1.45, color: Color(0xFF374151)),
+              style: const TextStyle(
+                fontSize: 12,
+                height: 1.45,
+                color: Color(0xFF374151),
+              ),
             ),
           ),
         ],
@@ -420,7 +473,12 @@ class _CheckoutSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.all(16),
-      padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.paddingOf(context).bottom + 20),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        20,
+        20,
+        MediaQuery.paddingOf(context).bottom + 20,
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
@@ -436,18 +494,32 @@ class _CheckoutSheet extends StatelessWidget {
           const SizedBox(height: 6),
           const Text(
             'You are subscribing to the SmartUp School Management app for 30 days.',
-            style: TextStyle(fontSize: 13, color: AppColors.textMuted, height: 1.4),
+            style: TextStyle(
+              fontSize: 13,
+              color: AppColors.textMuted,
+              height: 1.4,
+            ),
           ),
           const SizedBox(height: 18),
           AdminPremiumCard(
             padding: const EdgeInsets.all(14),
             child: Column(
               children: [
-                _line('Students', SubscriptionPricing.formatInr(quote.studentTotal)),
+                _line(
+                  'Students',
+                  SubscriptionPricing.formatInr(quote.studentTotal),
+                ),
                 const SizedBox(height: 8),
-                _line('Teachers', SubscriptionPricing.formatInr(quote.teacherTotal)),
+                _line(
+                  'Teachers',
+                  SubscriptionPricing.formatInr(quote.teacherTotal),
+                ),
                 const Divider(height: 22),
-                _line('Total due today', SubscriptionPricing.formatInr(quote.monthlyTotal), bold: true),
+                _line(
+                  'Total due today',
+                  SubscriptionPricing.formatInr(quote.monthlyTotal),
+                  bold: true,
+                ),
               ],
             ),
           ),

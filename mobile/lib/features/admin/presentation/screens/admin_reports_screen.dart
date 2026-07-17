@@ -9,8 +9,7 @@ class AdminReportsScreen extends ConsumerStatefulWidget {
   const AdminReportsScreen({super.key});
 
   @override
-  ConsumerState<AdminReportsScreen> createState() =>
-      _AdminReportsScreenState();
+  ConsumerState<AdminReportsScreen> createState() => _AdminReportsScreenState();
 }
 
 class _AdminReportsScreenState extends ConsumerState<AdminReportsScreen> {
@@ -101,9 +100,17 @@ class _AdminReportsScreenState extends ConsumerState<AdminReportsScreen> {
                           ),
                         ),
                         const SizedBox(height: 14),
-                        _bar('Boys', students['boysPercent'] ?? 0, const Color(0xFF3B9EFF)),
+                        _bar(
+                          'Boys',
+                          students['boysPercent'] ?? 0,
+                          const Color(0xFF3B9EFF),
+                        ),
                         const SizedBox(height: 10),
-                        _bar('Girls', students['girlsPercent'] ?? 0, const Color(0xFFFF6B9D)),
+                        _bar(
+                          'Girls',
+                          students['girlsPercent'] ?? 0,
+                          const Color(0xFFFF6B9D),
+                        ),
                       ],
                     ),
                   ),
@@ -150,7 +157,10 @@ class _AdminReportsScreenState extends ConsumerState<AdminReportsScreen> {
       children: [
         SizedBox(
           width: 44,
-          child: Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+          child: Text(
+            label,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+          ),
         ),
         Expanded(
           child: ClipRRect(
@@ -164,7 +174,10 @@ class _AdminReportsScreenState extends ConsumerState<AdminReportsScreen> {
           ),
         ),
         const SizedBox(width: 8),
-        Text('${p.round()}%', style: const TextStyle(fontWeight: FontWeight.w700)),
+        Text(
+          '${p.round()}%',
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
       ],
     );
   }

@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -10,6 +11,7 @@ import '../../../core/network/cloud_api.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/school_provider.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/motion.dart';
 
 /// Login uses [assets/images/login_background.png] for branding/header/footer.
 /// User enters email + password; API role routes to admin or teacher home.
@@ -231,10 +233,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         },
       );
       final data = res.data as Map<String, dynamic>;
-      await authNotifier.saveSession(
-        data['accessToken'] as String,
-        data,
-      );
+      await authNotifier.saveSession(data['accessToken'] as String, data);
 
       if (_remember) {
         final prefs = await SharedPreferences.getInstance();
@@ -373,12 +372,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     child: IntrinsicHeight(
                       child: Center(
                         child: ConstrainedBox(
-                          constraints:
-                              BoxConstraints(maxWidth: contentMaxWidth),
+                          constraints: BoxConstraints(
+                            maxWidth: contentMaxWidth,
+                          ),
                           child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
                             child: Column(
                               children: [
                                 // Card sits right below the image's baked-in
@@ -487,70 +485,45 @@ class _LoginCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 13, 20, 13),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.12),
-            blurRadius: 40,
-            spreadRadius: 0,
-            offset: const Offset(0, 16),
+    // No card: the fields sit straight on the background illustration as
+    // frosted "liquid glass" panels (see [_GlassField]).
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+      child: AnimatedSize(
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOutCubic,
+        alignment: Alignment.topCenter,
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 300),
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeIn,
+          // Steps slide in from the side they conceptually come from:
+          // forward to credentials, back to the domain step.
+          transitionBuilder: (child, animation) {
+            final incoming = child.key == ValueKey(showCredentials);
+            final dx = (showCredentials ? 1.0 : -1.0) * (incoming ? 1 : -1);
+            return FadeTransition(
+              opacity: animation,
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: Offset(0.06 * dx, 0),
+                  end: Offset.zero,
+                ).animate(animation),
+                child: child,
+              ),
+            );
+          },
+          layoutBuilder: (current, previous) => Stack(
+            alignment: Alignment.topCenter,
+            children: [...previous, ?current],
           ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 20,
-            offset: const Offset(0, 6),
+          child: KeyedSubtree(
+            key: ValueKey(showCredentials),
+            child: showCredentials
+                ? _buildCredentialsStep()
+                : _buildDomainStep(),
           ),
-        ],
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.9),
-          width: 1.5,
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Card top accent line
-          Center(
-            child: Container(
-              height: 4,
-              width: 40,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [AppColors.primary, AppColors.primaryLight],
-                ),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Center(
-            child: Text(
-              showCredentials ? 'Welcome Back!' : 'Get Started',
-              style: const TextStyle(
-                fontSize: 19,
-                fontWeight: FontWeight.w800,
-                color: AppColors.primaryDark,
-                letterSpacing: -0.3,
-              ),
-            ),
-          ),
-          const SizedBox(height: 2),
-          Center(
-            child: Text(
-              showCredentials
-                  ? 'Login to continue to your account'
-                  : 'Enter your school domain to continue',
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: AppColors.textMuted, fontSize: 12.5),
-            ),
-          ),
-          const SizedBox(height: 13),
-          if (showCredentials) _buildCredentialsStep() else _buildDomainStep(),
-        ],
       ),
     );
   }
@@ -561,52 +534,64 @@ class _LoginCard extends StatelessWidget {
   Widget _buildDomainStep() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        TextField(
-          controller: domainCtrl,
-          textInputAction: TextInputAction.done,
-          autocorrect: false,
-          enableSuggestions: false,
-          textCapitalization: TextCapitalization.none,
-          onSubmitted: (_) {
-            if (!schoolsLoading) onContinue();
-          },
-          style: const TextStyle(fontSize: 14),
-          decoration: InputDecoration(
-            prefixIcon: const Icon(
-              Icons.domain_rounded,
-              color: AppColors.primary,
-              size: 20,
+        const EntranceFade(
+          child: _StepGreeting(
+            title: 'Get started',
+            subtitle: 'Enter your school domain to continue',
+          ),
+        ),
+        const SizedBox(height: 18),
+        EntranceFade(
+          delay: const Duration(milliseconds: 60),
+          child: _GlassField(
+            child: TextField(
+              controller: domainCtrl,
+              textInputAction: TextInputAction.done,
+              autocorrect: false,
+              enableSuggestions: false,
+              textCapitalization: TextCapitalization.none,
+              onSubmitted: (_) {
+                if (!schoolsLoading) onContinue();
+              },
+              style: const TextStyle(fontSize: 14),
+              decoration: _glassDecoration(
+                icon: Icons.domain_rounded,
+                hintText: 'School domain (e.g. greenfield)',
+                errorText: domainError,
+              ),
             ),
-            hintText: 'School domain (e.g. greenfield)',
-            isDense: true,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            errorText: domainError,
           ),
         ),
         if (schoolsError != null) ...[
           const SizedBox(height: 8),
           Text(
             schoolsError!,
-            style: const TextStyle(color: Colors.red, fontSize: 12),
+            style: const TextStyle(color: Color(0xFFD92D20), fontSize: 12),
           ),
         ],
-        const SizedBox(height: 12),
-        _GradientButton(
-          label: 'Continue',
-          icon: Icons.arrow_forward_rounded,
-          loading: schoolsLoading,
-          onTap: schoolsLoading
-              ? null
-              : (schoolsError != null ? onRetrySchools : onContinue),
+        const SizedBox(height: 14),
+        EntranceFade(
+          delay: const Duration(milliseconds: 120),
+          child: _GradientButton(
+            label: 'Continue',
+            icon: Icons.arrow_forward_rounded,
+            loading: schoolsLoading,
+            onTap: schoolsLoading
+                ? null
+                : (schoolsError != null ? onRetrySchools : onContinue),
+          ),
         ),
-        const SizedBox(height: 4),
-        const Center(
-          child: Text(
-            "Ask your school admin if you don't know the domain",
-            textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.textMuted, fontSize: 11),
+        const SizedBox(height: 10),
+        const EntranceFade(
+          delay: Duration(milliseconds: 180),
+          child: Center(
+            child: Text(
+              "Ask your school admin if you don't know the domain",
+              textAlign: TextAlign.center,
+              style: TextStyle(color: _onBackgroundMuted, fontSize: 11.5),
+            ),
           ),
         ),
       ],
@@ -621,118 +606,127 @@ class _LoginCard extends StatelessWidget {
       key: formKey,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Selected school chip with a "Change" affordance
-          Container(
-            padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.06),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: AppColors.primary.withValues(alpha: 0.18),
-              ),
+          EntranceFade(
+            child: _StepGreeting(
+              title: 'Welcome back',
+              subtitle: selectedSchool?.name == null
+                  ? 'Sign in to continue'
+                  : 'Sign in to ${selectedSchool!.name}',
             ),
-            child: Row(
-              children: [
-                const Icon(Icons.school_rounded,
-                    color: AppColors.primary, size: 20),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        selectedSchool?.name ?? 'School',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 13.5,
+          ),
+          const SizedBox(height: 18),
+          // Selected school chip with a "Change" affordance
+          EntranceFade(
+            delay: const Duration(milliseconds: 60),
+            child: _GlassField(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.school_rounded,
+                      color: AppColors.primary,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            selectedSchool?.name ?? 'School',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primaryDark,
+                            ),
+                          ),
+                          if ((selectedSchool?.code ?? '').isNotEmpty)
+                            Text(
+                              selectedSchool!.code,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: AppColors.textMuted,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: loading ? null : onChangeSchool,
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        minimumSize: const Size(0, 32),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: const Text(
+                        'Change',
+                        style: TextStyle(
+                          fontSize: 12.5,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.primaryDark,
                         ),
                       ),
-                      if ((selectedSchool?.code ?? '').isNotEmpty)
-                        Text(
-                          selectedSchool!.code,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: AppColors.textMuted,
-                          ),
-                        ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                TextButton(
-                  onPressed: loading ? null : onChangeSchool,
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppColors.primary,
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    minimumSize: const Size(0, 32),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  child: const Text(
-                    'Change',
-                    style: TextStyle(
-                        fontSize: 12.5, fontWeight: FontWeight.w700),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
           const SizedBox(height: 10),
-          TextFormField(
-            controller: identifierCtrl,
-            keyboardType: TextInputType.emailAddress,
-            style: const TextStyle(fontSize: 14),
-            decoration: const InputDecoration(
-              prefixIcon: Icon(
-                Icons.person_outline,
-                color: AppColors.primary,
-                size: 20,
+          EntranceFade(
+            delay: const Duration(milliseconds: 120),
+            child: _GlassField(
+              child: TextFormField(
+                controller: identifierCtrl,
+                keyboardType: TextInputType.emailAddress,
+                style: const TextStyle(fontSize: 14),
+                decoration: _glassDecoration(
+                  icon: Icons.person_outline,
+                  hintText: 'Email',
+                ),
+                validator: (v) =>
+                    v == null || v.trim().isEmpty ? 'Required' : null,
               ),
-              hintText: 'Email',
-              isDense: true,
-              contentPadding:
-                  EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             ),
-            validator: (v) =>
-                v == null || v.trim().isEmpty ? 'Required' : null,
           ),
           const SizedBox(height: 8),
-          TextFormField(
-            controller: passwordCtrl,
-            obscureText: obscure,
-            textInputAction: TextInputAction.done,
-            onFieldSubmitted: (_) {
-              if (!loading) onLogin();
-            },
-            style: const TextStyle(fontSize: 14),
-            decoration: InputDecoration(
-              prefixIcon: const Icon(
-                Icons.lock_outline,
-                color: AppColors.primary,
-                size: 20,
-              ),
-              hintText: 'Password',
-              isDense: true,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              suffixIcon: IconButton(
-                icon: Icon(
-                  obscure
-                      ? Icons.visibility_off_outlined
-                      : Icons.visibility_outlined,
-                  color: AppColors.textMuted,
-                  size: 20,
+          EntranceFade(
+            delay: const Duration(milliseconds: 180),
+            child: _GlassField(
+              child: TextFormField(
+                controller: passwordCtrl,
+                obscureText: obscure,
+                textInputAction: TextInputAction.done,
+                onFieldSubmitted: (_) {
+                  if (!loading) onLogin();
+                },
+                style: const TextStyle(fontSize: 14),
+                decoration: _glassDecoration(
+                  icon: Icons.lock_outline,
+                  hintText: 'Password',
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      obscure
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                      color: AppColors.textMuted,
+                      size: 20,
+                    ),
+                    onPressed: onToggleObscure,
+                  ),
                 ),
-                onPressed: onToggleObscure,
+                validator: (v) =>
+                    v != null && v.length >= 6 ? null : 'Min 6 characters',
               ),
             ),
-            validator: (v) =>
-                v != null && v.length >= 6 ? null : 'Min 6 characters',
           ),
           Row(
             children: [
@@ -811,8 +805,163 @@ class _LoginCard extends StatelessWidget {
   }
 }
 
+/// Secondary text colour for copy sitting directly on the login background.
+///
+/// [AppColors.textMuted] was picked for text on white cards; against the pale
+/// lilac illustration it measures 4.18:1, under the 4.5:1 WCAG AA minimum.
+/// This slate reads the same but measures 6.5:1.
+const _onBackgroundMuted = Color(0xFF4B5563);
+
+/// Step greeting. Sits directly on the background illustration, so it leans on
+/// weight and a gradient wordmark for presence rather than a card behind it.
+/// The background art already carries "SmartUp", so this greets rather than
+/// re-brands.
+class _StepGreeting extends StatelessWidget {
+  const _StepGreeting({required this.title, required this.subtitle});
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        ShaderMask(
+          shaderCallback: (bounds) => const LinearGradient(
+            colors: [AppColors.primaryDark, AppColors.primary],
+          ).createShader(bounds),
+          child: Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 27,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.7,
+              height: 1.1,
+              // Painted over by the shader; must be opaque white.
+              color: Colors.white,
+            ),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          subtitle,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 13.5,
+            height: 1.35,
+            fontWeight: FontWeight.w500,
+            color: _onBackgroundMuted,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Frosted "liquid glass" shell for a login field.
+///
+/// The login fields sit directly on the background illustration rather than on
+/// a card, so each one blurs what's behind it. Matches the liquid nav bars in
+/// the admin/teacher shells. Pair with [_glassDecoration], which strips the
+/// field's own fill and borders so only this shell is visible.
+class _GlassField extends StatefulWidget {
+  const _GlassField({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_GlassField> createState() => _GlassFieldState();
+}
+
+class _GlassFieldState extends State<_GlassField> {
+  bool _focused = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Focus(
+      // Purely an observer: the TextField inside owns the real focus.
+      canRequestFocus: false,
+      skipTraversal: true,
+      onFocusChange: (hasFocus) => setState(() => _focused = hasFocus),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            // The lift grows on focus, so the active field reads as raised.
+            BoxShadow(
+              color: AppColors.primary.withValues(
+                alpha: _focused ? 0.22 : 0.10,
+              ),
+              blurRadius: _focused ? 28 : 16,
+              offset: Offset(0, _focused ? 12 : 6),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOut,
+              decoration: BoxDecoration(
+                // Frosted, but opaque enough to keep hint/'text' legible
+                // against the pale illustration behind it.
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Colors.white.withValues(alpha: _focused ? 0.78 : 0.62),
+                    Colors.white.withValues(alpha: _focused ? 0.62 : 0.44),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: _focused
+                      ? AppColors.primary.withValues(alpha: 0.55)
+                      : Colors.white.withValues(alpha: 0.75),
+                  width: _focused ? 1.6 : 1.2,
+                ),
+              ),
+              child: widget.child,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Input decoration for a field inside a [_GlassField]: the app-wide theme
+/// fills inputs solid white, which would hide the blur behind them.
+InputDecoration _glassDecoration({
+  required IconData icon,
+  required String hintText,
+  Widget? suffixIcon,
+  String? errorText,
+}) {
+  return InputDecoration(
+    prefixIcon: Icon(icon, color: AppColors.primary, size: 20),
+    suffixIcon: suffixIcon,
+    hintText: hintText,
+    hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 14),
+    errorText: errorText,
+    filled: false,
+    isDense: true,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+    border: InputBorder.none,
+    enabledBorder: InputBorder.none,
+    focusedBorder: InputBorder.none,
+    errorBorder: InputBorder.none,
+    focusedErrorBorder: InputBorder.none,
+  );
+}
+
 /// Full-width gradient action button used for both "Continue" and "Sign In".
-class _GradientButton extends StatelessWidget {
+class _GradientButton extends StatefulWidget {
   const _GradientButton({
     required this.label,
     required this.icon,
@@ -826,62 +975,93 @@ class _GradientButton extends StatelessWidget {
   final VoidCallback? onTap;
 
   @override
+  State<_GradientButton> createState() => _GradientButtonState();
+}
+
+class _GradientButtonState extends State<_GradientButton> {
+  bool _pressed = false;
+
+  void _setPressed(bool value) {
+    if (widget.onTap == null) return;
+    setState(() => _pressed = value);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(16),
-      child: Ink(
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [
-              AppColors.primaryDark,
-              AppColors.primary,
-              AppColors.primaryLight
-            ],
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-          ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primary.withValues(alpha: 0.40),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            alignment: Alignment.center,
-            child: loading
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2.5,
-                    ),
-                  )
-                : Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        label,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 15.5,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.3,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Icon(icon, color: Colors.white, size: 18),
+    final enabled = widget.onTap != null;
+
+    // Squish on press — an instant state change reads as unresponsive.
+    return AnimatedScale(
+      scale: _pressed ? 0.97 : 1,
+      duration: const Duration(milliseconds: 120),
+      curve: Curves.easeOut,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: Ink(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: enabled
+                  ? const [
+                      AppColors.primaryDark,
+                      AppColors.primary,
+                      AppColors.primaryLight,
+                    ]
+                  : [
+                      AppColors.primary.withValues(alpha: 0.45),
+                      AppColors.primaryLight.withValues(alpha: 0.45),
                     ],
-                  ),
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withValues(
+                  alpha: _pressed ? 0.22 : 0.40,
+                ),
+                blurRadius: _pressed ? 10 : 18,
+                offset: Offset(0, _pressed ? 3 : 8),
+              ),
+            ],
+          ),
+          child: InkWell(
+            onTap: widget.onTap,
+            onTapDown: (_) => _setPressed(true),
+            onTapUp: (_) => _setPressed(false),
+            onTapCancel: () => _setPressed(false),
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              width: double.infinity,
+              // 48px tall: comfortably clears the 44px minimum touch target.
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              alignment: Alignment.center,
+              child: widget.loading
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2.5,
+                      ),
+                    )
+                  : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          widget.label,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15.5,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Icon(widget.icon, color: Colors.white, size: 18),
+                      ],
+                    ),
+            ),
           ),
         ),
       ),
@@ -1029,4 +1209,3 @@ class _GoogleLogoPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
-

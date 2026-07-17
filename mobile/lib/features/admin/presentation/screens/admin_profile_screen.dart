@@ -62,22 +62,26 @@ class _AdminProfileScreenState extends ConsumerState<AdminProfileScreen> {
   Future<void> _save() async {
     setState(() => _saving = true);
     try {
-      final res = await ref.read(dioProvider).patch(
-        '/admin/profile',
-        data: {
-          'name': _schoolName.text.trim(),
-          'phone': _schoolPhone.text.trim(),
-          'address': _address.text.trim(),
-          'city': _city.text.trim(),
-          'fullName': _fullName.text.trim(),
-          'adminPhone': _adminPhone.text.trim(),
-        },
-      );
+      final res = await ref
+          .read(dioProvider)
+          .patch(
+            '/admin/profile',
+            data: {
+              'name': _schoolName.text.trim(),
+              'phone': _schoolPhone.text.trim(),
+              'address': _address.text.trim(),
+              'city': _city.text.trim(),
+              'fullName': _fullName.text.trim(),
+              'adminPhone': _adminPhone.text.trim(),
+            },
+          );
       final data = res.data as Map<String, dynamic>;
       final school = data['school'] as Map<String, dynamic>? ?? {};
       final user = data['user'] as Map<String, dynamic>? ?? {};
 
-      await ref.read(authProvider.notifier).updateLocalProfile(
+      await ref
+          .read(authProvider.notifier)
+          .updateLocalProfile(
             schoolName: '${school['name'] ?? ''}',
             fullName: '${user['fullName'] ?? ''}',
           );
@@ -85,15 +89,17 @@ class _AdminProfileScreenState extends ConsumerState<AdminProfileScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Profile updated. School name syncs to developer portal.'),
+          content: Text(
+            'Profile updated. School name syncs to developer portal.',
+          ),
           backgroundColor: AppColors.success,
         ),
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not save profile: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not save profile: $e')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -105,11 +111,16 @@ class _AdminProfileScreenState extends ConsumerState<AdminProfileScreen> {
       title: 'Profile',
       subtitle: 'School & admin details',
       child: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            )
           : ListView(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
               children: [
-                const AdminSectionTitle('School', icon: Icons.apartment_rounded),
+                const AdminSectionTitle(
+                  'School',
+                  icon: Icons.apartment_rounded,
+                ),
                 AdminPremiumCard(
                   child: Column(
                     children: [
@@ -141,7 +152,10 @@ class _AdminProfileScreenState extends ConsumerState<AdminProfileScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                const AdminSectionTitle('Administrator', icon: Icons.person_outline),
+                const AdminSectionTitle(
+                  'Administrator',
+                  icon: Icons.person_outline,
+                ),
                 AdminPremiumCard(
                   child: Column(
                     children: [

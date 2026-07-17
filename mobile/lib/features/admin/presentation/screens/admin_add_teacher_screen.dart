@@ -95,17 +95,23 @@ class _AdminAddTeacherScreenState extends ConsumerState<AdminAddTeacherScreen> {
           .where((s) => s.isNotEmpty)
           .toList();
 
-      await ref.read(dioProvider).post('/admin/teachers', data: {
-        'fullName': _name.text.trim(),
-        'email': _email.text.trim(),
-        'password': _password.text,
-        'phone': _phone.text.trim().isEmpty ? null : _phone.text.trim(),
-        'gender': _gender,
-        'department': subjects.isNotEmpty ? subjects.first : 'General',
-        'subjects': subjects,
-        if (_avatarBase64 != null) 'avatarUrl': _avatarBase64,
-        if (_classTeacherClassId != null) 'classTeacherClassId': _classTeacherClassId,
-      });
+      await ref
+          .read(dioProvider)
+          .post(
+            '/admin/teachers',
+            data: {
+              'fullName': _name.text.trim(),
+              'email': _email.text.trim(),
+              'password': _password.text,
+              'phone': _phone.text.trim().isEmpty ? null : _phone.text.trim(),
+              'gender': _gender,
+              'department': subjects.isNotEmpty ? subjects.first : 'General',
+              'subjects': subjects,
+              if (_avatarBase64 != null) 'avatarUrl': _avatarBase64,
+              if (_classTeacherClassId != null)
+                'classTeacherClassId': _classTeacherClassId,
+            },
+          );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -150,7 +156,10 @@ class _AdminAddTeacherScreenState extends ConsumerState<AdminAddTeacherScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const AdminSectionTitle('Teacher Details', icon: Icons.badge_rounded),
+                    const AdminSectionTitle(
+                      'Teacher Details',
+                      icon: Icons.badge_rounded,
+                    ),
                     AdminFormField(
                       label: 'Full Name *',
                       controller: _name,
@@ -166,8 +175,9 @@ class _AdminAddTeacherScreenState extends ConsumerState<AdminAddTeacherScreen> {
                       hint: 'teacher@school.demo',
                       icon: Icons.email_outlined,
                       keyboardType: TextInputType.emailAddress,
-                      validator: (v) =>
-                          v == null || !v.contains('@') ? 'Valid email required' : null,
+                      validator: (v) => v == null || !v.contains('@')
+                          ? 'Valid email required'
+                          : null,
                     ),
                     const SizedBox(height: 14),
                     _passwordField(
@@ -190,11 +200,13 @@ class _AdminAddTeacherScreenState extends ConsumerState<AdminAddTeacherScreen> {
                       hint: 'Re-enter password',
                       obscure: _obscureConfirmPassword,
                       onToggleObscure: () => setState(
-                        () => _obscureConfirmPassword = !_obscureConfirmPassword,
+                        () =>
+                            _obscureConfirmPassword = !_obscureConfirmPassword,
                       ),
                       validator: (v) {
                         if (v == null || v.isEmpty) return 'Confirm password';
-                        if (v != _password.text) return 'Passwords do not match';
+                        if (v != _password.text)
+                          return 'Passwords do not match';
                         return null;
                       },
                     ),
@@ -228,7 +240,10 @@ class _AdminAddTeacherScreenState extends ConsumerState<AdminAddTeacherScreen> {
                       ),
                       items: const [
                         DropdownMenuItem(value: 'MALE', child: Text('Male')),
-                        DropdownMenuItem(value: 'FEMALE', child: Text('Female')),
+                        DropdownMenuItem(
+                          value: 'FEMALE',
+                          child: Text('Female'),
+                        ),
                       ],
                       onChanged: (v) => setState(() => _gender = v ?? 'MALE'),
                     ),
@@ -264,7 +279,9 @@ class _AdminAddTeacherScreenState extends ConsumerState<AdminAddTeacherScreen> {
                               ? const SizedBox(
                                   width: 18,
                                   height: 18,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
                                 )
                               : const Icon(Icons.refresh_rounded, size: 20),
                         ),
@@ -278,7 +295,10 @@ class _AdminAddTeacherScreenState extends ConsumerState<AdminAddTeacherScreen> {
                     if (_classesError != null) ...[
                       Text(
                         _classesError!,
-                        style: const TextStyle(color: Color(0xFFDC2626), fontSize: 12),
+                        style: const TextStyle(
+                          color: Color(0xFFDC2626),
+                          fontSize: 12,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       OutlinedButton.icon(
@@ -299,7 +319,10 @@ class _AdminAddTeacherScreenState extends ConsumerState<AdminAddTeacherScreen> {
                             SizedBox(width: 10),
                             Text(
                               'Loading classes...',
-                              style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Color(0xFF6B7280),
+                              ),
                             ),
                           ],
                         ),
@@ -315,7 +338,10 @@ class _AdminAddTeacherScreenState extends ConsumerState<AdminAddTeacherScreen> {
                         ),
                         child: const Text(
                           'No classes found. Add a class first, then come back here to assign it.',
-                          style: TextStyle(fontSize: 12, color: Color(0xFF9A3412)),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF9A3412),
+                          ),
                         ),
                       )
                     else
@@ -335,7 +361,9 @@ class _AdminAddTeacherScreenState extends ConsumerState<AdminAddTeacherScreen> {
                             borderRadius: BorderRadius.circular(14),
                           ),
                         ),
-                        hint: Text('Select class (${_classes.length} available)'),
+                        hint: Text(
+                          'Select class (${_classes.length} available)',
+                        ),
                         items: [
                           const DropdownMenuItem<String?>(
                             value: null,
@@ -351,7 +379,8 @@ class _AdminAddTeacherScreenState extends ConsumerState<AdminAddTeacherScreen> {
                             ),
                           ),
                         ],
-                        onChanged: (v) => setState(() => _classTeacherClassId = v),
+                        onChanged: (v) =>
+                            setState(() => _classTeacherClassId = v),
                       ),
                     if (_classTeacherClassId != null) ...[
                       const SizedBox(height: 10),
@@ -365,12 +394,19 @@ class _AdminAddTeacherScreenState extends ConsumerState<AdminAddTeacherScreen> {
                         ),
                         child: const Row(
                           children: [
-                            Icon(Icons.info_outline_rounded, color: Color(0xFF2D68FF), size: 18),
+                            Icon(
+                              Icons.info_outline_rounded,
+                              color: Color(0xFF2D68FF),
+                              size: 18,
+                            ),
                             SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 'This teacher will be set as the class teacher for the selected class.',
-                                style: TextStyle(fontSize: 12, color: Color(0xFF1E40AF)),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF1E40AF),
+                                ),
                               ),
                             ),
                           ],
@@ -382,7 +418,10 @@ class _AdminAddTeacherScreenState extends ConsumerState<AdminAddTeacherScreen> {
               ),
               if (_error != null) ...[
                 const SizedBox(height: 12),
-                Text(_error!, style: const TextStyle(color: Colors.red, fontSize: 13)),
+                Text(
+                  _error!,
+                  style: const TextStyle(color: Colors.red, fontSize: 13),
+                ),
               ],
               const SizedBox(height: 20),
               AdminPrimaryButton(
@@ -434,14 +473,19 @@ class _AdminAddTeacherScreenState extends ConsumerState<AdminAddTeacherScreen> {
             suffixIcon: IconButton(
               onPressed: onToggleObscure,
               icon: Icon(
-                obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                obscure
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
                 color: const Color(0xFF9CA3AF),
                 size: 20,
               ),
             ),
             filled: true,
             fillColor: const Color(0xFFF8FAFC),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 14,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
               borderSide: const BorderSide(color: Color(0xFFE2E8F0)),

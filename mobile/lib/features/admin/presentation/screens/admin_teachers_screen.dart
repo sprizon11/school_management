@@ -6,6 +6,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/navigation/smooth_page_route.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../widgets/admin_fab.dart';
+import '../widgets/admin_screen_header.dart';
+import '../widgets/admin_search_field.dart';
+import '../widgets/admin_stat_card.dart';
+import '../../../../core/widgets/motion.dart';
 import '../../../../core/widgets/skeleton.dart';
 import 'admin_add_teacher_screen.dart';
 import 'admin_teacher_detail_screen.dart';
@@ -14,10 +19,12 @@ class AdminTeachersScreen extends ConsumerStatefulWidget {
   const AdminTeachersScreen({super.key});
 
   @override
-  ConsumerState<AdminTeachersScreen> createState() => _AdminTeachersScreenState();
+  ConsumerState<AdminTeachersScreen> createState() =>
+      _AdminTeachersScreenState();
 }
 
 class _AdminTeachersScreenState extends ConsumerState<AdminTeachersScreen> {
+  static const _ink = Color(0xFF1A1533);
   List<dynamic> _items = [];
   Map<String, dynamic>? _stats;
   static const _allTeachersLimit = 1000;
@@ -109,10 +116,12 @@ class _AdminTeachersScreenState extends ConsumerState<AdminTeachersScreen> {
         'femalePercent': _stats!['femalePercent'] ?? 0,
       };
     }
-    final gents =
-        _items.where((i) => '${(i as Map)['gender']}' == 'MALE').length;
-    final ladies =
-        _items.where((i) => '${(i as Map)['gender']}' == 'FEMALE').length;
+    final gents = _items
+        .where((i) => '${(i as Map)['gender']}' == 'MALE')
+        .length;
+    final ladies = _items
+        .where((i) => '${(i as Map)['gender']}' == 'FEMALE')
+        .length;
     final total = _items.length;
     return {
       'total': total,
@@ -133,9 +142,9 @@ class _AdminTeachersScreenState extends ConsumerState<AdminTeachersScreen> {
   }
 
   Future<void> _openAddTeacher() async {
-    final added = await Navigator.of(context).push<bool>(
-      SmoothPageRoute(page: const AdminAddTeacherScreen()),
-    );
+    final added = await Navigator.of(
+      context,
+    ).push<bool>(SmoothPageRoute(page: const AdminAddTeacherScreen()));
     if (added == true) _load();
   }
 
@@ -166,28 +175,19 @@ class _AdminTeachersScreenState extends ConsumerState<AdminTeachersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final topPad = MediaQuery.paddingOf(context).top;
-
-    return ColoredBox(
-      color: const Color(0xFFF4F6FA),
-      child: Column(
-        children: [
-          _header(topPad),
-          Expanded(
-            child: Transform.translate(
-              offset: const Offset(0, -16),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF051C6E).withValues(alpha: 0.18),
-                      blurRadius: 20,
-                      offset: const Offset(0, -6),
-                    ),
-                  ],
-                ),
+    return AdminFabScaffold(
+      fab: AdminFab(
+        icon: Icons.add_rounded,
+        tooltip: 'Add teacher',
+        onTap: _openAddTeacher,
+      ),
+      child: ColoredBox(
+        color: const Color(0xFFF4F6FA),
+        child: Column(
+          children: [
+            _header(),
+            Expanded(
+              child: AdminScreenBody(
                 child: _loading && _stats == null
                     ? const Padding(
                         padding: EdgeInsets.all(16),
@@ -206,32 +206,36 @@ class _AdminTeachersScreenState extends ConsumerState<AdminTeachersScreen> {
                     : Column(
                         children: [
                           const SizedBox(height: 14),
-                          _statsRow(),
+                          EntranceFade(child: _statsRow()),
                           const SizedBox(height: 12),
-                          _actionButtons(),
-                          const SizedBox(height: 12),
-                          _searchRow(),
-                          const SizedBox(height: 8),
-                          _tableHeader(),
+                          EntranceFade(
+                            delay: const Duration(milliseconds: 60),
+                            child: _searchRow(),
+                          ),
+                          _listHeader(_visibleItems.length),
                           Expanded(
                             child: _loading
-                                ? const Center(child: CircularProgressIndicator())
+                                ? const Center(
+                                    child: CircularProgressIndicator(),
+                                  )
                                 : _visibleItems.isEmpty
                                 ? _emptyState()
                                 : RefreshIndicator(
                                     onRefresh: () => _load(showOverlay: true),
-                                    child: ListView.separated(
+                                    child: ListView.builder(
                                       physics:
                                           const AlwaysScrollableScrollPhysics(),
-                                      padding: const EdgeInsets.only(bottom: 88),
+                                      padding: const EdgeInsets.fromLTRB(
+                                        12,
+                                        2,
+                                        12,
+                                        88,
+                                      ),
                                       itemCount: _visibleItems.length,
-                                      separatorBuilder: (_, __) =>
-                                          const Divider(
-                                            height: 1,
-                                            color: Color(0xFFF0F2F5),
-                                          ),
-                                      itemBuilder: (_, i) =>
-                                          _teacherRow(_visibleItems[i]),
+                                      itemBuilder: (_, i) => EntranceFadeItem(
+                                        index: i,
+                                        child: _teacherRow(_visibleItems[i]),
+                                      ),
                                     ),
                                   ),
                           ),
@@ -239,105 +243,24 @@ class _AdminTeachersScreenState extends ConsumerState<AdminTeachersScreen> {
                       ),
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _header(double topPad) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.fromLTRB(16, topPad + 12, 16, 32),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Color(0xFF051C6E),
-            Color(0xFF0D3DD4),
-            Color(0xFF2563EB),
-            Color(0xFF4F8CFF),
           ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
         ),
-      ),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Positioned(
-            right: -28,
-            top: -34,
-            child: Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.07),
-              ),
-            ),
-          ),
-          Positioned(
-            right: 44,
-            bottom: 0,
-            child: Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.05),
-              ),
-            ),
-          ),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Teachers',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 28,
-                        fontWeight: FontWeight.w800,
-                        height: 1.1,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Manage and view all teacher details',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.85),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              _headerIconButton(Icons.refresh_rounded, onTap: () => _load(showOverlay: true)),
-            ],
-          ),
-        ],
       ),
     );
   }
 
-  Widget _headerIconButton(IconData icon, {VoidCallback? onTap}) {
-    return Material(
-      color: Colors.white.withValues(alpha: 0.18),
-      borderRadius: BorderRadius.circular(20),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: SizedBox(
-          height: 36,
-          width: 36,
-          child: Icon(icon, color: Colors.white, size: 18),
+  Widget _header() {
+    return AdminScreenHeader(
+      title: 'Teachers',
+      leading: Builder(
+        builder: (context) => AdminHeaderIconButton(
+          icon: Icons.segment_rounded,
+          plain: true,
+          onTap: () => Scaffold.of(context).openDrawer(),
         ),
       ),
+      subtitle: 'Manage and view all teacher details',
+      actions: [],
     );
   }
 
@@ -346,259 +269,89 @@ class _AdminTeachersScreenState extends ConsumerState<AdminTeachersScreen> {
     final total = stats['total'] as int? ?? 0;
     final gents = stats['male'] as int? ?? 0;
     final ladies = stats['female'] as int? ?? 0;
-    final gentsPct = stats['malePercent'] ?? 0;
-    final ladiesPct = stats['femalePercent'] ?? 0;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Row(
-        children: [
-          Expanded(
-            child: _statCard(
-              accent: const Color(0xFF3B6FF5),
-              accentLight: const Color(0xFFE8EFFF),
-              icon: Icons.groups_rounded,
-              label: 'Total',
-              value: _formatNum(total),
-              badge: 'All',
-              selected: _genderFilter == null,
-              onTap: () => setState(() => _genderFilter = null),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _statCard(
-              accent: const Color(0xFF16A34A),
-              accentLight: const Color(0xFFE8F8EE),
-              icon: Icons.man_rounded,
-              label: 'Gents',
-              value: _formatNum(gents),
-              badge: '$gentsPct%',
-              selected: _genderFilter == 'MALE',
-              onTap: () => setState(() => _genderFilter = 'MALE'),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _statCard(
-              accent: const Color(0xFFDB2777),
-              accentLight: const Color(0xFFFCE8F1),
-              icon: Icons.woman_rounded,
-              label: 'Ladies',
-              value: _formatNum(ladies),
-              badge: '$ladiesPct%',
-              selected: _genderFilter == 'FEMALE',
-              onTap: () => setState(() => _genderFilter = 'FEMALE'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _statCard({
-    required Color accent,
-    required Color accentLight,
-    required IconData icon,
-    required String label,
-    required String value,
-    required String badge,
-    bool selected = false,
-    VoidCallback? onTap,
-  }) {
-    return Material(
-      color: selected ? accentLight : Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(10, 10, 8, 10),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: selected ? accent : accentLight,
-              width: selected ? 2 : 1,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: accent.withValues(alpha: selected ? 0.18 : 0.1),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    height: 32,
-                    width: 32,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [accent, accent.withValues(alpha: 0.75)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(icon, color: Colors.white, size: 18),
-                  ),
-                  const Spacer(),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: accentLight,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      badge,
-                      style: TextStyle(
-                        fontSize: 9,
-                        fontWeight: FontWeight.w700,
-                        color: accent,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF111827),
-                    height: 1,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: accent,
-                ),
-              ),
-            ],
+    return AdminStatRow(
+      cards: [
+        AdminStatCard(
+          icon: Icons.groups_rounded,
+          color: const Color(0xFF3B6FF5),
+          value: _formatNum(total),
+          label: 'Total',
+          selected: _genderFilter == null,
+          onTap: () => setState(() => _genderFilter = null),
+        ),
+        AdminStatCard(
+          icon: Icons.man_rounded,
+          color: const Color(0xFF16A34A),
+          value: _formatNum(gents),
+          label: 'Gents',
+          selected: _genderFilter == 'MALE',
+          onTap: () => setState(
+            () => _genderFilter = _genderFilter == 'MALE' ? null : 'MALE',
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _actionButtons() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: _primaryAction('Add Teacher', Icons.add_rounded, onTap: _openAddTeacher),
-    );
-  }
-
-  Widget _primaryAction(String label, IconData icon, {VoidCallback? onTap}) {
-    return Material(
-      color: AppColors.primary,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: Colors.white, size: 18),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
+        AdminStatCard(
+          icon: Icons.woman_rounded,
+          color: const Color(0xFFDB2777),
+          value: _formatNum(ladies),
+          label: 'Ladies',
+          selected: _genderFilter == 'FEMALE',
+          onTap: () => setState(
+            () => _genderFilter = _genderFilter == 'FEMALE' ? null : 'FEMALE',
           ),
         ),
-      ),
+      ],
     );
   }
 
   Widget _searchRow() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: TextField(
-        controller: _search,
-        onChanged: (_) => setState(() {}),
-        decoration: InputDecoration(
-          hintText: 'Search by name, department or code...',
-          hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF9CA3AF)),
-          prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF9CA3AF), size: 20),
-          filled: true,
-          fillColor: const Color(0xFFF8FAFC),
-          contentPadding: const EdgeInsets.symmetric(vertical: 0),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFF3B6FF5)),
-          ),
-        ),
-      ),
+    return AdminSearchField(
+      controller: _search,
+      hint: 'Search by name, department or code...',
+      accent: const Color(0xFF3B6FF5),
+      onChanged: (_) => setState(() {}),
+      onCleared: () => setState(() {}),
     );
   }
 
-  Widget _tableHeader() {
+  Widget _listHeader(int count) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
       child: Row(
-        children: const [
-          Expanded(
-            flex: 3,
-            child: Text(
-              'Name',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF9CA3AF),
-                letterSpacing: 0.3,
-              ),
-            ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Text(
-              'Department',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF9CA3AF),
-                letterSpacing: 0.3,
-              ),
-            ),
-          ),
+        children: [
           Text(
-            'Status',
-            style: TextStyle(
-              fontSize: 11,
+            'All Teachers ($count)',
+            style: const TextStyle(
+              fontSize: 13.5,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF9CA3AF),
-              letterSpacing: 0.3,
+              color: _ink,
+              letterSpacing: -0.2,
             ),
           ),
+          const Spacer(),
+          if (_genderFilter != null)
+            GestureDetector(
+              onTap: () => setState(() => _genderFilter = null),
+              behavior: HitTestBehavior.opaque,
+              child: Row(
+                children: [
+                  Text(
+                    _genderFilter == 'MALE' ? 'Gents' : 'Ladies',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 3),
+                  const Icon(
+                    Icons.close_rounded,
+                    size: 14,
+                    color: AppColors.primary,
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );
@@ -609,95 +362,152 @@ class _AdminTeachersScreenState extends ConsumerState<AdminTeachersScreen> {
     final name = '${t['fullName'] ?? ''}';
     final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
     final gender = '${t['gender'] ?? 'MALE'}';
-    final avatarColor = gender == 'FEMALE'
-        ? const Color(0xFFFCE7F3)
-        : const Color(0xFFDBEAFE);
-    final initialColor = gender == 'FEMALE'
+    final accent = gender == 'FEMALE'
         ? const Color(0xFFDB2777)
         : const Color(0xFF2563EB);
     final avatar = _teacherAvatar(t['avatarUrl'] as String?);
+    final department = '${t['department'] ?? ''}';
+    final code = '${t['employeeCode'] ?? ''}';
+    final classes = '${t['classes'] ?? ''}';
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 20,
-            backgroundColor: avatarColor,
-            backgroundImage: avatar,
-            child: avatar == null
-                ? Text(
-                    initial,
-                    style: TextStyle(
-                      color: initialColor,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  )
-                : null,
+      padding: const EdgeInsets.only(bottom: 10),
+      child: PressableScale(
+        // The whole card opens the teacher. Previously only the name was
+        // tappable, so the avatar and department were dead zones.
+        onTap: () => _openTeacher(t),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFEDEFF5)),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withValues(alpha: 0.06),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            flex: 3,
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () => _openTeacher(t),
-                borderRadius: BorderRadius.circular(8),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        name,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF2563EB),
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${t['employeeCode'] ?? ''}',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Color(0xFF9CA3AF),
-                        ),
-                      ),
-                    ],
+          child: Row(
+            children: [
+              // Avatar with a soft accent ring — reads as a person, not a
+              // table cell.
+              Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: accent.withValues(alpha: 0.25),
+                    width: 1.5,
                   ),
                 ),
+                child: CircleAvatar(
+                  radius: 20,
+                  backgroundColor: accent.withValues(alpha: 0.12),
+                  backgroundImage: avatar,
+                  child: avatar == null
+                      ? Text(
+                          initial,
+                          style: TextStyle(
+                            color: accent,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15,
+                          ),
+                        )
+                      : null,
+                ),
               ),
-            ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Text(
-              '${t['department'] ?? ''}',
-              style: const TextStyle(
-                fontSize: 12,
-                color: Color(0xFF6B7280),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w700,
+                        color: _ink,
+                        letterSpacing: -0.2,
+                        height: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Row(
+                      children: [
+                        _metaChip(department, accent),
+                        if (classes.isNotEmpty) ...[
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              'Grade $classes',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: _ink.withValues(alpha: 0.5),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: const Color(0xFFECFDF5),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Text(
-              'Active',
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF16A34A),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    code,
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w600,
+                      color: _ink.withValues(alpha: 0.4),
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    size: 18,
+                    color: _ink.withValues(alpha: 0.3),
+                  ),
+                ],
               ),
-            ),
+            ],
           ),
-        ],
+        ),
+      ),
+    );
+  }
+
+  /// Small tinted label for a teacher's department.
+  Widget _metaChip(String text, Color accent) {
+    if (text.isEmpty) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: 10.5,
+          fontWeight: FontWeight.w700,
+          color: accent,
+        ),
       ),
     );
   }
@@ -707,10 +517,10 @@ class _AdminTeachersScreenState extends ConsumerState<AdminTeachersScreen> {
     final title = _genderFilter == 'MALE'
         ? 'No gents found'
         : _genderFilter == 'FEMALE'
-            ? 'No ladies found'
-            : filtered
-                ? 'No matching teachers'
-                : 'No teachers yet';
+        ? 'No ladies found'
+        : filtered
+        ? 'No matching teachers'
+        : 'No teachers yet';
     final subtitle = filtered
         ? 'Try adjusting your search or filters.'
         : 'Add your first teacher to get started.';
@@ -760,8 +570,10 @@ class _AdminTeachersScreenState extends ConsumerState<AdminTeachersScreen> {
                 height: 1.4,
               ),
             ),
-            const SizedBox(height: 22),
-            if (filtered)
+            // No "Add Teacher" button here — the + FAB already offers that.
+            // Clear filters stays: the FAB doesn't cover it.
+            if (filtered) ...[
+              const SizedBox(height: 22),
               OutlinedButton.icon(
                 onPressed: () {
                   setState(() {
@@ -773,28 +585,19 @@ class _AdminTeachersScreenState extends ConsumerState<AdminTeachersScreen> {
                 label: const Text('Clear filters'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.primary,
-                  side: BorderSide(color: AppColors.primary.withValues(alpha: 0.4)),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  side: BorderSide(
+                    color: AppColors.primary.withValues(alpha: 0.4),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-              )
-            else
-              ElevatedButton.icon(
-                onPressed: _openAddTeacher,
-                icon: const Icon(Icons.add_rounded, size: 20),
-                label: const Text('Add Teacher'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 13),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  textStyle: const TextStyle(
-                      fontSize: 14, fontWeight: FontWeight.w700),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
+            ],
           ],
         ),
       ),
@@ -808,7 +611,11 @@ class _AdminTeachersScreenState extends ConsumerState<AdminTeachersScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.cloud_off_rounded, size: 48, color: Color(0xFFEF4444)),
+            const Icon(
+              Icons.cloud_off_rounded,
+              size: 48,
+              color: Color(0xFFEF4444),
+            ),
             const SizedBox(height: 12),
             Text(
               _error!,

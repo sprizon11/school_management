@@ -17,7 +17,8 @@ class AdminEditStudentScreen extends ConsumerStatefulWidget {
       _AdminEditStudentScreenState();
 }
 
-class _AdminEditStudentScreenState extends ConsumerState<AdminEditStudentScreen> {
+class _AdminEditStudentScreenState
+    extends ConsumerState<AdminEditStudentScreen> {
   final _formKey = GlobalKey<FormState>();
   final _name = TextEditingController();
   final _email = TextEditingController();
@@ -44,7 +45,16 @@ class _AdminEditStudentScreenState extends ConsumerState<AdminEditStudentScreen>
   bool _initializing = true;
   String? _error;
 
-  static const _bloodGroups = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'];
+  static const _bloodGroups = [
+    'A+',
+    'A-',
+    'B+',
+    'B-',
+    'O+',
+    'O-',
+    'AB+',
+    'AB-',
+  ];
 
   @override
   void initState() {
@@ -55,10 +65,20 @@ class _AdminEditStudentScreenState extends ConsumerState<AdminEditStudentScreen>
   @override
   void dispose() {
     for (final c in [
-      _name, _email, _phone, _roll, _address,
-      _fatherName, _fatherPhone, _fatherOccupation,
-      _motherName, _motherPhone, _motherOccupation,
-      _parentAddress, _emergencyContact, _emergencyPhone,
+      _name,
+      _email,
+      _phone,
+      _roll,
+      _address,
+      _fatherName,
+      _fatherPhone,
+      _fatherOccupation,
+      _motherName,
+      _motherPhone,
+      _motherOccupation,
+      _parentAddress,
+      _emergencyContact,
+      _emergencyPhone,
     ]) {
       c.dispose();
     }
@@ -125,7 +145,8 @@ class _AdminEditStudentScreenState extends ConsumerState<AdminEditStudentScreen>
       'status': _status,
       'email': _email.text.trim(),
       'phone': _phone.text.trim(),
-      if (_roll.text.trim().isNotEmpty) 'rollNumber': int.parse(_roll.text.trim()),
+      if (_roll.text.trim().isNotEmpty)
+        'rollNumber': int.parse(_roll.text.trim()),
       if (_dob != null) 'dateOfBirth': DateFormat('yyyy-MM-dd').format(_dob!),
       'bloodGroup': _bloodGroup ?? '',
       'address': _address.text.trim(),
@@ -149,10 +170,9 @@ class _AdminEditStudentScreenState extends ConsumerState<AdminEditStudentScreen>
       _error = null;
     });
     try {
-      await ref.read(dioProvider).patch(
-            '/admin/students/${widget.studentId}',
-            data: _buildPayload(),
-          );
+      await ref
+          .read(dioProvider)
+          .patch('/admin/students/${widget.studentId}', data: _buildPayload());
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -174,9 +194,7 @@ class _AdminEditStudentScreenState extends ConsumerState<AdminEditStudentScreen>
   @override
   Widget build(BuildContext context) {
     if (_initializing) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     final classesAsync = ref.watch(adminClassesProvider);
@@ -188,7 +206,8 @@ class _AdminEditStudentScreenState extends ConsumerState<AdminEditStudentScreen>
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, __) => const Center(child: Text('Could not load classes')),
         data: (classes) {
-          final selectedClassId = _classId ??
+          final selectedClassId =
+              _classId ??
               (classes.isNotEmpty ? '${classes.first['id']}' : null);
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
@@ -211,14 +230,18 @@ class _AdminEditStudentScreenState extends ConsumerState<AdminEditStudentScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const AdminSectionTitle('Student Details', icon: Icons.school_rounded),
+                        const AdminSectionTitle(
+                          'Student Details',
+                          icon: Icons.school_rounded,
+                        ),
                         AdminFormField(
                           label: 'Full Name *',
                           controller: _name,
                           hint: 'Enter student full name',
                           icon: Icons.person_outline_rounded,
-                          validator: (v) =>
-                              v == null || v.trim().length < 2 ? 'Required' : null,
+                          validator: (v) => v == null || v.trim().length < 2
+                              ? 'Required'
+                              : null,
                         ),
                         const SizedBox(height: 14),
                         Row(
@@ -228,10 +251,17 @@ class _AdminEditStudentScreenState extends ConsumerState<AdminEditStudentScreen>
                                 label: 'Gender *',
                                 value: _gender,
                                 items: const [
-                                  DropdownMenuItem(value: 'MALE', child: Text('Male')),
-                                  DropdownMenuItem(value: 'FEMALE', child: Text('Female')),
+                                  DropdownMenuItem(
+                                    value: 'MALE',
+                                    child: Text('Male'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'FEMALE',
+                                    child: Text('Female'),
+                                  ),
                                 ],
-                                onChanged: (v) => setState(() => _gender = v ?? 'MALE'),
+                                onChanged: (v) =>
+                                    setState(() => _gender = v ?? 'MALE'),
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -240,10 +270,17 @@ class _AdminEditStudentScreenState extends ConsumerState<AdminEditStudentScreen>
                                 label: 'Status',
                                 value: _status,
                                 items: const [
-                                  DropdownMenuItem(value: 'ACTIVE', child: Text('Active')),
-                                  DropdownMenuItem(value: 'INACTIVE', child: Text('Inactive')),
+                                  DropdownMenuItem(
+                                    value: 'ACTIVE',
+                                    child: Text('Active'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'INACTIVE',
+                                    child: Text('Inactive'),
+                                  ),
                                 ],
-                                onChanged: (v) => setState(() => _status = v ?? 'ACTIVE'),
+                                onChanged: (v) =>
+                                    setState(() => _status = v ?? 'ACTIVE'),
                               ),
                             ),
                           ],
@@ -254,7 +291,10 @@ class _AdminEditStudentScreenState extends ConsumerState<AdminEditStudentScreen>
                           value: _bloodGroup,
                           hint: 'Select',
                           items: _bloodGroups
-                              .map((b) => DropdownMenuItem(value: b, child: Text(b)))
+                              .map(
+                                (b) =>
+                                    DropdownMenuItem(value: b, child: Text(b)),
+                              )
                               .toList(),
                           onChanged: (v) => setState(() => _bloodGroup = v),
                         ),
@@ -289,7 +329,9 @@ class _AdminEditStudentScreenState extends ConsumerState<AdminEditStudentScreen>
                               .map(
                                 (c) => DropdownMenuItem(
                                   value: '${c['id']}',
-                                  child: Text('${c['name']} (${c['grade']}-${c['section']})'),
+                                  child: Text(
+                                    '${c['name']} (${c['grade']}-${c['section']})',
+                                  ),
                                 ),
                               )
                               .toList(),
@@ -310,12 +352,28 @@ class _AdminEditStudentScreenState extends ConsumerState<AdminEditStudentScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const AdminSectionTitle('Father Details', icon: Icons.man_rounded),
-                        AdminFormField(label: 'Father Name', controller: _fatherName, icon: Icons.person_outline),
+                        const AdminSectionTitle(
+                          'Father Details',
+                          icon: Icons.man_rounded,
+                        ),
+                        AdminFormField(
+                          label: 'Father Name',
+                          controller: _fatherName,
+                          icon: Icons.person_outline,
+                        ),
                         const SizedBox(height: 14),
-                        AdminFormField(label: 'Father Phone', controller: _fatherPhone, icon: Icons.phone_outlined, keyboardType: TextInputType.phone),
+                        AdminFormField(
+                          label: 'Father Phone',
+                          controller: _fatherPhone,
+                          icon: Icons.phone_outlined,
+                          keyboardType: TextInputType.phone,
+                        ),
                         const SizedBox(height: 14),
-                        AdminFormField(label: 'Father Occupation', controller: _fatherOccupation, icon: Icons.work_outline_rounded),
+                        AdminFormField(
+                          label: 'Father Occupation',
+                          controller: _fatherOccupation,
+                          icon: Icons.work_outline_rounded,
+                        ),
                       ],
                     ),
                   ),
@@ -324,12 +382,28 @@ class _AdminEditStudentScreenState extends ConsumerState<AdminEditStudentScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const AdminSectionTitle('Mother Details', icon: Icons.woman_rounded),
-                        AdminFormField(label: 'Mother Name', controller: _motherName, icon: Icons.person_outline),
+                        const AdminSectionTitle(
+                          'Mother Details',
+                          icon: Icons.woman_rounded,
+                        ),
+                        AdminFormField(
+                          label: 'Mother Name',
+                          controller: _motherName,
+                          icon: Icons.person_outline,
+                        ),
                         const SizedBox(height: 14),
-                        AdminFormField(label: 'Mother Phone', controller: _motherPhone, icon: Icons.phone_outlined, keyboardType: TextInputType.phone),
+                        AdminFormField(
+                          label: 'Mother Phone',
+                          controller: _motherPhone,
+                          icon: Icons.phone_outlined,
+                          keyboardType: TextInputType.phone,
+                        ),
                         const SizedBox(height: 14),
-                        AdminFormField(label: 'Mother Occupation', controller: _motherOccupation, icon: Icons.work_outline_rounded),
+                        AdminFormField(
+                          label: 'Mother Occupation',
+                          controller: _motherOccupation,
+                          icon: Icons.work_outline_rounded,
+                        ),
                       ],
                     ),
                   ),
@@ -338,18 +412,38 @@ class _AdminEditStudentScreenState extends ConsumerState<AdminEditStudentScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const AdminSectionTitle('Guardian & Emergency', icon: Icons.family_restroom_rounded),
-                        AdminFormField(label: 'Parent / Guardian Address', controller: _parentAddress, icon: Icons.location_on_outlined, maxLines: 2),
+                        const AdminSectionTitle(
+                          'Guardian & Emergency',
+                          icon: Icons.family_restroom_rounded,
+                        ),
+                        AdminFormField(
+                          label: 'Parent / Guardian Address',
+                          controller: _parentAddress,
+                          icon: Icons.location_on_outlined,
+                          maxLines: 2,
+                        ),
                         const SizedBox(height: 14),
-                        AdminFormField(label: 'Emergency Contact Name', controller: _emergencyContact, icon: Icons.contact_emergency_outlined),
+                        AdminFormField(
+                          label: 'Emergency Contact Name',
+                          controller: _emergencyContact,
+                          icon: Icons.contact_emergency_outlined,
+                        ),
                         const SizedBox(height: 14),
-                        AdminFormField(label: 'Emergency Phone', controller: _emergencyPhone, icon: Icons.phone_in_talk_outlined, keyboardType: TextInputType.phone),
+                        AdminFormField(
+                          label: 'Emergency Phone',
+                          controller: _emergencyPhone,
+                          icon: Icons.phone_in_talk_outlined,
+                          keyboardType: TextInputType.phone,
+                        ),
                       ],
                     ),
                   ),
                   if (_error != null) ...[
                     const SizedBox(height: 12),
-                    Text(_error!, style: const TextStyle(color: Colors.red, fontSize: 13)),
+                    Text(
+                      _error!,
+                      style: const TextStyle(color: Colors.red, fontSize: 13),
+                    ),
                   ],
                   const SizedBox(height: 20),
                   AdminPrimaryButton(
@@ -372,7 +466,14 @@ class _AdminEditStudentScreenState extends ConsumerState<AdminEditStudentScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Date of Birth', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF374151))),
+        const Text(
+          'Date of Birth',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF374151),
+          ),
+        ),
         const SizedBox(height: 8),
         InkWell(
           onTap: _pickDob,
@@ -387,11 +488,22 @@ class _AdminEditStudentScreenState extends ConsumerState<AdminEditStudentScreen>
             ),
             child: Row(
               children: [
-                const Icon(Icons.cake_outlined, color: Color(0xFF2D68FF), size: 20),
+                const Icon(
+                  Icons.cake_outlined,
+                  color: Color(0xFF2D68FF),
+                  size: 20,
+                ),
                 const SizedBox(width: 10),
                 Text(
-                  _dob == null ? 'Select date of birth' : DateFormat('dd MMM yyyy').format(_dob!),
-                  style: TextStyle(fontSize: 14, color: _dob == null ? const Color(0xFF9CA3AF) : const Color(0xFF111827)),
+                  _dob == null
+                      ? 'Select date of birth'
+                      : DateFormat('dd MMM yyyy').format(_dob!),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: _dob == null
+                        ? const Color(0xFF9CA3AF)
+                        : const Color(0xFF111827),
+                  ),
                 ),
               ],
             ),
@@ -411,7 +523,14 @@ class _AdminEditStudentScreenState extends ConsumerState<AdminEditStudentScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF374151))),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF374151),
+          ),
+        ),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
           value: value,
@@ -421,9 +540,18 @@ class _AdminEditStudentScreenState extends ConsumerState<AdminEditStudentScreen>
           decoration: InputDecoration(
             filled: true,
             fillColor: const Color(0xFFF8FAFC),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 4,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+            ),
           ),
         ),
       ],

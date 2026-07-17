@@ -87,8 +87,8 @@ class _AdminAddClassScreenState extends ConsumerState<AdminAddClassScreen> {
     });
     try {
       final section = _section.text.trim().toUpperCase();
-      final teacherId = _teacherId != null &&
-              _teachers.any((t) => t['id'] == _teacherId)
+      final teacherId =
+          _teacherId != null && _teachers.any((t) => t['id'] == _teacherId)
           ? _teacherId
           : null;
 
@@ -97,8 +97,8 @@ class _AdminAddClassScreenState extends ConsumerState<AdminAddClassScreen> {
         'section': section,
         'name': _name.text.trim().isEmpty
             ? (_isSenior
-                ? 'Class $_grade-$section · $_streamGroup'
-                : 'Class $_grade-$section')
+                  ? 'Class $_grade-$section · $_streamGroup'
+                  : 'Class $_grade-$section')
             : _name.text.trim(),
         if (!_isSenior) 'category': _category.text.trim(),
         if (_isSenior) ...{
@@ -129,7 +129,8 @@ class _AdminAddClassScreenState extends ConsumerState<AdminAddClassScreen> {
           ? msg.map((m) => '$m').join('\n')
           : msg?.toString();
       setState(() {
-        _error = text ??
+        _error =
+            text ??
             (e.response?.statusCode == 500
                 ? 'Server error — check class teacher and try again'
                 : 'Failed to create class');
@@ -194,26 +195,20 @@ class _AdminAddClassScreenState extends ConsumerState<AdminAddClassScreen> {
                         hint: 'Select group — Accounts, Business Maths…',
                         items: seniorStreamGroups
                             .map(
-                              (g) => DropdownMenuItem(
-                                value: g,
-                                child: Text(g),
-                              ),
+                              (g) => DropdownMenuItem(value: g, child: Text(g)),
                             )
                             .toList(),
                         onChanged: (v) => setState(() => _streamGroup = v),
-                        validator: (v) =>
-                            _isSenior && (v == null || v.isEmpty)
-                                ? 'Select a group'
-                                : null,
+                        validator: (v) => _isSenior && (v == null || v.isEmpty)
+                            ? 'Select a group'
+                            : null,
                       ),
                     ],
                     const SizedBox(height: 16),
                     AdminFormField(
                       label: 'Class Name',
                       controller: _name,
-                      hint: _isSenior
-                          ? 'Class 11-A · Accounts'
-                          : 'Class 10-A',
+                      hint: _isSenior ? 'Class 11-A · Accounts' : 'Class 10-A',
                       icon: Icons.class_rounded,
                     ),
                     if (!_isSenior) ...[
@@ -282,7 +277,10 @@ class _AdminAddClassScreenState extends ConsumerState<AdminAddClassScreen> {
               ),
               if (_error != null) ...[
                 const SizedBox(height: 12),
-                Text(_error!, style: const TextStyle(color: Colors.red, fontSize: 13)),
+                Text(
+                  _error!,
+                  style: const TextStyle(color: Colors.red, fontSize: 13),
+                ),
               ],
               const SizedBox(height: 20),
               AdminPrimaryButton(

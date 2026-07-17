@@ -8,3 +8,8 @@ mobile/build/
 backend/node_modules/
 backend/dist/
 *.tsbuildinfo
+
+# Local Claude settings (machine-specific)
+.claude/settings.local.json
+__pycache__/
+*.pyc

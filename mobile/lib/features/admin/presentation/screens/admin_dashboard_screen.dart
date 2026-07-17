@@ -6,13 +6,15 @@ import '../../../../core/network/api_client.dart';
 import '../../../../core/providers/auth_provider.dart';
 import '../../../../core/providers/school_provider.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/motion.dart';
 import '../../../../core/widgets/skeleton.dart';
 import 'admin_attendance_screen.dart';
 import 'admin_examinations_screen.dart';
 import 'admin_fee_collection_screen.dart';
+import 'admin_profile_screen.dart';
 import 'admin_reports_screen.dart';
 import 'admin_announcements_screen.dart';
-import '../widgets/admin_sidebar.dart';
+import '../widgets/admin_screen_header.dart';
 
 class AdminDashboardScreen extends ConsumerStatefulWidget {
   const AdminDashboardScreen({super.key, this.onTabSelect});
@@ -30,7 +32,6 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
   Map<String, dynamic>? _summary;
   Map<String, dynamic>? _feeChart;
-  final _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
   void initState() {
@@ -38,21 +39,24 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     _load();
   }
 
-  void _openSidebar() => _scaffoldKey.currentState?.openDrawer();
+  void _openSidebar() => Scaffold.of(context).openDrawer();
 
   Map<String, dynamic> _emptySummary() => {
-        'students': {'count': 0, 'boys': 0, 'girls': 0},
-        'teachers': {'count': 0, 'male': 0, 'female': 0},
-        'classes': {'count': 0, 'students': 0},
-        'feeCollection': {'amount': 0, 'total': 0},
-        'attendancePercent': 0,
-        'announcements': <dynamic>[],
-        'activities': <dynamic>[],
-        'recentTransactions': <dynamic>[],
-        'topStudents': <dynamic>[],
-      };
+    'students': {'count': 0, 'boys': 0, 'girls': 0},
+    'teachers': {'count': 0, 'male': 0, 'female': 0},
+    'classes': {'count': 0, 'students': 0},
+    'feeCollection': {'amount': 0, 'total': 0},
+    'attendancePercent': 0,
+    'announcements': <dynamic>[],
+    'activities': <dynamic>[],
+    'recentTransactions': <dynamic>[],
+    'topStudents': <dynamic>[],
+  };
 
-  Map<String, dynamic> _emptyFeeChart() => {'total': 0, 'segments': <dynamic>[]};
+  Map<String, dynamic> _emptyFeeChart() => {
+    'total': 0,
+    'segments': <dynamic>[],
+  };
 
   Future<void> _load() async {
     final dio = ref.read(dioProvider);
@@ -85,205 +89,185 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     final fullName = ref.watch(
       authProvider.select((a) => a.user?.fullName ?? 'Admin'),
     );
-    final schoolName =
-        ref.watch(authProvider.select((a) => a.user?.schoolName));
-    final role = ref.watch(authProvider.select((a) => a.user?.role ?? 'ADMIN'));
+    final schoolName = ref.watch(
+      authProvider.select((a) => a.user?.schoolName),
+    );
     final selectedSchool = ref.watch(selectedSchoolProvider);
     final displaySchool = (schoolName != null && schoolName.isNotEmpty)
         ? schoolName
         : (selectedSchool?.name ?? 'Your School');
     final bottomInset = MediaQuery.paddingOf(context).bottom + 96;
 
-    return Scaffold(
-      key: _scaffoldKey,
-      backgroundColor: const Color(0xFFF5F5FB),
-      drawer: AdminSidebar(onTabSelect: widget.onTabSelect),
-      drawerEnableOpenDragGesture: false,
-      body: RefreshIndicator(
-        color: AppColors.primary,
-        onRefresh: _load,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.only(bottom: bottomInset),
-          children: [
-            _header(fullName, role, displaySchool),
-            const SizedBox(height: 4),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: _hPad),
-              child: _overviewCard(),
+    return ColoredBox(
+      color: AdminScreenBody.pageBackground,
+      child: Column(
+        children: [
+          _header(fullName, displaySchool),
+          Expanded(
+            child: AdminScreenBody(
+              child: RefreshIndicator(
+                color: AppColors.primary,
+                onRefresh: _load,
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: EdgeInsets.only(top: 8, bottom: bottomInset),
+                  children: [
+                    // Sections settle in top-to-bottom, 70ms apart.
+                    EntranceFade(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: _hPad),
+                        child: _overviewCard(),
+                      ),
+                    ),
+                    const SizedBox(height: 22),
+                    EntranceFade(
+                      delay: const Duration(milliseconds: 70),
+                      child: Column(
+                        children: [
+                          _sectionHeader(
+                            'Quick Access',
+                            trailing: 'View All',
+                            onTap: () => widget.onTabSelect?.call(4),
+                          ),
+                          const SizedBox(height: 12),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: _hPad,
+                            ),
+                            child: _quickAccessGrid(),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 22),
+                    EntranceFade(
+                      delay: const Duration(milliseconds: 140),
+                      child: Column(
+                        children: [
+                          _sectionHeader(
+                            'Recent Activity',
+                            trailing: 'View All',
+                            onTap: () => openSmoothPage(
+                              context,
+                              const AdminReportsScreen(),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: _hPad,
+                            ),
+                            child: _recentActivityCard(),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 22),
+                    EntranceFade(
+                      delay: const Duration(milliseconds: 210),
+                      child: Column(
+                        children: [
+                          _sectionHeader(
+                            'Fee Collection Overview',
+                            trailingPill: 'This Month',
+                          ),
+                          const SizedBox(height: 12),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: _hPad,
+                            ),
+                            child: _feeCollectionCard(),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                ),
+              ),
             ),
-            const SizedBox(height: 24),
-            _sectionHeader(
-              'Quick Access',
-              trailing: 'View All',
-              onTap: () => widget.onTabSelect?.call(4),
-            ),
-            const SizedBox(height: 12),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: _hPad),
-              child: _quickAccessGrid(),
-            ),
-            const SizedBox(height: 24),
-            _sectionHeader(
-              'Recent Activity',
-              trailing: 'View All',
-              onTap: () =>
-                  openSmoothPage(context, const AdminReportsScreen()),
-            ),
-            const SizedBox(height: 12),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: _hPad),
-              child: _recentActivityCard(),
-            ),
-            const SizedBox(height: 24),
-            _sectionHeader('Fee Collection Overview', trailingPill: 'This Month'),
-            const SizedBox(height: 12),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: _hPad),
-              child: _feeCollectionCard(),
-            ),
-            const SizedBox(height: 12),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
   // ---------------------------------------------------------------------
-  // Header — logo, greeting, notification bell
+  // Header — menu + bell/avatar, greeting below
   // ---------------------------------------------------------------------
-  Widget _header(String fullName, String role, String school) {
-    final top = MediaQuery.paddingOf(context).top;
+  Widget _header(String fullName, String school) {
     final announcements =
         (_summary?['announcements'] as List<dynamic>? ?? []).length;
 
-    return Padding(
-      padding: EdgeInsets.fromLTRB(_hPad, top + 12, _hPad, 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          GestureDetector(
-            onTap: _openSidebar,
-            child: Container(
-              width: 54,
-              height: 54,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF7367F0), Color(0xFF5A4FD4)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF6355E0).withValues(alpha: 0.35),
-                    blurRadius: 14,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              alignment: Alignment.center,
-              child: const Icon(Icons.account_balance_rounded,
-                  color: Colors.white, size: 26),
-            ),
-          ),
-          const SizedBox(width: 13),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  '${_greeting()},',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: _ink.withValues(alpha: 0.5),
-                    height: 1.1,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '$fullName 👋',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: _ink,
-                    height: 1.1,
-                    letterSpacing: -0.4,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  '${_roleLabel(role)} • $school',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w500,
-                    color: _ink.withValues(alpha: 0.5),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          _notificationBell(announcements),
-        ],
+    return AdminScreenHeader(
+      eyebrow: '${_greeting()},',
+      title: '$fullName 👋',
+      // Sits beside three controls, so it starts smaller than a screen name
+      // and scales down further if the name is long.
+      titleSize: 20,
+      subtitle: school,
+      // The school name is verified by virtue of being the signed-in tenant.
+      subtitleTrailing: const Icon(
+        Icons.verified_rounded,
+        size: 15,
+        color: AppColors.primary,
       ),
+      leading: AdminHeaderIconButton(
+        icon: Icons.segment_rounded,
+        plain: true,
+        onTap: _openSidebar,
+      ),
+      actions: [
+        AdminHeaderIconButton(
+          icon: Icons.notifications_none_rounded,
+          badgeCount: announcements,
+          onTap: () =>
+              openSmoothPage(context, const AdminAnnouncementsScreen()),
+        ),
+        _avatarButton(fullName),
+      ],
     );
   }
 
-  Widget _notificationBell(int count) {
-    return GestureDetector(
-      onTap: () => openSmoothPage(context, const AdminAnnouncementsScreen()),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Container(
-            height: 50,
-            width: 50,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF6355E0).withValues(alpha: 0.12),
-                  blurRadius: 14,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-            ),
-            child: const Icon(Icons.notifications_none_rounded,
-                color: _ink, size: 24),
+  /// Profile avatar in the header — initials until an avatar URL exists.
+  Widget _avatarButton(String fullName) {
+    final initials = fullName
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((p) => p.isNotEmpty)
+        .take(2)
+        .map((p) => p[0].toUpperCase())
+        .join();
+
+    return PressableScale(
+      onTap: () => openSmoothPage(context, const AdminProfileScreen()),
+      child: Container(
+        height: 44,
+        width: 44,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(22),
+          gradient: const LinearGradient(
+            colors: [AppColors.primary, AppColors.primaryDark],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-          if (count > 0)
-            Positioned(
-              top: -4,
-              right: -4,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                constraints: const BoxConstraints(minWidth: 20),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFF3B5C),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFF5F5FB), width: 2),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  count > 9 ? '9+' : '$count',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    height: 1.1,
-                  ),
-                ),
-              ),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.28),
+              blurRadius: 12,
+              offset: const Offset(0, 5),
             ),
-        ],
+          ],
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          initials.isEmpty ? 'A' : initials,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
       ),
     );
   }
@@ -295,139 +279,271 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     return 'Good Evening';
   }
 
-  String _roleLabel(String role) {
-    switch (role.toUpperCase()) {
-      case 'ADMIN':
-        return 'Administrator';
-      case 'TEACHER':
-        return 'Teacher';
-      case 'PARENT':
-        return 'Parent';
-      default:
-        return role;
-    }
-  }
-
   // ---------------------------------------------------------------------
-  // School Overview — purple gradient stat card
+  // School Overview — stats live inside the card
   // ---------------------------------------------------------------------
   Widget _overviewCard() {
     if (_summary == null) {
-      return const SkeletonBox(height: 150, borderRadius: 22);
+      return const SkeletonBox(height: 176, borderRadius: 26);
     }
 
-    final stats = <({IconData icon, String value, String label, String? sub})>[
-      (
-        icon: Icons.groups_rounded,
-        value: _formatNumber(_summary?['students']?['count']),
-        label: 'Students',
-        sub: null,
-      ),
-      (
-        icon: Icons.person_rounded,
-        value: _formatNumber(_summary?['teachers']?['count']),
-        label: 'Teachers',
-        sub: null,
-      ),
-      (
-        icon: Icons.school_rounded,
-        value: _formatNumber(_summary?['classes']?['count']),
-        label: 'Classes',
-        sub: null,
-      ),
-      (
-        icon: Icons.fact_check_rounded,
-        value: '${_toInt(_summary?['attendancePercent'])}%',
-        label: 'Attendance',
-        sub: 'Today',
-      ),
-    ];
+    // Uniform shape: icon + value + label. The original card gave Attendance
+    // an extra "Today" line, which made its column taller and knocked the
+    // other three off a shared baseline.
+    final stats =
+        <
+          ({
+            IconData icon,
+            num value,
+            String suffix,
+            String label,
+            VoidCallback? onTap,
+          })
+        >[
+          (
+            icon: Icons.groups_rounded,
+            value: _toInt(_summary?['students']?['count']),
+            suffix: '',
+            label: 'Students',
+            onTap: () => widget.onTabSelect?.call(1),
+          ),
+          (
+            icon: Icons.person_rounded,
+            value: _toInt(_summary?['teachers']?['count']),
+            suffix: '',
+            label: 'Teachers',
+            onTap: () => widget.onTabSelect?.call(2),
+          ),
+          (
+            icon: Icons.school_rounded,
+            value: _toInt(_summary?['classes']?['count']),
+            suffix: '',
+            label: 'Classes',
+            onTap: () => widget.onTabSelect?.call(3),
+          ),
+          (
+            icon: Icons.fact_check_rounded,
+            value: _toInt(_summary?['attendancePercent']),
+            suffix: '%',
+            label: 'Attendance',
+            onTap: () => openSmoothPage(context, const AdminAttendanceScreen()),
+          ),
+        ];
 
-    return Container(
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+    return DecoratedBox(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF7C6FF2), Color(0xFF6355E0), Color(0xFF5344CC)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        borderRadius: BorderRadius.circular(26),
         boxShadow: [
+          // Two shadows: a tight contact shadow plus a wide coloured bloom.
+          // One flat shadow is what makes a card look pasted on.
           BoxShadow(
-            color: const Color(0xFF6355E0).withValues(alpha: 0.4),
-            blurRadius: 26,
-            offset: const Offset(0, 14),
+            color: AppColors.teacherPrimary.withValues(alpha: 0.28),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+          BoxShadow(
+            color: AppColors.teacherPrimary.withValues(alpha: 0.34),
+            blurRadius: 30,
+            spreadRadius: -4,
+            offset: const Offset(0, 16),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(26),
+        child: ColoredBox(
+          // Indigo, flat: AppColors.teacherPrimary. Depth comes from the
+          // radial blooms and catch-light below rather than a second hue.
+          color: AppColors.teacherPrimary,
+          child: Stack(
             children: [
-              Expanded(
+              // Light source: a soft bloom off the top-right, falling away
+              // rather than the hard-edged circles this had before.
+              Positioned(
+                right: -70,
+                top: -110,
+                child: Container(
+                  width: 240,
+                  height: 240,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        Colors.white.withValues(alpha: 0.22),
+                        Colors.white.withValues(alpha: 0.0),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                left: -50,
+                bottom: -90,
+                child: Container(
+                  width: 180,
+                  height: 180,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        Colors.white.withValues(alpha: 0.10),
+                        Colors.white.withValues(alpha: 0.0),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              // Catch-light along the top edge — the detail that makes a
+              // surface read as glass rather than paint.
+              Positioned(
+                left: 0,
+                right: 0,
+                top: 0,
+                child: Container(
+                  height: 1.2,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.white.withValues(alpha: 0.0),
+                        Colors.white.withValues(alpha: 0.5),
+                        Colors.white.withValues(alpha: 0.0),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(18, 17, 18, 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'School Overview',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.3,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'School Overview',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: -0.2,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              // Solid white, not translucent: on indigo even
+                              // 92% white measures 4.23:1 and fails AA at this
+                              // size. Weight and size carry the hierarchy.
+                              const Text(
+                                "Today's at-a-glance summary",
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w400,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        _todayPill(),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    // Frosted inner panel: gives the stats a floor to sit on
+                    // rather than floating loose in the card.
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 13,
+                      ),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.white.withValues(alpha: 0.14),
+                            Colors.white.withValues(alpha: 0.07),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.16),
+                        ),
+                      ),
+                      // IntrinsicHeight bounds the row so the dividers can span
+                      // it; `stretch` against a ListView's unbounded height
+                      // throws and renders blank in release.
+                      child: IntrinsicHeight(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            for (var i = 0; i < stats.length; i++) ...[
+                              if (i > 0)
+                                Container(
+                                  width: 1,
+                                  margin: const EdgeInsets.symmetric(
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    // Fades at both ends so it reads as a
+                                    // seam, not a hard rule.
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                      colors: [
+                                        Colors.white.withValues(alpha: 0.0),
+                                        Colors.white.withValues(alpha: 0.22),
+                                        Colors.white.withValues(alpha: 0.0),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              Expanded(child: _overviewStat(stats[i])),
+                            ],
+                          ],
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 3),
-                    Text(
-                      "Today's at-a-glance summary",
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.78),
-                        fontSize: 12.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  children: [
-                    const Text(
-                      'Today',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(width: 2),
-                    Icon(Icons.keyboard_arrow_down_rounded,
-                        size: 16, color: Colors.white.withValues(alpha: 0.9)),
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              for (var i = 0; i < stats.length; i++) ...[
-                if (i > 0)
-                  Container(
-                    width: 1,
-                    height: 58,
-                    color: Colors.white.withValues(alpha: 0.16),
-                  ),
-                Expanded(child: _overviewStat(stats[i])),
-              ],
-            ],
+        ),
+      ),
+    );
+  }
+
+  Widget _todayPill() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(11, 6, 8, 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            'Today',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.1,
+            ),
+          ),
+          const SizedBox(width: 1),
+          Icon(
+            Icons.keyboard_arrow_down_rounded,
+            size: 15,
+            // Sits on the pill's own light overlay, so it needs more than the
+            // 0.75 that would have been fine against bare indigo.
+            color: Colors.white.withValues(alpha: 0.9),
           ),
         ],
       ),
@@ -435,54 +551,59 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   }
 
   Widget _overviewStat(
-      ({IconData icon, String value, String label, String? sub}) s) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.18),
-            borderRadius: BorderRadius.circular(13),
-          ),
-          child: Icon(s.icon, color: Colors.white, size: 21),
-        ),
-        const SizedBox(height: 9),
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Text(
-            s.value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              height: 1,
-              letterSpacing: -0.5,
+    ({
+      IconData icon,
+      num value,
+      String suffix,
+      String label,
+      VoidCallback? onTap,
+    })
+    s,
+  ) {
+    return PressableScale(
+      onTap: s.onTap,
+      pressedScale: 0.93,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Bare icon: inside the frosted panel a filled chip per stat reads
+          // as four competing boxes. The number is the thing to look at.
+          // 90% clears the 3:1 minimum for non-text on indigo.
+          Icon(s.icon, color: Colors.white.withValues(alpha: 0.9), size: 16),
+          const SizedBox(height: 9),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: CountUpText(
+              value: s.value,
+              suffix: s.suffix,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 25,
+                fontWeight: FontWeight.w800,
+                height: 1,
+                letterSpacing: -0.9,
+              ),
             ),
           ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          s.label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.85),
-            fontSize: 10.5,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        if (s.sub != null)
-          Text(
-            s.sub!,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.6),
-              fontSize: 9,
-              fontWeight: FontWeight.w500,
+          const SizedBox(height: 5),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              s.label,
+              maxLines: 1,
+              // Solid white for AA at 10px on indigo; the light weight and
+              // small size keep it subordinate to the number.
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.w400,
+                height: 1.1,
+                letterSpacing: 0.2,
+              ),
             ),
           ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -524,8 +645,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     ),
                   ),
                   const SizedBox(width: 2),
-                  Icon(Icons.chevron_right_rounded,
-                      size: 18, color: _ink.withValues(alpha: 0.5)),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    size: 18,
+                    color: _ink.withValues(alpha: 0.5),
+                  ),
                 ],
               ),
             ),
@@ -541,8 +665,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   ),
                 ),
                 const SizedBox(width: 2),
-                Icon(Icons.keyboard_arrow_down_rounded,
-                    size: 18, color: _ink.withValues(alpha: 0.5)),
+                Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  size: 18,
+                  color: _ink.withValues(alpha: 0.5),
+                ),
               ],
             ),
         ],
@@ -554,60 +681,60 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   // Quick Access grid — 4×2
   // ---------------------------------------------------------------------
   Widget _quickAccessGrid() {
-    final items = <({IconData icon, String label, Color color, VoidCallback onTap})>[
-      (
-        icon: Icons.groups_rounded,
-        label: 'Students',
-        color: const Color(0xFF6366F1),
-        onTap: () => widget.onTabSelect?.call(1),
-      ),
-      (
-        icon: Icons.person_rounded,
-        label: 'Teachers',
-        color: const Color(0xFF22C55E),
-        onTap: () => widget.onTabSelect?.call(2),
-      ),
-      (
-        icon: Icons.menu_book_rounded,
-        label: 'Classes',
-        color: const Color(0xFF3B82F6),
-        onTap: () => widget.onTabSelect?.call(3),
-      ),
-      (
-        icon: Icons.fact_check_rounded,
-        label: 'Attendance',
-        color: const Color(0xFFF59E0B),
-        onTap: () =>
-            openSmoothPage(context, const AdminAttendanceScreen()),
-      ),
-      (
-        icon: Icons.currency_rupee_rounded,
-        label: 'Fees',
-        color: const Color(0xFF22C55E),
-        onTap: () =>
-            openSmoothPage(context, const AdminFeeCollectionScreen()),
-      ),
-      (
-        icon: Icons.description_rounded,
-        label: 'Exams & Marks',
-        color: const Color(0xFFEF4444),
-        onTap: () =>
-            openSmoothPage(context, const AdminExaminationsScreen()),
-      ),
-      (
-        icon: Icons.campaign_rounded,
-        label: 'Announcements',
-        color: const Color(0xFF8B5CF6),
-        onTap: () =>
-            openSmoothPage(context, const AdminAnnouncementsScreen()),
-      ),
-      (
-        icon: Icons.bar_chart_rounded,
-        label: 'Reports',
-        color: const Color(0xFF3B82F6),
-        onTap: () => openSmoothPage(context, const AdminReportsScreen()),
-      ),
-    ];
+    final items =
+        <({IconData icon, String label, Color color, VoidCallback onTap})>[
+          (
+            icon: Icons.groups_rounded,
+            label: 'Students',
+            color: const Color(0xFF6366F1),
+            onTap: () => widget.onTabSelect?.call(1),
+          ),
+          (
+            icon: Icons.person_rounded,
+            label: 'Teachers',
+            color: const Color(0xFF22C55E),
+            onTap: () => widget.onTabSelect?.call(2),
+          ),
+          (
+            icon: Icons.menu_book_rounded,
+            label: 'Classes',
+            color: const Color(0xFF3B82F6),
+            onTap: () => widget.onTabSelect?.call(3),
+          ),
+          (
+            icon: Icons.fact_check_rounded,
+            label: 'Attendance',
+            color: const Color(0xFFF59E0B),
+            onTap: () => openSmoothPage(context, const AdminAttendanceScreen()),
+          ),
+          (
+            icon: Icons.currency_rupee_rounded,
+            label: 'Fees',
+            color: const Color(0xFF22C55E),
+            onTap: () =>
+                openSmoothPage(context, const AdminFeeCollectionScreen()),
+          ),
+          (
+            icon: Icons.description_rounded,
+            label: 'Exams & Marks',
+            color: const Color(0xFFEF4444),
+            onTap: () =>
+                openSmoothPage(context, const AdminExaminationsScreen()),
+          ),
+          (
+            icon: Icons.campaign_rounded,
+            label: 'Announcements',
+            color: const Color(0xFF8B5CF6),
+            onTap: () =>
+                openSmoothPage(context, const AdminAnnouncementsScreen()),
+          ),
+          (
+            icon: Icons.bar_chart_rounded,
+            label: 'Reports',
+            color: const Color(0xFF3B82F6),
+            onTap: () => openSmoothPage(context, const AdminReportsScreen()),
+          ),
+        ];
 
     return GridView.count(
       crossAxisCount: 4,
@@ -617,61 +744,63 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       crossAxisSpacing: 11,
       mainAxisSpacing: 11,
       childAspectRatio: 0.82,
-      children: [
-        for (final it in items) _quickAccessCard(it),
-      ],
+      children: [for (final it in items) _quickAccessCard(it)],
     );
   }
 
   Widget _quickAccessCard(
-      ({IconData icon, String label, Color color, VoidCallback onTap}) it) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(18),
-      child: InkWell(
-        onTap: it.onTap,
+    ({IconData icon, String label, Color color, VoidCallback onTap}) it,
+  ) {
+    return PressableScale(
+      onTap: it.onTap,
+      child: Material(
+        color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        splashColor: it.color.withValues(alpha: 0.1),
-        child: Ink(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF6355E0).withValues(alpha: 0.06),
-                blurRadius: 14,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: it.color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(13),
+        child: InkWell(
+          onTap: it.onTap,
+          borderRadius: BorderRadius.circular(18),
+          splashColor: it.color.withValues(alpha: 0.1),
+          child: Ink(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.06),
+                  blurRadius: 14,
+                  offset: const Offset(0, 6),
                 ),
-                child: Icon(it.icon, color: it.color, size: 21),
-              ),
-              const SizedBox(height: 8),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Text(
-                  it.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF475569),
+              ],
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: it.color.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(13),
+                  ),
+                  child: Icon(it.icon, color: it.color, size: 21),
+                ),
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Text(
+                    it.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF475569),
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -701,7 +830,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           : Column(
               children: [
                 for (var i = 0; i < show.length; i++) ...[
-                  _activityRow(show[i] as Map<String, dynamic>),
+                  EntranceFadeItem(
+                    index: i,
+                    child: _activityRow(show[i] as Map<String, dynamic>),
+                  ),
                   if (i < show.length - 1)
                     const Divider(
                       height: 1,
@@ -772,8 +904,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             ),
           ),
           const SizedBox(width: 2),
-          const Icon(Icons.chevron_right_rounded,
-              size: 18, color: Color(0xFFC2C8D4)),
+          const Icon(
+            Icons.chevron_right_rounded,
+            size: 18,
+            color: Color(0xFFC2C8D4),
+          ),
         ],
       ),
     );
@@ -851,10 +986,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     );
   }
 
-  Widget _feeStat(String label, String amount, String sub, Color color,
-      {bool alignEnd = false}) {
-    final align =
-        alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start;
+  Widget _feeStat(
+    String label,
+    String amount,
+    String sub,
+    Color color, {
+    bool alignEnd = false,
+  }) {
+    final align = alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start;
     final textAlign = alignEnd ? TextAlign.right : TextAlign.left;
     return Column(
       crossAxisAlignment: align,
@@ -887,10 +1026,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         Text(
           sub,
           textAlign: textAlign,
-          style: const TextStyle(
-            fontSize: 11,
-            color: AppColors.textMuted,
-          ),
+          style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
         ),
       ],
     );
@@ -911,8 +1047,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               strokeWidth: 9,
               strokeCap: StrokeCap.round,
               backgroundColor: const Color(0xFFEDEFF4),
-              valueColor:
-                  const AlwaysStoppedAnimation(Color(0xFF16A34A)),
+              valueColor: const AlwaysStoppedAnimation(Color(0xFF16A34A)),
             ),
           ),
           Text(
@@ -938,7 +1073,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       borderRadius: BorderRadius.circular(20),
       boxShadow: [
         BoxShadow(
-          color: const Color(0xFF6355E0).withValues(alpha: 0.06),
+          color: AppColors.primary.withValues(alpha: 0.06),
           blurRadius: 20,
           offset: const Offset(0, 8),
         ),
@@ -956,7 +1091,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     if (dt == null) return '';
     final local = dt.toLocal();
     final now = DateTime.now();
-    final sameDay = local.year == now.year &&
+    final sameDay =
+        local.year == now.year &&
         local.month == now.month &&
         local.day == now.day;
     if (sameDay) return DateFormat('h:mm a').format(local);

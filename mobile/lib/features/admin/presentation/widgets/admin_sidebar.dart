@@ -9,10 +9,7 @@ import '../screens/admin_fee_collection_screen.dart';
 import '../screens/admin_reports_screen.dart';
 
 class AdminSidebar extends ConsumerWidget {
-  const AdminSidebar({
-    super.key,
-    this.onTabSelect,
-  });
+  const AdminSidebar({super.key, this.onTabSelect});
 
   final ValueChanged<int>? onTabSelect;
 
@@ -72,14 +69,16 @@ class AdminSidebar extends ConsumerWidget {
                     icon: Icons.fact_check_rounded,
                     label: 'Attendance',
                     color: const Color(0xFF2F8DFF),
-                    onTap: () => _openPage(context, const AdminAttendanceScreen()),
+                    onTap: () =>
+                        _openPage(context, const AdminAttendanceScreen()),
                   ),
                   _item(
                     context,
                     icon: Icons.payments_rounded,
                     label: 'Fee Collection',
                     color: const Color(0xFF34B356),
-                    onTap: () => _openPage(context, const AdminFeeCollectionScreen()),
+                    onTap: () =>
+                        _openPage(context, const AdminFeeCollectionScreen()),
                   ),
                   _item(
                     context,
@@ -137,9 +136,7 @@ class AdminSidebar extends ConsumerWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.only(
-          bottomRight: Radius.circular(24),
-        ),
+        borderRadius: BorderRadius.only(bottomRight: Radius.circular(24)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -152,9 +149,16 @@ class AdminSidebar extends ConsumerWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: Colors.white,
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 2),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.5),
+                    width: 2,
+                  ),
                 ),
-                child: const Icon(Icons.person_rounded, color: AppColors.primary, size: 30),
+                child: const Icon(
+                  Icons.person_rounded,
+                  color: AppColors.primary,
+                  size: 30,
+                ),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -183,7 +187,10 @@ class AdminSidebar extends ConsumerWidget {
                     ),
                     const SizedBox(height: 6),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(8),
@@ -270,7 +277,10 @@ class AdminSidebar extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  const Icon(Icons.chevron_right_rounded, color: Color(0xFFCBD5E1)),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: Color(0xFFCBD5E1),
+                  ),
                 ],
               ),
             ),

@@ -9,6 +9,7 @@ import 'screens/admin_students_screen.dart';
 import 'screens/admin_teachers_screen.dart';
 import 'screens/admin_classes_screen.dart';
 import 'screens/admin_more_screen.dart';
+import 'widgets/admin_sidebar.dart';
 
 class AdminShell extends StatefulWidget {
   const AdminShell({super.key});
@@ -17,15 +18,29 @@ class AdminShell extends StatefulWidget {
   State<AdminShell> createState() => _AdminShellState();
 }
 
-class _AdminShellState extends State<AdminShell> {
+class _AdminShellState extends State<AdminShell>
+    with SingleTickerProviderStateMixin {
   int _index = 0;
   late final List<Widget> _screens;
+
+  // Runs a short fade+rise whenever the tab changes. The IndexedStack itself
+  // is never rebuilt with a new key, so each tab keeps its state — the
+  // animation plays over the top of the swap.
+  late final AnimationController _tabFade = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 260),
+    value: 1,
+  );
+  late final Animation<double> _tabCurve = CurvedAnimation(
+    parent: _tabFade,
+    curve: Curves.easeOutCubic,
+  );
 
   @override
   void initState() {
     super.initState();
     _screens = [
-      AdminDashboardScreen(onTabSelect: (i) => setState(() => _index = i)),
+      AdminDashboardScreen(onTabSelect: _selectTab),
       const AdminStudentsScreen(),
       const AdminTeachersScreen(),
       const AdminClassesScreen(),
@@ -34,17 +49,41 @@ class _AdminShellState extends State<AdminShell> {
   }
 
   @override
+  void dispose() {
+    _tabFade.dispose();
+    super.dispose();
+  }
+
+  void _selectTab(int i) {
+    if (i == _index) return;
+    setState(() => _index = i);
+    if (MediaQuery.of(context).disableAnimations) {
+      _tabFade.value = 1;
+    } else {
+      _tabFade.forward(from: 0.25);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       extendBody: true,
-      body: IndexedStack(
-        index: _index,
-        children: _screens,
+      // The drawer lives here rather than on the dashboard, so every tab can
+      // open it via Scaffold.of(context) — they all sit under this Scaffold.
+      drawer: AdminSidebar(onTabSelect: _selectTab),
+      drawerEnableOpenDragGesture: false,
+      body: FadeTransition(
+        opacity: _tabCurve,
+        child: AnimatedBuilder(
+          animation: _tabCurve,
+          builder: (context, child) => Transform.translate(
+            offset: Offset(0, 10 * (1 - _tabCurve.value)),
+            child: child,
+          ),
+          child: IndexedStack(index: _index, children: _screens),
+        ),
       ),
-      bottomNavigationBar: _LiquidNavBar(
-        index: _index,
-        onTap: (i) => setState(() => _index = i),
-      ),
+      bottomNavigationBar: _LiquidNavBar(index: _index, onTap: _selectTab),
     );
   }
 }
@@ -78,7 +117,10 @@ class _LiquidNavBar extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.82),
               borderRadius: BorderRadius.circular(28),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.6), width: 1.2),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.6),
+                width: 1.2,
+              ),
               boxShadow: [
                 BoxShadow(
                   color: const Color(0xFF1B3FBF).withValues(alpha: 0.16),

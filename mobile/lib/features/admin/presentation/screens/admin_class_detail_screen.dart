@@ -19,7 +19,8 @@ class AdminClassDetailScreen extends ConsumerStatefulWidget {
       _AdminClassDetailScreenState();
 }
 
-class _AdminClassDetailScreenState extends ConsumerState<AdminClassDetailScreen> {
+class _AdminClassDetailScreenState
+    extends ConsumerState<AdminClassDetailScreen> {
   Map<String, dynamic>? _classData;
   bool _loading = true;
   String? _error;
@@ -36,8 +37,9 @@ class _AdminClassDetailScreenState extends ConsumerState<AdminClassDetailScreen>
       _error = null;
     });
     try {
-      final res =
-          await ref.read(dioProvider).get('/admin/classes/${widget.classId}');
+      final res = await ref
+          .read(dioProvider)
+          .get('/admin/classes/${widget.classId}');
       setState(() {
         _classData = res.data as Map<String, dynamic>;
         _loading = false;
@@ -196,7 +198,10 @@ class _AdminClassDetailScreenState extends ConsumerState<AdminClassDetailScreen>
                   ),
                   IconButton(
                     onPressed: _load,
-                    icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+                    icon: const Icon(
+                      Icons.refresh_rounded,
+                      color: Colors.white,
+                    ),
                     style: IconButton.styleFrom(
                       backgroundColor: Colors.white.withValues(alpha: 0.2),
                     ),
@@ -383,8 +388,9 @@ class _AdminClassDetailScreenState extends ConsumerState<AdminClassDetailScreen>
                       CircleAvatar(
                         radius: 26,
                         backgroundColor: const Color(0xFFF3E8FF),
-                        backgroundImage:
-                            _avatarImage(teacher['avatarUrl'] as String?),
+                        backgroundImage: _avatarImage(
+                          teacher['avatarUrl'] as String?,
+                        ),
                         child: teacher['avatarUrl'] == null
                             ? const Icon(
                                 Icons.person_rounded,
@@ -506,8 +512,7 @@ class _AdminClassDetailScreenState extends ConsumerState<AdminClassDetailScreen>
                   ? const Color(0xFFDB2777)
                   : const Color(0xFF2563EB);
               final name = '${s['fullName']}';
-              final initial =
-                  name.isNotEmpty ? name[0].toUpperCase() : '?';
+              final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
 
               return Material(
                 color: Colors.transparent,
@@ -523,8 +528,9 @@ class _AdminClassDetailScreenState extends ConsumerState<AdminClassDetailScreen>
                         CircleAvatar(
                           radius: 18,
                           backgroundColor: avatarBg,
-                          backgroundImage:
-                              _avatarImage(s['avatarUrl'] as String?),
+                          backgroundImage: _avatarImage(
+                            s['avatarUrl'] as String?,
+                          ),
                           child: s['avatarUrl'] == null
                               ? Text(
                                   initial,
@@ -569,7 +575,9 @@ class _AdminClassDetailScreenState extends ConsumerState<AdminClassDetailScreen>
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            '${s['status']}' == 'ACTIVE' ? 'Active' : 'Inactive',
+                            '${s['status']}' == 'ACTIVE'
+                                ? 'Active'
+                                : 'Inactive',
                             style: const TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w700,

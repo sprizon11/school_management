@@ -40,8 +40,9 @@ class _AdminTimetableScreenState extends ConsumerState<AdminTimetableScreen> {
   Widget build(BuildContext context) {
     final entries = _data?['entries'] as List<dynamic>? ?? [];
     final days = _data?['days'] as List<dynamic>? ?? [];
-    final selectedEntry =
-        entries.isEmpty ? null : entries[_selected] as Map<String, dynamic>;
+    final selectedEntry = entries.isEmpty
+        ? null
+        : entries[_selected] as Map<String, dynamic>;
     final schedule = selectedEntry?['schedule'] as List<dynamic>? ?? [];
 
     return AdminSubPageScaffold(
@@ -67,9 +68,13 @@ class _AdminTimetableScreenState extends ConsumerState<AdminTimetableScreen> {
                           label: Text('${e['className']}'),
                           selected: active,
                           onSelected: (_) => setState(() => _selected = i),
-                          selectedColor: AppColors.primary.withValues(alpha: 0.15),
+                          selectedColor: AppColors.primary.withValues(
+                            alpha: 0.15,
+                          ),
                           labelStyle: TextStyle(
-                            color: active ? AppColors.primary : const Color(0xFF4B5563),
+                            color: active
+                                ? AppColors.primary
+                                : const Color(0xFF4B5563),
                             fontWeight: FontWeight.w600,
                             fontSize: 12,
                           ),
@@ -92,7 +97,9 @@ class _AdminTimetableScreenState extends ConsumerState<AdminTimetableScreen> {
                                   height: 48,
                                   width: 48,
                                   decoration: BoxDecoration(
-                                    color: AppColors.primary.withValues(alpha: 0.12),
+                                    color: AppColors.primary.withValues(
+                                      alpha: 0.12,
+                                    ),
                                     borderRadius: BorderRadius.circular(14),
                                   ),
                                   child: const Icon(
@@ -103,7 +110,8 @@ class _AdminTimetableScreenState extends ConsumerState<AdminTimetableScreen> {
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         '${selectedEntry['className']}',
@@ -142,7 +150,8 @@ class _AdminTimetableScreenState extends ConsumerState<AdminTimetableScreen> {
                               style: TextStyle(color: AppColors.textMuted),
                             ),
                           ),
-                        if (days.isNotEmpty && entries.isEmpty) const SizedBox(),
+                        if (days.isNotEmpty && entries.isEmpty)
+                          const SizedBox(),
                       ],
                     ),
                   ),

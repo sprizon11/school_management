@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
+import 'admin_screen_header.dart';
 
 class AdminSubPageScaffold extends StatelessWidget {
   const AdminSubPageScaffold({
@@ -20,90 +21,23 @@ class AdminSubPageScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6FB),
+      backgroundColor: AdminScreenBody.pageBackground,
       floatingActionButton: floatingAction,
+      // Same header as the main tabs, plus a back button.
       body: Column(
         children: [
-          _Header(
+          AdminScreenHeader(
             title: title,
             subtitle: subtitle,
-            actions: actions,
-            onBack: () => Navigator.of(context).maybePop(),
-          ),
-          Expanded(child: child),
-        ],
-      ),
-    );
-  }
-}
-
-class _Header extends StatelessWidget {
-  const _Header({
-    required this.title,
-    this.subtitle,
-    this.actions,
-    required this.onBack,
-  });
-
-  final String title;
-  final String? subtitle;
-  final List<Widget>? actions;
-  final VoidCallback onBack;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.fromLTRB(
-        8,
-        MediaQuery.paddingOf(context).top + 6,
-        16,
-        22,
-      ),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF0835B8), Color(0xFF1B5FFF), Color(0xFF3D7BFF)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          IconButton(
-            onPressed: onBack,
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 4),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.3,
-                  ),
-                ),
-                if (subtitle != null) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle!,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.88),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ],
+            titleSize: 24,
+            leading: AdminHeaderIconButton(
+              icon: Icons.arrow_back_rounded,
+              plain: true,
+              onTap: () => Navigator.of(context).maybePop(),
             ),
+            actions: actions ?? const [],
           ),
-          if (actions != null) ...actions!,
+          Expanded(child: AdminScreenBody(child: child)),
         ],
       ),
     );
@@ -194,7 +128,10 @@ class AdminFormField extends StatelessWidget {
                 : null,
             filled: true,
             fillColor: const Color(0xFFF8FAFC),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 14,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
               borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
@@ -205,7 +142,10 @@ class AdminFormField extends StatelessWidget {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+              borderSide: const BorderSide(
+                color: AppColors.primary,
+                width: 1.5,
+              ),
             ),
           ),
         ),
@@ -399,7 +339,9 @@ class AdminListTilePremium extends StatelessWidget {
                 height: 42,
                 width: 42,
                 decoration: BoxDecoration(
-                  color: (leadingColor ?? AppColors.primary).withValues(alpha: 0.12),
+                  color: (leadingColor ?? AppColors.primary).withValues(
+                    alpha: 0.12,
+                  ),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(

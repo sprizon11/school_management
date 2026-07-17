@@ -7,6 +7,8 @@ import 'package:intl/intl.dart';
 import '../../../../core/navigation/smooth_page_route.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/motion.dart';
+import '../widgets/admin_screen_header.dart';
 import 'admin_class_detail_screen.dart';
 
 class AdminTeacherDetailScreen extends ConsumerStatefulWidget {
@@ -98,7 +100,9 @@ class _AdminTeacherDetailScreenState
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFDC2626)),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+            ),
             child: const Text('Delete'),
           ),
         ],
@@ -121,7 +125,9 @@ class _AdminTeacherDetailScreenState
       Navigator.of(context).pop(true);
     } on DioException catch (e) {
       if (!mounted) return;
-      final msg = e.response?.data?['message']?.toString() ?? 'Could not delete teacher';
+      final msg =
+          e.response?.data?['message']?.toString() ??
+          'Could not delete teacher';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(msg), backgroundColor: const Color(0xFFDC2626)),
       );
@@ -140,64 +146,115 @@ class _AdminTeacherDetailScreenState
 
   @override
   Widget build(BuildContext context) {
-    final topPad = MediaQuery.paddingOf(context).top;
-
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6FA),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-          ? _errorView()
-          : CustomScrollView(
-              slivers: [
-                SliverToBoxAdapter(child: _profileCard(topPad)),
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
-                  sliver: SliverList(
-                    delegate: SliverChildListDelegate([
-                      _quickStats(),
-                      const SizedBox(height: 12),
-                      _section(
-                        'Personal Information',
-                        Icons.person_outline_rounded,
-                        [
-                          _row('Full Name', '${_teacher!['fullName']}'),
-                          _row('Employee ID', '${_teacher!['employeeCode']}'),
-                          _row(
-                            'Gender',
-                            _genderLabel('${_teacher!['gender']}'),
-                          ),
-                          _row('Email', '${_teacher!['email'] ?? '—'}'),
-                          _row('Phone', '${_teacher!['phone'] ?? '—'}'),
-                          _row(
-                            'Joined',
-                            _formatDate(_teacher!['createdAt']),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-                      _section(
-                        'Professional Details',
-                        Icons.work_outline_rounded,
-                        [
-                          _row('Department', '${_teacher!['department']}'),
-                          _row(
-                            'Subjects',
-                            _subjectsLabel(_teacher!['subjects']),
-                          ),
-                          _row('Status', 'Active'),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-                      _assignedClasses(),
-                      const SizedBox(height: 20),
-                      _deleteSection(),
-                      const SizedBox(height: 8),
-                    ]),
-                  ),
-                ),
-              ],
+      backgroundColor: AdminScreenBody.pageBackground,
+      // Header sits outside the loading/error switch so back is always there.
+      body: Column(
+        children: [
+          AdminScreenHeader(
+            title: 'Teacher Details',
+            leading: AdminHeaderIconButton(
+              icon: Icons.arrow_back_rounded,
+              plain: true,
+              onTap: () => Navigator.of(context).maybePop(),
             ),
+          ),
+          Expanded(
+            child: AdminScreenBody(
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _error != null
+                  ? _errorView()
+                  : RefreshIndicator(
+                      color: AppColors.primary,
+                      onRefresh: _load,
+                      child: CustomScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        slivers: [
+                          SliverToBoxAdapter(
+                            child: EntranceFade(child: _profileCard()),
+                          ),
+                          SliverPadding(
+                            padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
+                            sliver: SliverList(
+                              delegate: SliverChildListDelegate([
+                                EntranceFade(
+                                  delay: const Duration(milliseconds: 60),
+                                  child: _quickStats(),
+                                ),
+                                const SizedBox(height: 12),
+                                EntranceFade(
+                                  delay: const Duration(milliseconds: 120),
+                                  child: _section(
+                                    'Personal Information',
+                                    Icons.person_outline_rounded,
+                                    [
+                                      _row(
+                                        'Full Name',
+                                        '${_teacher!['fullName']}',
+                                      ),
+                                      _row(
+                                        'Employee ID',
+                                        '${_teacher!['employeeCode']}',
+                                      ),
+                                      _row(
+                                        'Gender',
+                                        _genderLabel('${_teacher!['gender']}'),
+                                      ),
+                                      _row(
+                                        'Email',
+                                        '${_teacher!['email'] ?? '—'}',
+                                      ),
+                                      _row(
+                                        'Phone',
+                                        '${_teacher!['phone'] ?? '—'}',
+                                      ),
+                                      _row(
+                                        'Joined',
+                                        _formatDate(_teacher!['createdAt']),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 14),
+                                EntranceFade(
+                                  delay: const Duration(milliseconds: 180),
+                                  child: _section(
+                                    'Professional Details',
+                                    Icons.work_outline_rounded,
+                                    [
+                                      _row(
+                                        'Department',
+                                        '${_teacher!['department']}',
+                                      ),
+                                      _row(
+                                        'Subjects',
+                                        _subjectsLabel(_teacher!['subjects']),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 14),
+                                EntranceFade(
+                                  delay: const Duration(milliseconds: 240),
+                                  child: _assignedClasses(),
+                                ),
+                                const SizedBox(height: 20),
+                                EntranceFade(
+                                  delay: const Duration(milliseconds: 300),
+                                  child: _deleteSection(),
+                                ),
+                                const SizedBox(height: 8),
+                              ]),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -222,7 +279,11 @@ class _AdminTeacherDetailScreenState
         children: [
           const Row(
             children: [
-              Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626), size: 20),
+              Icon(
+                Icons.warning_amber_rounded,
+                color: Color(0xFFDC2626),
+                size: 20,
+              ),
               SizedBox(width: 8),
               Text(
                 'Danger zone',
@@ -412,7 +473,7 @@ class _AdminTeacherDetailScreenState
     );
   }
 
-  Widget _profileCard(double topPad) {
+  Widget _profileCard() {
     final t = _teacher!;
     final gender = '${t['gender']}';
     final avatarBg = gender == 'FEMALE'
@@ -420,7 +481,7 @@ class _AdminTeacherDetailScreenState
         : const Color(0xFFDBEAFE);
 
     return Padding(
-      padding: EdgeInsets.fromLTRB(12, topPad + 8, 12, 0),
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
@@ -435,15 +496,6 @@ class _AdminTeacherDetailScreenState
         ),
         child: Column(
           children: [
-            Container(
-              height: 5,
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFF7C3AED), Color(0xFFA78BFA)],
-                ),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-              ),
-            ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
               child: Row(
@@ -516,22 +568,9 @@ class _AdminTeacherDetailScreenState
                                   ? const Color(0xFFDB2777)
                                   : const Color(0xFF16A34A),
                             ),
-                            _chip(
-                              'Active',
-                              const Color(0xFFD1FAE5),
-                              const Color(0xFF166534),
-                            ),
                           ],
                         ),
                       ],
-                    ),
-                  ),
-                  IconButton.filledTonal(
-                    onPressed: _load,
-                    icon: const Icon(Icons.refresh_rounded, size: 20),
-                    style: IconButton.styleFrom(
-                      backgroundColor: const Color(0xFFF3E8FF),
-                      foregroundColor: const Color(0xFF7C3AED),
                     ),
                   ),
                 ],

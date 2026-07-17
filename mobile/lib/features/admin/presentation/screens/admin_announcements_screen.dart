@@ -14,7 +14,8 @@ class AdminAnnouncementsScreen extends ConsumerStatefulWidget {
       _AdminAnnouncementsScreenState();
 }
 
-class _AdminAnnouncementsScreenState extends ConsumerState<AdminAnnouncementsScreen> {
+class _AdminAnnouncementsScreenState
+    extends ConsumerState<AdminAnnouncementsScreen> {
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
   List<dynamic> _items = [];
@@ -67,14 +68,12 @@ class _AdminAnnouncementsScreenState extends ConsumerState<AdminAnnouncementsScr
 
     setState(() => _sending = true);
     try {
-      await ref.read(dioProvider).post(
-        '/admin/announcements',
-        data: {
-          'title': title,
-          'body': text,
-          'audience': _audience,
-        },
-      );
+      await ref
+          .read(dioProvider)
+          .post(
+            '/admin/announcements',
+            data: {'title': title, 'body': text, 'audience': _audience},
+          );
       _messageController.clear();
       await _load();
       if (!mounted) return;
@@ -86,9 +85,9 @@ class _AdminAnnouncementsScreenState extends ConsumerState<AdminAnnouncementsScr
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to send: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to send: $e')));
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -114,24 +113,26 @@ class _AdminAnnouncementsScreenState extends ConsumerState<AdminAnnouncementsScr
         children: [
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                ? const Center(
+                    child: CircularProgressIndicator(color: AppColors.primary),
+                  )
                 : _items.isEmpty
-                    ? const Center(
-                        child: Text(
-                          'No announcements yet.\nSend your first message below.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: AppColors.textMuted, height: 1.5),
-                        ),
-                      )
-                    : ListView.builder(
-                        controller: _scrollController,
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                        itemCount: _items.length,
-                        itemBuilder: (_, i) {
-                          final item = _items[i] as Map<String, dynamic>;
-                          return _chatBubble(item);
-                        },
-                      ),
+                ? const Center(
+                    child: Text(
+                      'No announcements yet.\nSend your first message below.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: AppColors.textMuted, height: 1.5),
+                    ),
+                  )
+                : ListView.builder(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                    itemCount: _items.length,
+                    itemBuilder: (_, i) {
+                      final item = _items[i] as Map<String, dynamic>;
+                      return _chatBubble(item);
+                    },
+                  ),
           ),
           _composer(),
         ],
@@ -178,14 +179,21 @@ class _AdminAnnouncementsScreenState extends ConsumerState<AdminAnnouncementsScr
           children: [
             Text(
               body,
-              style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.45),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                height: 1.45,
+              ),
             ),
             const SizedBox(height: 8),
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.16),
                     borderRadius: BorderRadius.circular(8),
@@ -253,7 +261,10 @@ class _AdminAnnouncementsScreenState extends ConsumerState<AdminAnnouncementsScr
                     hintText: 'Type announcement…',
                     filled: true,
                     fillColor: const Color(0xFFF8FAFC),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
                       borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
@@ -309,7 +320,9 @@ class _AdminAnnouncementsScreenState extends ConsumerState<AdminAnnouncementsScr
         color: selected ? AppColors.primary : AppColors.textMuted,
         fontWeight: FontWeight.w600,
       ),
-      side: BorderSide(color: selected ? AppColors.primary : const Color(0xFFE2E8F0)),
+      side: BorderSide(
+        color: selected ? AppColors.primary : const Color(0xFFE2E8F0),
+      ),
     );
   }
 }

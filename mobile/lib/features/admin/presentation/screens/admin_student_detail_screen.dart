@@ -8,6 +8,7 @@ import '../../../../core/navigation/smooth_page_route.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import 'admin_edit_student_screen.dart';
+
 class AdminStudentDetailScreen extends ConsumerStatefulWidget {
   const AdminStudentDetailScreen({super.key, required this.studentId});
 
@@ -106,52 +107,80 @@ class _AdminStudentDetailScreenState
                         [
                           _row('Full Name', '${_student!['fullName']}'),
                           _row('Student ID', '${_student!['studentCode']}'),
-                          _row('Gender', _genderLabel('${_student!['gender']}')),
-                          _row('Date of Birth', _formatDate(_student!['dateOfBirth'])),
-                          _row('Blood Group', '${_student!['bloodGroup'] ?? '—'}'),
+                          _row(
+                            'Gender',
+                            _genderLabel('${_student!['gender']}'),
+                          ),
+                          _row(
+                            'Date of Birth',
+                            _formatDate(_student!['dateOfBirth']),
+                          ),
+                          _row(
+                            'Blood Group',
+                            '${_student!['bloodGroup'] ?? '—'}',
+                          ),
                           _row('Email', '${_student!['email'] ?? '—'}'),
                           _row('Phone', '${_student!['phone'] ?? '—'}'),
                           _row('Address', '${_student!['address'] ?? '—'}'),
                         ],
                       ),
                       const SizedBox(height: 14),
-                      _section(
-                        'Academic Details',
-                        Icons.school_outlined,
-                        [
-                          _row('Class', '${_student!['grade']} ${_student!['section']}'),
-                          _row('Class Name', '${_student!['className'] ?? '—'}'),
-                          _row('Roll Number', '${_student!['rollNumber'] ?? '—'}'),
-                          if (_student!['classTeacher'] != null)
-                            _row(
-                              'Class Teacher',
-                              '${(_student!['classTeacher'] as Map)['name']}',
-                            ),
-                        ],
-                      ),
+                      _section('Academic Details', Icons.school_outlined, [
+                        _row(
+                          'Class',
+                          '${_student!['grade']} ${_student!['section']}',
+                        ),
+                        _row('Class Name', '${_student!['className'] ?? '—'}'),
+                        _row(
+                          'Roll Number',
+                          '${_student!['rollNumber'] ?? '—'}',
+                        ),
+                        if (_student!['classTeacher'] != null)
+                          _row(
+                            'Class Teacher',
+                            '${(_student!['classTeacher'] as Map)['name']}',
+                          ),
+                      ]),
                       const SizedBox(height: 14),
                       _section(
                         'Parent & Guardian',
                         Icons.family_restroom_rounded,
                         [
                           _row('Father', '${_student!['fatherName'] ?? '—'}'),
-                          _row('Father Phone', '${_student!['fatherPhone'] ?? '—'}'),
-                          _row('Father Occupation', '${_student!['fatherOccupation'] ?? '—'}'),
+                          _row(
+                            'Father Phone',
+                            '${_student!['fatherPhone'] ?? '—'}',
+                          ),
+                          _row(
+                            'Father Occupation',
+                            '${_student!['fatherOccupation'] ?? '—'}',
+                          ),
                           _row('Mother', '${_student!['motherName'] ?? '—'}'),
-                          _row('Mother Phone', '${_student!['motherPhone'] ?? '—'}'),
-                          _row('Mother Occupation', '${_student!['motherOccupation'] ?? '—'}'),
-                          _row('Guardian Address', '${_student!['parentAddress'] ?? '—'}'),
+                          _row(
+                            'Mother Phone',
+                            '${_student!['motherPhone'] ?? '—'}',
+                          ),
+                          _row(
+                            'Mother Occupation',
+                            '${_student!['motherOccupation'] ?? '—'}',
+                          ),
+                          _row(
+                            'Guardian Address',
+                            '${_student!['parentAddress'] ?? '—'}',
+                          ),
                         ],
                       ),
                       const SizedBox(height: 14),
-                      _section(
-                        'Emergency Contact',
-                        Icons.emergency_outlined,
-                        [
-                          _row('Contact Name', '${_student!['emergencyContact'] ?? '—'}'),
-                          _row('Emergency Phone', '${_student!['emergencyPhone'] ?? '—'}'),
-                        ],
-                      ),
+                      _section('Emergency Contact', Icons.emergency_outlined, [
+                        _row(
+                          'Contact Name',
+                          '${_student!['emergencyContact'] ?? '—'}',
+                        ),
+                        _row(
+                          'Emergency Phone',
+                          '${_student!['emergencyPhone'] ?? '—'}',
+                        ),
+                      ]),
                     ]),
                   ),
                 ),
@@ -354,34 +383,34 @@ class _AdminStudentDetailScreenState
     final attendance = s['attendancePercent'];
 
     return Row(
-        children: [
-          Expanded(
-            child: _statTile(
-              Icons.class_rounded,
-              'Class',
-              '${s['grade']}${s['section']}',
-              const Color(0xFF3B6FF5),
-            ),
+      children: [
+        Expanded(
+          child: _statTile(
+            Icons.class_rounded,
+            'Class',
+            '${s['grade']}${s['section']}',
+            const Color(0xFF3B6FF5),
           ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: _statTile(
-              Icons.tag_rounded,
-              'Roll No.',
-              '${s['rollNumber'] ?? '—'}',
-              const Color(0xFF16A34A),
-            ),
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: _statTile(
+            Icons.tag_rounded,
+            'Roll No.',
+            '${s['rollNumber'] ?? '—'}',
+            const Color(0xFF16A34A),
           ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: _statTile(
-              Icons.event_available_rounded,
-              'Attendance',
-              attendance != null ? '$attendance%' : '—',
-              const Color(0xFF7C3AED),
-            ),
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: _statTile(
+            Icons.event_available_rounded,
+            'Attendance',
+            attendance != null ? '$attendance%' : '—',
+            const Color(0xFF7C3AED),
           ),
-        ],
+        ),
+      ],
     );
   }
 

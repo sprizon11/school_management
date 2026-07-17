@@ -64,12 +64,16 @@ class _AdminAvatarPickerState extends State<AdminAvatarPicker> {
     if (bytes.length > 280000) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Image too large. Choose a smaller photo.')),
+          const SnackBar(
+            content: Text('Image too large. Choose a smaller photo.'),
+          ),
         );
       }
       return;
     }
-    final mime = file.path.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
+    final mime = file.path.toLowerCase().endsWith('.png')
+        ? 'image/png'
+        : 'image/jpeg';
     widget.onChanged('data:$mime;base64,${base64Encode(bytes)}');
   }
 
@@ -97,11 +101,17 @@ class _AdminAvatarPickerState extends State<AdminAvatarPicker> {
               const SizedBox(height: 16),
               Text(
                 widget.sheetTitle,
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               const SizedBox(height: 16),
               ListTile(
-                leading: const Icon(Icons.photo_camera_rounded, color: AppColors.primary),
+                leading: const Icon(
+                  Icons.photo_camera_rounded,
+                  color: AppColors.primary,
+                ),
                 title: const Text('Take Photo'),
                 onTap: () {
                   Navigator.pop(ctx);
@@ -109,7 +119,10 @@ class _AdminAvatarPickerState extends State<AdminAvatarPicker> {
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.photo_library_rounded, color: AppColors.primary),
+                leading: const Icon(
+                  Icons.photo_library_rounded,
+                  color: AppColors.primary,
+                ),
                 title: const Text('Choose from Gallery'),
                 onTap: () {
                   Navigator.pop(ctx);
@@ -118,7 +131,10 @@ class _AdminAvatarPickerState extends State<AdminAvatarPicker> {
               ),
               if (widget.imageBase64 != null)
                 ListTile(
-                  leading: const Icon(Icons.delete_outline_rounded, color: Colors.red),
+                  leading: const Icon(
+                    Icons.delete_outline_rounded,
+                    color: Colors.red,
+                  ),
                   title: const Text('Remove Photo'),
                   onTap: () {
                     Navigator.pop(ctx);
@@ -149,7 +165,10 @@ class _AdminAvatarPickerState extends State<AdminAvatarPicker> {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: const Color(0xFFF0F4FF),
-                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.35), width: 2),
+                  border: Border.all(
+                    color: AppColors.primary.withValues(alpha: 0.35),
+                    width: 2,
+                  ),
                   boxShadow: [
                     BoxShadow(
                       color: AppColors.primary.withValues(alpha: 0.15),
@@ -162,7 +181,11 @@ class _AdminAvatarPickerState extends State<AdminAvatarPicker> {
                       : null,
                 ),
                 child: provider == null
-                    ? const Icon(Icons.person_rounded, size: 48, color: AppColors.primary)
+                    ? const Icon(
+                        Icons.person_rounded,
+                        size: 48,
+                        color: AppColors.primary,
+                      )
                     : null,
               ),
               Container(
@@ -173,7 +196,11 @@ class _AdminAvatarPickerState extends State<AdminAvatarPicker> {
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white, width: 2),
                 ),
-                child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 16),
+                child: const Icon(
+                  Icons.camera_alt_rounded,
+                  color: Colors.white,
+                  size: 16,
+                ),
               ),
             ],
           ),
