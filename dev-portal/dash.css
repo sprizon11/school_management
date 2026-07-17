@@ -365,7 +365,10 @@
   display: grid;
   grid-template-columns: 1.45fr 1fr;
   gap: 18px;
-  align-items: stretch;
+  /* start, not stretch: stretch forced the Overview card to match the
+     height of the whole right-hand stack, leaving dead space under the
+     chart. */
+  align-items: start;
 }
 
 .right-stack {
@@ -786,17 +789,9 @@
   overflow: hidden;
 }
 
-.sc-stat::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 3px;
-}
+/* No coloured bar across the card top - the tinted icon tile already
+   carries the accent, and the bar competed with it. */
 
-.sc-stat.tone-blue::before   { background: linear-gradient(90deg, #1b5fff, #60a5fa); }
-.sc-stat.tone-green::before  { background: linear-gradient(90deg, #16a34a, #4ade80); }
-.sc-stat.tone-amber::before  { background: linear-gradient(90deg, #d97706, #fbbf24); }
-.sc-stat.tone-violet::before { background: linear-gradient(90deg, #7c3aed, #c084fc); }
 
 .sc-stat:hover {
   transform: translateY(-3px);
@@ -1101,4 +1096,82 @@
   .sc-stats { grid-template-columns: 1fr 1fr; }
   .sc-stat-value { font-size: 1.4rem; }
   .sc-stat-ic { width: 40px; height: 40px; }
+}
+
+/* ==========================================================================
+   Motion + premium polish. Entrance classes are applied by app.js only on a
+   route change - the portal rebuilds innerHTML on every keystroke, so
+   unconditional animation would strobe while typing.
+   ========================================================================== */
+
+@keyframes pv-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.pv-anim {
+  animation: pv-rise 0.34s cubic-bezier(0.22, 0.8, 0.3, 1) both;
+  animation-delay: calc(var(--i, 0) * 60ms);
+}
+
+.pv-row-anim {
+  animation: pv-rise 0.3s cubic-bezier(0.22, 0.8, 0.3, 1) both;
+  animation-delay: calc(var(--i, 0) * 35ms);
+}
+
+.sc-stat, .panel {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.sc-stat:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.09);
+  border-color: rgba(27, 95, 255, 0.28);
+}
+
+.sb-link .sb-ic { transition: transform 0.18s ease, color 0.15s ease; }
+.sb-link:hover .sb-ic { transform: scale(1.08); }
+
+.tbl tbody tr { transition: background 0.16s ease; }
+
+.btn, .sc-action, .icon-btn {
+  transition: transform 0.12s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+.btn:active, .sc-action:active, .icon-btn:active { transform: scale(0.96); }
+
+/* Honest empty state for screens whose backend route doesn't exist yet. */
+.pv-pending {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 56px 24px;
+  text-align: center;
+}
+
+.pv-pending-ic {
+  width: 54px;
+  height: 54px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, rgba(27,95,255,0.12), rgba(27,95,255,0.04));
+  color: var(--primary);
+}
+
+.pv-pending h3 { margin: 0; font-size: 1rem; color: var(--text); }
+
+.pv-pending p {
+  margin: 0;
+  max-width: 380px;
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pv-anim, .pv-row-anim { animation: none; }
+  .sb-link:hover, .sc-stat:hover,
+  .btn:active, .sc-action:active, .icon-btn:active { transform: none; }
 }

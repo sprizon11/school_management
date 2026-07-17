@@ -15,6 +15,11 @@ const state = {
   success: null,
   search: '',
   schoolsFilter: { status: '', city: '', type: '', search: '', page: 1 },
+  // Aggregated across every school's detail payload — the dev API has no
+  // platform-wide list endpoints, so we fan out over schools instead.
+  aggregate: null,
+  aggregateLoading: false,
+  entitySearch: '',
 };
 
 function loadSession() {
@@ -252,6 +257,340 @@ function renderLogin() {
   `;
 }
 
+// ===========================================================================
+// Platform-wide entity screens
+//
+// The dev API exposes no list endpoints for classes/admins/guardians, only
+// GET /dev/schools/:id per school. With a handful of schools it's cheaper to
+// fan out and merge client-side than to block on new backend routes.
+// ===========================================================================
+
+async function loadAggregate() {
+  if (state.aggregate || state.aggregateLoading) return;
+  state.aggregateLoading = true;
+  render();
+
+  try {
+    if (!state.schools.length) {
+      state.schools = await api('/dev/schools');
+    }
+    const details = await Promise.all(
+      state.schools.map((sc) =>
+        api(`/dev/schools/${sc.id}`).catch(() => null),
+      ),
+    );
+
+    const classes = [];
+    const admins = [];
+    const guardians = [];
+
+    details.forEach((d, i) => {
+      if (!d) return;
+      const school = state.schools[i];
+      (d.classes || []).forEach((c) =>
+        classes.push({ ...c, schoolName: school.name, schoolCode: school.code }),
+      );
+      (d.admins || []).forEach((a) =>
+        admins.push({ ...a, schoolName: school.name, schoolCode: school.code }),
+      );
+      (d.guardians || []).forEach((g) =>
+        guardians.push({ ...g, schoolName: school.name, schoolCode: school.code }),
+      );
+    });
+
+    state.aggregate = { classes, admins, guardians };
+  } catch (err) {
+    state.error = err.message || 'Could not load platform data';
+  } finally {
+    state.aggregateLoading = false;
+    render();
+  }
+}
+
+/* Honest placeholder for screens whose data needs a backend route that
+   doesn't exist yet. Better than inventing rows that look real. */
+function pendingPanel(title, reason) {
+  return `
+    <div class="panel ${anim()}">
+      <div class="pv-pending">
+        <div class="pv-pending-ic">${dashIcons.report}</div>
+        <h3>${esc(title)} isn't available yet</h3>
+        <p>${esc(reason)}</p>
+      </div>
+    </div>
+  `;
+}
+
+function entityShell(active, title, subtitle, body) {
+  return `
+    <div class="dash">
+      ${dashSidebar(active)}
+      <div class="dash-overlay" id="sb-overlay"></div>
+      <div class="dash-main">
+        ${dashTopbar(title, subtitle)}
+        <div class="dash-body">
+          ${state.error ? `<div class="error">${esc(state.error)}</div>` : ''}
+          ${body}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function entitySearchBar(placeholder) {
+  return `
+    <div class="sc-filter-bar ${anim()}">
+      <div class="sc-search-wrap">
+        ${icons.search}
+        <input type="search" id="entity-search" placeholder="${esc(placeholder)}"
+               value="${esc(state.entitySearch || '')}" />
+      </div>
+    </div>
+  `;
+}
+
+function entityTable(head, rows, emptyMsg) {
+  if (!rows.length) {
+    return `<div class="panel ${anim()}"><div class="pv-pending">
+      <div class="pv-pending-ic">${icons.search}</div>
+      <h3>Nothing to show</h3><p>${esc(emptyMsg)}</p>
+    </div></div>`;
+  }
+  return `
+    <div class="panel ${anim(1)}">
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr>${head.map((h) => `<th>${esc(h)}</th>`).join('')}</tr></thead>
+          <tbody>
+            ${rows
+              .map(
+                (cells, i) =>
+                  `<tr class="${animOn() ? 'pv-row-anim' : ''}" style="--i:${Math.min(i, 10)}">${cells
+                    .map((c) => `<td>${c}</td>`)
+                    .join('')}</tr>`,
+              )
+              .join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function matchesSearch(haystack) {
+  const q = (state.entitySearch || '').trim().toLowerCase();
+  if (!q) return true;
+  return haystack.filter(Boolean).join(' ').toLowerCase().includes(q);
+}
+
+function schoolChip(name, code) {
+  return `<div class="tbl-school">
+    <span class="tbl-avatar">${esc(initials(name))}</span>
+    <div><div style="font-weight:700">${esc(name)}</div>
+    <div class="tbl-school-sub">${esc((code || '').toUpperCase())}</div></div>
+  </div>`;
+}
+
+function renderClassesPage() {
+  const agg = state.aggregate;
+  if (state.aggregateLoading || !agg) {
+    return entityShell('Classes', 'Classes', 'Every class across all schools.',
+      '<div class="loading">Loading classes…</div>');
+  }
+
+  const rows = agg.classes
+    .filter((c) => matchesSearch([c.name, c.schoolName, `${c.grade}${c.section}`]))
+    .map((c) => [
+      `<div style="font-weight:700">${esc(c.name)}</div>`,
+      `<span class="type-badge blue">Grade ${esc(String(c.grade))}${esc(c.section)}</span>`,
+      schoolChip(c.schoolName, c.schoolCode),
+      `<span class="muted-cell">${esc(c.academicYear || '—')}</span>`,
+      `<b>${esc(String(c.students))}</b>`,
+    ]);
+
+  const total = agg.classes.length;
+  const totalStudents = agg.classes.reduce((n, c) => n + (c.students || 0), 0);
+  const withStudents = agg.classes.filter((c) => c.students > 0).length;
+
+  return entityShell('Classes', 'Classes', 'Every class across all schools.', `
+    <div class="sc-stats ${anim()}">
+      ${scStatCard(icons.classes, 'Total Classes', total, 'Across all schools', 'blue')}
+      ${scStatCard(icons.students, 'Enrolled', totalStudents, 'Students in classes', 'green')}
+      ${scStatCard(icons.active, 'With Students', withStudents, 'Non-empty classes', 'violet')}
+    </div>
+    ${entitySearchBar('Search class, grade or school…')}
+    ${entityTable(
+      ['Class', 'Grade', 'School', 'Academic Year', 'Students'],
+      rows,
+      total ? 'No classes match your search.' : 'No classes have been created yet.',
+    )}
+  `);
+}
+
+function renderAdminsPage() {
+  const agg = state.aggregate;
+  if (state.aggregateLoading || !agg) {
+    return entityShell('Admins', 'Admins', 'School administrators across the platform.',
+      '<div class="loading">Loading admins…</div>');
+  }
+
+  const rows = agg.admins
+    .filter((a) => matchesSearch([a.fullName, a.email, a.schoolName]))
+    .map((a) => [
+      `<div class="tbl-school"><span class="tbl-avatar">${esc(initials(a.fullName))}</span>
+        <div><div style="font-weight:700">${esc(a.fullName)}</div>
+        <div class="tbl-school-sub">${esc(a.email)}</div></div></div>`,
+      schoolChip(a.schoolName, a.schoolCode),
+      `<span class="muted-cell">${esc(a.phone || '—')}</span>`,
+      `<span class="muted-cell">${a.createdAt ? esc(formatDate(a.createdAt)) : '—'}</span>`,
+    ]);
+
+  return entityShell('Admins', 'Admins', 'School administrators across the platform.', `
+    <div class="sc-stats ${anim()}">
+      ${scStatCard(icons.admins, 'Total Admins', agg.admins.length, 'Across all schools', 'blue')}
+      ${scStatCard(icons.school, 'Schools', state.schools.length, 'With an admin', 'green')}
+    </div>
+    ${entitySearchBar('Search admin name, email or school…')}
+    ${entityTable(
+      ['Admin', 'School', 'Phone', 'Added'],
+      rows,
+      agg.admins.length ? 'No admins match your search.' : 'No admins yet.',
+    )}
+  `);
+}
+
+function renderParentsPage() {
+  const agg = state.aggregate;
+  if (state.aggregateLoading || !agg) {
+    return entityShell('Parents', 'Parents', 'Guardian records across all schools.',
+      '<div class="loading">Loading parents…</div>');
+  }
+
+  const rows = agg.guardians
+    .filter((g) => matchesSearch([g.fatherName, g.motherName, g.studentName, g.schoolName]))
+    .map((g) => [
+      `<div style="font-weight:700">${esc(g.fatherName || g.motherName || '—')}</div>
+       <div class="tbl-school-sub">${esc(g.fatherPhone || g.motherPhone || '')}</div>`,
+      `<div>${esc(g.studentName)}</div>
+       <div class="tbl-school-sub">${esc(g.classLabel || '')}</div>`,
+      schoolChip(g.schoolName, g.schoolCode),
+      `<span class="muted-cell">${esc(g.emergencyPhone || '—')}</span>`,
+    ]);
+
+  return entityShell('Parents', 'Parents', 'Guardian records across all schools.', `
+    <div class="sc-stats ${anim()}">
+      ${scStatCard(icons.parents, 'Guardians', agg.guardians.length, 'On record', 'blue')}
+      ${scStatCard(icons.school, 'Schools', state.schools.length, 'Covered', 'green')}
+    </div>
+    ${entitySearchBar('Search guardian, student or school…')}
+    ${entityTable(
+      ['Guardian', 'Student', 'School', 'Emergency'],
+      rows,
+      agg.guardians.length
+        ? 'No guardians match your search.'
+        : 'No guardian details recorded yet — they come from student father/mother fields.',
+    )}
+  `);
+}
+
+function renderReportsPage() {
+  const o = state.overview;
+  if (!o) {
+    return entityShell('Reports', 'Reports', 'Platform-wide totals.',
+      '<div class="loading">Loading reports…</div>');
+  }
+
+  const rows = state.schools.map((sc, i) => [
+    schoolChip(sc.name, sc.code),
+    `<div class="loc-cell">${dashIcons.pin}<span>${esc(sc.city || '—')}</span></div>`,
+    `<span class="status-badge ${sc.isActive ? 'active' : 'inactive'}">
+      <i></i>${sc.isActive ? 'Active' : 'Inactive'}</span>`,
+    `<span class="muted-cell">${sc.createdAt ? esc(formatDate(sc.createdAt)) : '—'}</span>`,
+  ]);
+
+  return entityShell('Reports', 'Reports', 'Platform-wide totals.', `
+    <div class="sc-stats ${anim()}">
+      ${scStatCard(icons.school, 'Schools', o.schools?.total ?? 0, `${o.schools?.active ?? 0} active`, 'blue')}
+      ${scStatCard(icons.students, 'Students', o.students ?? 0, 'Enrolled platform-wide', 'green')}
+      ${scStatCard(icons.teachers, 'Teachers', o.teachers ?? 0, 'Across all schools', 'amber')}
+      ${scStatCard(icons.classes, 'Classes', o.classes ?? 0, 'Created platform-wide', 'violet')}
+    </div>
+    ${entityTable(['School', 'Location', 'Status', 'Registered'], rows, 'No schools yet.')}
+  `);
+}
+
+function renderSettingsPage() {
+  return entityShell('Settings', 'Settings', 'Console configuration.', `
+    <div class="panel ${anim()}">
+      <div class="panel-head"><div><h2>Session</h2><p>Signed-in owner account</p></div></div>
+      <div class="sc-detail-list">
+        <div class="sc-detail-row"><span>Owner email</span><b>${esc(state.userEmail || '—')}</b></div>
+        <div class="sc-detail-row"><span>API endpoint</span><b>${esc(state.apiBase)}</b></div>
+        <div class="sc-detail-row"><span>Schools loaded</span><b>${state.schools.length}</b></div>
+      </div>
+    </div>
+    <div class="panel ${anim(1)}">
+      <div class="panel-head"><div><h2>Danger zone</h2><p>Destructive, platform-wide actions</p></div></div>
+      <div class="pv-pending">
+        <p>Demo-data controls live on the Overview screen, where they sit beside
+           the data they affect.</p>
+      </div>
+    </div>
+  `);
+}
+
+/* Sidebar label -> route. Every item navigates now; before, only Schools did
+   and the rest were dead links. */
+/* 'pv-anim' only when the route just changed — the portal re-renders on every
+   keystroke, and replaying the entrance each time would strobe. */
+let lastAnimatedPath = null;
+
+function animOn() {
+  return route() !== lastAnimatedPath;
+}
+
+function markAnimated() {
+  // Screens render twice — once while loading, once with data. Marking on the
+  // loading pass would spend the animation on placeholder content and leave
+  // the real data to pop in unanimated.
+  if (state.loading || state.aggregateLoading) return;
+  lastAnimatedPath = route();
+}
+
+function anim(i = 0) {
+  return animOn() ? `pv-anim" style="--i:${i}` : '';
+}
+
+function navRoute(label) {
+  const map = {
+    Overview: '/',
+    Schools: '/schools',
+    Classes: '/classes',
+    Teachers: '/teachers',
+    Students: '/students',
+    Parents: '/parents',
+    Admins: '/admins',
+    Reports: '/reports',
+    'Activity Log': '/activity-log',
+    Settings: '/settings',
+  };
+  return map[label] || '/';
+}
+
+function bindEntityPage() {
+  const input = document.getElementById('entity-search');
+  if (!input) return;
+  input.addEventListener('input', (event) => {
+    state.entitySearch = event.target.value;
+    render();
+    const next = document.getElementById('entity-search');
+    if (next) {
+      next.focus();
+      next.setSelectionRange(next.value.length, next.value.length);
+    }
+  });
+}
+
 function dashSidebar(active = 'Overview') {
   const items = [
     ['Overview', dashIcons.grid],
@@ -440,7 +779,7 @@ function renderDashboard() {
           ${state.success ? `<div class="success">${esc(state.success)}</div>` : ''}
 
           <!-- Row 1: Stat cards -->
-          <section class="stat-row">
+          <section class="stat-row ${anim()}">
             ${statCardBig('Total Schools', totalSchools, `<b>${totalSchools}</b> registered`, 'muted', icons.school, 'blue', sparkline('#1b5fff', '0,30 18,22 36,26 54,14 72,18 90,6 110,2'))}
             ${statCardBig('Active Schools', activeSchools, `<b>${activePct}%</b> active`, 'green', icons.active, 'green', sparkline('#16a34a', '0,32 20,24 40,28 60,16 80,20 100,8 110,6'))}
             ${statCardBig('Students', students, `${students} enrolled`, 'muted', icons.students, 'violet', sparkline('#7c3aed', '0,20 20,22 40,18 60,24 80,16 100,20 110,18'))}
@@ -448,7 +787,7 @@ function renderDashboard() {
           </section>
 
           <!-- Row 2: Overview chart (left) + stacked Activity/Health (right) -->
-          <section class="dash-grid-top">
+          <section class="dash-grid-top ${anim(1)}">
             <div class="panel pv-panel">
               <div class="panel-head">
                 <div><h2>Platform Overview</h2><p>Total schools registered · last 8 weeks</p></div>
@@ -740,7 +1079,7 @@ function renderSchoolsPage() {
         <div class="dash-body">
           ${state.error ? `<div class="error">${esc(state.error)}</div>` : ''}
 
-          <div class="sc-header-row">
+          <div class="sc-header-row ${anim()}">
             <div class="sc-stats">
               ${scStatCard(icons.school, 'Total Schools', totalSchools, 'All registered schools', 'blue')}
               ${scStatCard(icons.active, 'Active Schools', activeSchools, 'Active and running', 'green')}
@@ -1137,6 +1476,38 @@ function render() {
   if (path === '/schools') {
     app.innerHTML = renderSchoolsPage();
     bindSchoolsPage();
+    markAnimated();
+    return;
+  }
+
+  // Entity screens. The three "pending" ones have no backend route yet, so
+  // they say so rather than showing invented data.
+  const entityPages = {
+    '/classes': renderClassesPage,
+    '/admins': renderAdminsPage,
+    '/parents': renderParentsPage,
+    '/reports': renderReportsPage,
+    '/settings': renderSettingsPage,
+  };
+  if (entityPages[path]) {
+    if (['/classes', '/admins', '/parents'].includes(path)) loadAggregate();
+    app.innerHTML = entityPages[path]();
+    bindCommon();
+    bindEntityPage();
+    markAnimated();
+    return;
+  }
+
+  const pending = {
+    '/teachers': ['Teachers', 'The dev API returns a teacher count but no teacher list — GET /dev/teachers needs to be added to the backend before this screen can show real data.'],
+    '/students': ['Students', 'The school-detail endpoint returns guardians, not a student list — GET /dev/students needs to be added to the backend before this screen can show real data.'],
+    '/activity-log': ['Activity Log', 'There is no dev endpoint for activity yet — GET /dev/activity needs to be added to the backend before this screen can show real data.'],
+  };
+  if (pending[path]) {
+    const [title, reason] = pending[path];
+    app.innerHTML = entityShell(title, title, 'Not wired up yet.', pendingPanel(title, reason));
+    bindCommon();
+    markAnimated();
     return;
   }
 
@@ -1154,6 +1525,7 @@ function render() {
   app.innerHTML = renderDashboard();
   bindCommon();
   bindDashboard();
+  markAnimated();
 }
 
 async function loadDashboard() {
@@ -1329,9 +1701,7 @@ function bindDashboard() {
     el.addEventListener('click', () => {
       const label = el.getAttribute('data-nav');
       closeSb();
-      if (label === 'Schools') {
-        navigate('/schools');
-      }
+      navigate(navRoute(label));
     });
   });
 
@@ -1660,7 +2030,18 @@ window.addEventListener('hashchange', async () => {
   const schoolMatch = path.match(/^\/school\/([^/]+)$/);
   if (schoolMatch) {
     await loadSchoolDetail(schoolMatch[1]);
+    return;
   }
+
+  // Entity + pending screens: they own their own data loading, but still need
+  // a render on navigation — without this they fell through and the previous
+  // screen stayed on the page.
+  if (path === '/reports' && !state.overview) {
+    await loadDashboard();
+    return;
+  }
+  state.entitySearch = '';
+  render();
 });
 
 if (loadSession()) {
@@ -1671,10 +2052,13 @@ if (loadSession()) {
     render();
   } else if (path === '/schools') {
     loadSchoolsPage();
+  } else if (path === '/reports') {
+    // Reports reads the overview counts.
+    loadDashboard();
   } else {
     const schoolMatch = path.match(/^\/school\/([^/]+)$/);
     if (schoolMatch) loadSchoolDetail(schoolMatch[1]);
-    else loadDashboard();
+    else render();
   }
 } else {
   navigate('/login');
