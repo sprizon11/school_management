@@ -283,6 +283,10 @@ async function loadAggregate() {
     const classes = [];
     const admins = [];
     const guardians = [];
+    // Per-school counts from the detail payload's `stats`. The dev API has no
+    // teacher/student list, but it does return these counts — enough for a
+    // real per-school breakdown instead of a dead placeholder.
+    const bySchool = [];
 
     details.forEach((d, i) => {
       if (!d) return;
@@ -296,9 +300,16 @@ async function loadAggregate() {
       (d.guardians || []).forEach((g) =>
         guardians.push({ ...g, schoolName: school.name, schoolCode: school.code }),
       );
+      bySchool.push({
+        name: school.name,
+        code: school.code,
+        city: school.city,
+        isActive: school.isActive,
+        stats: d.stats || {},
+      });
     });
 
-    state.aggregate = { classes, admins, guardians };
+    state.aggregate = { classes, admins, guardians, bySchool };
   } catch (err) {
     state.error = err.message || 'Could not load platform data';
   } finally {
@@ -425,6 +436,56 @@ function renderClassesPage() {
       total ? 'No classes match your search.' : 'No classes have been created yet.',
     )}
   `);
+}
+
+/* Teachers/Students: the dev API exposes counts per school but no individual
+   records, so these show a real per-school breakdown and note that a full
+   roster needs a backend endpoint — honest, and useful, without inventing rows. */
+function renderCountBreakdown(active, statKey, label, tone, icon, endpoint) {
+  const agg = state.aggregate;
+  if (state.aggregateLoading || !agg) {
+    return entityShell(active, active, `${label} across all schools.`,
+      `<div class="loading">Loading ${label.toLowerCase()}…</div>`);
+  }
+
+  const rows = agg.bySchool
+    .filter((s) => matchesSearch([s.name, s.city]))
+    .map((s) => [
+      schoolChip(s.name, s.code),
+      `<div class="loc-cell">${dashIcons.pin}<span>${esc(s.city || '—')}</span></div>`,
+      `<span class="status-badge ${s.isActive ? 'active' : 'inactive'}"><i></i>${s.isActive ? 'Active' : 'Inactive'}</span>`,
+      `<b>${esc(String(s.stats[statKey] ?? 0))}</b>`,
+    ]);
+
+  const total = agg.bySchool.reduce((n, s) => n + (s.stats[statKey] || 0), 0);
+  const withAny = agg.bySchool.filter((s) => (s.stats[statKey] || 0) > 0).length;
+
+  return entityShell(active, active, `${label} across all schools.`, `
+    <div class="sc-stats ${anim()}">
+      ${scStatCard(icon, `Total ${label}`, total, 'Across all schools', tone)}
+      ${scStatCard(icons.school, 'Schools', agg.bySchool.length, `${withAny} with ${label.toLowerCase()}`, 'blue')}
+    </div>
+    <div class="panel ${anim()}" style="margin-bottom:16px">
+      <div class="pv-note">
+        Per-school counts shown below. An individual ${label.slice(0, -1).toLowerCase()} roster
+        needs <code>GET ${esc(endpoint)}</code> on the backend — not built yet.
+      </div>
+    </div>
+    ${entitySearchBar('Search school or city…')}
+    ${entityTable(
+      ['School', 'Location', 'Status', label],
+      rows,
+      agg.bySchool.length ? 'No schools match your search.' : 'No schools yet.',
+    )}
+  `);
+}
+
+function renderTeachersPage() {
+  return renderCountBreakdown('Teachers', 'teachers', 'Teachers', 'amber', icons.teachers, '/dev/teachers');
+}
+
+function renderStudentsPage() {
+  return renderCountBreakdown('Students', 'students', 'Students', 'green', icons.students, '/dev/students');
 }
 
 function renderAdminsPage() {
@@ -1485,13 +1546,16 @@ function render() {
   // they say so rather than showing invented data.
   const entityPages = {
     '/classes': renderClassesPage,
+    '/teachers': renderTeachersPage,
+    '/students': renderStudentsPage,
     '/admins': renderAdminsPage,
     '/parents': renderParentsPage,
     '/reports': renderReportsPage,
     '/settings': renderSettingsPage,
   };
   if (entityPages[path]) {
-    if (['/classes', '/admins', '/parents'].includes(path)) loadAggregate();
+    // All but reports/settings read the aggregated school details.
+    if (!['/reports', '/settings'].includes(path)) loadAggregate();
     app.innerHTML = entityPages[path]();
     bindCommon();
     bindEntityPage();
@@ -1500,8 +1564,6 @@ function render() {
   }
 
   const pending = {
-    '/teachers': ['Teachers', 'The dev API returns a teacher count but no teacher list — GET /dev/teachers needs to be added to the backend before this screen can show real data.'],
-    '/students': ['Students', 'The school-detail endpoint returns guardians, not a student list — GET /dev/students needs to be added to the backend before this screen can show real data.'],
     '/activity-log': ['Activity Log', 'There is no dev endpoint for activity yet — GET /dev/activity needs to be added to the backend before this screen can show real data.'],
   };
   if (pending[path]) {
