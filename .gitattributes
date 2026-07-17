@@ -1,0 +1,3 @@
+# Normalize line endings so editor rewrites stop producing whole-file diffs.
+dev-portal/*.js text eol=lf
+dev-portal/*.css text eol=lf
