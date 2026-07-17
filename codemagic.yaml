@@ -26,7 +26,7 @@ workflows:
           flutter clean
           flutter pub get
           cd ios && pod install && cd ..
-          flutter build ios --release --no-codesign
+          flutter build ios --release --no-codesign --dart-define=BUILD_COMMIT=$(echo "$CM_COMMIT" | cut -c1-7)
       - name: Package IPA for Sideloadly
         script: |
           APP_PATH="build/ios/iphoneos/Runner.app"
@@ -72,6 +72,6 @@ workflows:
             "build-tools;35.0.0"
       - name: Build release APK
         script: |
-          flutter build apk --release --no-tree-shake-icons
+          flutter build apk --release --no-tree-shake-icons --dart-define=BUILD_COMMIT=$(echo "$CM_COMMIT" | cut -c1-7)
     artifacts:
       - build/app/outputs/flutter-apk/app-release.apk

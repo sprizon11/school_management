@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/widgets/motion.dart';
+import '../../../../core/config/build_info.dart';
 import '../../../../core/navigation/smooth_page_route.dart';
 import '../../../../core/providers/auth_provider.dart';
 import '../admin_shell.dart';
@@ -163,7 +164,10 @@ class _AdminMoreScreenState extends ConsumerState<AdminMoreScreen> {
                   const SizedBox(height: 18),
                   Center(
                     child: Text(
-                      'SmartUp · v1.0.0',
+                      // Real build, not a hardcoded string — the old literal
+                      // said v1.0.0 while pubspec was already at 1.0.1+2, so
+                      // it couldn't tell you which build was installed.
+                      'SmartUp · ${BuildInfo.label}',
                       style: TextStyle(
                         fontSize: 11.5,
                         color: _ink.withValues(alpha: 0.4),
