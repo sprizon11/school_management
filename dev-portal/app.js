@@ -1475,6 +1475,7 @@ function render() {
 
   if (path === '/schools') {
     app.innerHTML = renderSchoolsPage();
+    bindCommon();
     bindSchoolsPage();
     markAnimated();
     return;
@@ -1608,7 +1609,26 @@ function bindLogin() {
   });
 }
 
+// Module-scoped so bindCommon's nav handler can reach it. It used to exist
+// only as a local closure inside bindDashboard/bindSchoolsPage, so the shared
+// nav handler threw ReferenceError on every click — which is why the sidebar
+// did nothing on the entity screens.
+function closeSb() {
+  document.getElementById('sidebar')?.classList.remove('open');
+  document.getElementById('sb-overlay')?.classList.remove('show');
+}
+
 function bindCommon() {
+  // Sidebar nav — bound here so every screen gets it. It used to live in
+  // bindDashboard and bindSchoolsPage as two diverging copies, which left the
+  // entity screens with no nav handler at all.
+  document.querySelectorAll('[data-nav]').forEach((el) => {
+    el.addEventListener('click', () => {
+      closeSb();
+      navigate(navRoute(el.getAttribute('data-nav')));
+    });
+  });
+
   document.getElementById('logout-btn')?.addEventListener('click', () => {
     clearSession();
     state.overview = null;
@@ -1697,14 +1717,6 @@ function bindDashboard() {
   overlay?.addEventListener('click', closeSb);
 
   // Sidebar nav: "Schools" jumps to the table; others are visual for now.
-  document.querySelectorAll('[data-nav]').forEach((el) => {
-    el.addEventListener('click', () => {
-      const label = el.getAttribute('data-nav');
-      closeSb();
-      navigate(navRoute(label));
-    });
-  });
-
   document.getElementById('search')?.addEventListener('input', (event) => {
     state.search = event.target.value;
     render();
@@ -1744,20 +1756,6 @@ function bindSchoolsPage() {
     overlay?.classList.toggle('show');
   });
   overlay?.addEventListener('click', closeSb);
-
-  // Sidebar nav links
-  document.querySelectorAll('[data-nav]').forEach((el) => {
-    el.addEventListener('click', () => {
-      const label = el.getAttribute('data-nav');
-      closeSb();
-      if (label === 'Overview') {
-        navigate('/');
-        loadDashboard();
-      } else if (label === 'Schools') {
-        // already here
-      }
-    });
-  });
 
   // Logout via user caret
   document.querySelector('.tb-user-caret')?.addEventListener('click', () => {
