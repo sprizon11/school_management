@@ -145,7 +145,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       child: Column(
                         children: [
                           _sectionHeader(
-                            'Recent Activity',
+                            'Top Students',
                             trailing: 'View All',
                             onTap: () => openSmoothPage(
                               context,
@@ -157,7 +157,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                             padding: const EdgeInsets.symmetric(
                               horizontal: _hPad,
                             ),
-                            child: _recentActivityCard(),
+                            child: _topStudentsCard(),
                           ),
                         ],
                       ),
@@ -165,6 +165,29 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     const SizedBox(height: 22),
                     EntranceFade(
                       delay: const Duration(milliseconds: 210),
+                      child: Column(
+                        children: [
+                          _sectionHeader(
+                            'Recent Fee Payments',
+                            trailing: 'View All',
+                            onTap: () => openSmoothPage(
+                              context,
+                              const AdminFeeCollectionScreen(),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: _hPad,
+                            ),
+                            child: _recentPaymentsCard(),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 22),
+                    EntranceFade(
+                      delay: const Duration(milliseconds: 280),
                       child: Column(
                         children: [
                           _sectionHeader(
@@ -808,14 +831,32 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   }
 
   // ---------------------------------------------------------------------
-  // Recent Activity
+  // Top students — /admin/dashboard/summary already returns `topStudents`
+  // grouped by grade (10th, then 11/12 per stream). Nothing displayed it.
   // ---------------------------------------------------------------------
-  Widget _recentActivityCard() {
+  Widget _topStudentsCard() {
     if (_summary == null) {
       return const SkeletonBox(height: 180, borderRadius: 20);
     }
-    final items = (_summary?['activities'] as List<dynamic>? ?? []);
-    final show = items.take(4).toList();
+
+    final groups = (_summary?['topStudents'] as List<dynamic>? ?? []);
+    // Flatten the grade groups and take the strongest few overall.
+    final ranked = <Map<String, dynamic>>[];
+    for (final g in groups) {
+      final group = g as Map<String, dynamic>;
+      for (final st in (group['students'] as List<dynamic>? ?? [])) {
+        ranked.add({
+          ...st as Map<String, dynamic>,
+          'groupLabel': group['label'],
+        });
+      }
+    }
+    ranked.sort(
+      (a, b) => _toDouble(
+        b['averagePercent'],
+      ).compareTo(_toDouble(a['averagePercent'])),
+    );
+    final show = ranked.take(4).toList();
 
     return Container(
       decoration: _cardDecoration(),
@@ -823,8 +864,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           ? const Padding(
               padding: EdgeInsets.all(20),
               child: Text(
-                'No recent activity yet.',
-                style: TextStyle(color: AppColors.textMuted),
+                'No marks recorded yet — rankings appear once exam marks are entered.',
+                style: TextStyle(color: AppColors.textMuted, height: 1.4),
               ),
             )
           : Column(
@@ -832,7 +873,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 for (var i = 0; i < show.length; i++) ...[
                   EntranceFadeItem(
                     index: i,
-                    child: _activityRow(show[i] as Map<String, dynamic>),
+                    child: _topStudentRow(show[i], i + 1),
                   ),
                   if (i < show.length - 1)
                     const Divider(
@@ -847,10 +888,16 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     );
   }
 
-  Widget _activityRow(Map<String, dynamic> item) {
-    final action = '${item['action'] ?? 'Activity'}';
-    final (icon, color) = _activityIcon(action);
-    final actor = '${item['actorName'] ?? ''}';
+  Widget _topStudentRow(Map<String, dynamic> s, int rank) {
+    final name = '${s['fullName'] ?? ''}';
+    final pct = _toDouble(s['averagePercent']);
+    // Gold / silver / bronze for the podium, brand blue after that.
+    final medal = switch (rank) {
+      1 => const Color(0xFFF59E0B),
+      2 => const Color(0xFF94A3B8),
+      3 => const Color(0xFFB45309),
+      _ => AppColors.primary,
+    };
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 13, 12, 13),
@@ -860,81 +907,207 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(11),
+              color: medal.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(icon, color: color, size: 19),
+            alignment: Alignment.center,
+            child: Text(
+              '$rank',
+              style: TextStyle(
+                color: medal,
+                fontWeight: FontWeight.w800,
+                fontSize: 14,
+              ),
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  action,
-                  maxLines: 2,
+                  name,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 13,
+                    fontSize: 13.5,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF1F2937),
-                    height: 1.3,
+                    color: _ink,
                   ),
                 ),
-                if (actor.isNotEmpty && actor != 'Admin') ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    'by $actor',
-                    style: const TextStyle(
-                      fontSize: 11.5,
-                      color: AppColors.textMuted,
-                    ),
+                const SizedBox(height: 2),
+                Text(
+                  '${s['classLabel'] ?? ''} · Roll ${s['rollNumber'] ?? '—'}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: _ink.withValues(alpha: 0.5),
                   ),
-                ],
+                ),
               ],
             ),
           ),
           const SizedBox(width: 8),
-          Text(
-            _formatRelativeDate(item['createdAt']),
-            style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textMuted,
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+            decoration: BoxDecoration(
+              color: medal.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(8),
             ),
-          ),
-          const SizedBox(width: 2),
-          const Icon(
-            Icons.chevron_right_rounded,
-            size: 18,
-            color: Color(0xFFC2C8D4),
+            child: Text(
+              '${pct.toStringAsFixed(pct >= 100 ? 0 : 1)}%',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: medal,
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  (IconData, Color) _activityIcon(String action) {
-    final a = action.toLowerCase();
-    if (a.contains('student')) {
-      return (Icons.person_add_alt_1_rounded, const Color(0xFF3B82F6));
+  // ---------------------------------------------------------------------
+  // Recent fee payments — also already returned by the summary endpoint.
+  // ---------------------------------------------------------------------
+  Widget _recentPaymentsCard() {
+    if (_summary == null) {
+      return const SkeletonBox(height: 180, borderRadius: 20);
     }
-    if (a.contains('fee') || a.contains('paid') || a.contains('payment')) {
-      return (Icons.currency_rupee_rounded, const Color(0xFF22C55E));
-    }
-    if (a.contains('attendance')) {
-      return (Icons.fact_check_rounded, const Color(0xFF8B5CF6));
-    }
-    if (a.contains('announcement')) {
-      return (Icons.campaign_rounded, const Color(0xFFF59E0B));
-    }
-    if (a.contains('teacher')) {
-      return (Icons.school_rounded, const Color(0xFF22C55E));
-    }
-    if (a.contains('class')) {
-      return (Icons.menu_book_rounded, const Color(0xFF3B82F6));
-    }
-    return (Icons.bolt_rounded, const Color(0xFF6366F1));
+
+    final items = (_summary?['recentTransactions'] as List<dynamic>? ?? []);
+    final show = items.take(4).toList();
+
+    return Container(
+      decoration: _cardDecoration(),
+      child: show.isEmpty
+          ? const Padding(
+              padding: EdgeInsets.all(20),
+              child: Text(
+                'No fee payments recorded yet.',
+                style: TextStyle(color: AppColors.textMuted),
+              ),
+            )
+          : Column(
+              children: [
+                for (var i = 0; i < show.length; i++) ...[
+                  EntranceFadeItem(
+                    index: i,
+                    child: _paymentRow(show[i] as Map<String, dynamic>),
+                  ),
+                  if (i < show.length - 1)
+                    const Divider(
+                      height: 1,
+                      indent: 62,
+                      endIndent: 14,
+                      color: Color(0xFFF0F1F6),
+                    ),
+                ],
+              ],
+            ),
+    );
+  }
+
+  Widget _paymentRow(Map<String, dynamic> t) {
+    final amount = _toInt(t['amount']);
+    final money = NumberFormat.currency(
+      locale: 'en_IN',
+      symbol: '₹',
+      decimalDigits: 0,
+    );
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 13, 12, 13),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: AppColors.success.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.payments_rounded,
+              size: 19,
+              color: AppColors.success,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${t['studentName'] ?? ''}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: _ink,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${t['className'] ?? ''} · ${t['method'] ?? ''}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: _ink.withValues(alpha: 0.5),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                money.format(amount),
+                style: const TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.success,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                _relativeTime(t['paidAt']),
+                style: TextStyle(
+                  fontSize: 10.5,
+                  color: _ink.withValues(alpha: 0.45),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  double _toDouble(dynamic v) {
+    if (v is num) return v.toDouble();
+    return double.tryParse('$v') ?? 0;
+  }
+
+  String _relativeTime(dynamic iso) {
+    if (iso == null) return '';
+    final t = DateTime.tryParse('$iso');
+    if (t == null) return '';
+    final d = DateTime.now().difference(t);
+    if (d.inMinutes < 1) return 'just now';
+    if (d.inMinutes < 60) return '${d.inMinutes}m ago';
+    if (d.inHours < 24) return '${d.inHours}h ago';
+    if (d.inDays < 30) return '${d.inDays}d ago';
+    return DateFormat('d MMM').format(t);
   }
 
   // ---------------------------------------------------------------------
@@ -1084,22 +1257,6 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         ),
       ],
     );
-  }
-
-  String _formatRelativeDate(dynamic value) {
-    final dt = DateTime.tryParse('$value');
-    if (dt == null) return '';
-    final local = dt.toLocal();
-    final now = DateTime.now();
-    final sameDay =
-        local.year == now.year &&
-        local.month == now.month &&
-        local.day == now.day;
-    if (sameDay) return DateFormat('h:mm a').format(local);
-    final diff = now.difference(local);
-    if (diff.inDays == 1) return 'Yesterday';
-    if (diff.inDays < 7) return '${diff.inDays} days ago';
-    return DateFormat('d MMM').format(local);
   }
 
   String _formatNumber(dynamic value) {

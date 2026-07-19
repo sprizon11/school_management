@@ -46,7 +46,9 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final res = await ref.read(dioProvider).get(
+      final res = await ref
+          .read(dioProvider)
+          .get(
             '${widget.apiPrefix}/conversations/${widget.conversationId}/messages',
           );
       if (!mounted) return;
@@ -78,7 +80,9 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     setState(() => _sending = true);
     _input.clear();
     try {
-      final res = await ref.read(dioProvider).post(
+      final res = await ref
+          .read(dioProvider)
+          .post(
             '${widget.apiPrefix}/conversations/${widget.conversationId}/messages',
             data: {'body': text},
           );
@@ -113,11 +117,17 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(widget.title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            Text(
+              widget.title,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            ),
             if (widget.subtitle != null)
               Text(
                 widget.subtitle!,
-                style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.85)),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.white.withValues(alpha: 0.85),
+                ),
               ),
           ],
         ),
@@ -129,13 +139,18 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                 ? Center(child: CircularProgressIndicator(color: accent))
                 : ListView.builder(
                     controller: _scroll,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 16,
+                    ),
                     itemCount: _messages.length,
                     itemBuilder: (_, i) {
                       final m = _messages[i] as Map<String, dynamic>;
                       final mine = m['isMine'] == true;
                       return Align(
-                        alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
+                        alignment: mine
+                            ? Alignment.centerRight
+                            : Alignment.centerLeft,
                         child: Container(
                           margin: const EdgeInsets.only(bottom: 8),
                           padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
@@ -143,7 +158,9 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                             maxWidth: MediaQuery.sizeOf(context).width * 0.78,
                           ),
                           decoration: BoxDecoration(
-                            color: mine ? const Color(0xFFDCF8C6) : Colors.white,
+                            color: mine
+                                ? const Color(0xFFDCF8C6)
+                                : Colors.white,
                             borderRadius: BorderRadius.only(
                               topLeft: const Radius.circular(14),
                               topRight: const Radius.circular(14),
@@ -163,12 +180,18 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                             children: [
                               Text(
                                 '${m['body']}',
-                                style: const TextStyle(fontSize: 14, height: 1.35),
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  height: 1.35,
+                                ),
                               ),
                               const SizedBox(height: 4),
                               Text(
                                 _time(m['createdAt']),
-                                style: const TextStyle(fontSize: 9, color: AppColors.textMuted),
+                                style: const TextStyle(
+                                  fontSize: 9,
+                                  color: AppColors.textMuted,
+                                ),
                               ),
                             ],
                           ),
@@ -193,7 +216,10 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                         hintText: 'Type a message',
                         filled: true,
                         fillColor: Colors.white,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 10,
+                        ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(24),
                           borderSide: BorderSide.none,
@@ -220,7 +246,11 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                                   color: Colors.white,
                                 ),
                               )
-                            : const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+                            : const Icon(
+                                Icons.send_rounded,
+                                color: Colors.white,
+                                size: 20,
+                              ),
                       ),
                     ),
                   ),

@@ -9,6 +9,7 @@ import 'screens/teacher_chat_screen.dart';
 import 'screens/teacher_students_screen.dart';
 import 'screens/teacher_reports_screen.dart';
 import 'screens/teacher_more_screen.dart';
+import 'widgets/teacher_sidebar.dart';
 import 'widgets/teacher_ui.dart';
 
 class TeacherShell extends ConsumerStatefulWidget {
@@ -34,10 +35,14 @@ class _TeacherShellState extends ConsumerState<TeacherShell> {
     return Scaffold(
       extendBody: true,
       backgroundColor: teacherBg,
-      body: IndexedStack(
-        index: index,
-        children: _screens,
+      // Drawer lives on the shell so every tab can open it via
+      // Scaffold.of(context) — same arrangement as the admin shell.
+      drawer: TeacherSidebar(
+        onTabSelect: (i) =>
+            ref.read(teacherShellTabProvider.notifier).state = i,
       ),
+      drawerEnableOpenDragGesture: false,
+      body: IndexedStack(index: index, children: _screens),
       bottomNavigationBar: _TeacherLiquidNavBar(
         index: index,
         onTap: (i) => ref.read(teacherShellTabProvider.notifier).state = i,
@@ -75,7 +80,10 @@ class _TeacherLiquidNavBar extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.82),
               borderRadius: BorderRadius.circular(28),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.6), width: 1.2),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.6),
+                width: 1.2,
+              ),
               boxShadow: [
                 BoxShadow(
                   color: teacherHeaderStart.withValues(alpha: 0.2),

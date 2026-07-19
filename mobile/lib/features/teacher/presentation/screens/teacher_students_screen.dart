@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/navigation/smooth_page_route.dart';
+import '../../../../core/widgets/stat_card.dart';
 import '../../../../core/providers/auth_provider.dart';
 import 'teacher_add_student_screen.dart';
-import 'teacher_reports_screen.dart';
 
 class TeacherStudentsScreen extends ConsumerStatefulWidget {
   const TeacherStudentsScreen({super.key});
@@ -99,8 +99,9 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
 
   List<Map<String, dynamic>> get _filtered {
     final q = _query.trim().toLowerCase();
-    var list =
-        _students.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    var list = _students
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
     if (_genderFilter != null) {
       list = list.where((s) => '${s['gender']}' == _genderFilter).toList();
     }
@@ -116,8 +117,9 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
             email.contains(q);
       }).toList();
     }
-    list.sort((a, b) =>
-        _toInt(a['rollNumber']).compareTo(_toInt(b['rollNumber'])));
+    list.sort(
+      (a, b) => _toInt(a['rollNumber']).compareTo(_toInt(b['rollNumber'])),
+    );
     return list;
   }
 
@@ -140,8 +142,9 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
   Widget build(BuildContext context) {
     final filtered = _filtered;
     final total = _students.length;
-    final active =
-        _students.where((s) => '${(s as Map)['status']}' == 'ACTIVE').length;
+    final active = _students
+        .where((s) => '${(s as Map)['status']}' == 'ACTIVE')
+        .length;
     final pageCount = (filtered.length / _perPage).ceil().clamp(1, 9999);
     if (_page >= pageCount) _page = 0;
     final start = _page * _perPage;
@@ -161,7 +164,8 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
                 Expanded(
                   child: _loading
                       ? const Center(
-                          child: CircularProgressIndicator(color: _purple))
+                          child: CircularProgressIndicator(color: _purple),
+                        )
                       : RefreshIndicator(
                           color: _purple,
                           onRefresh: () => _classId != null
@@ -169,8 +173,12 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
                               : _loadClasses(),
                           child: ListView(
                             physics: const AlwaysScrollableScrollPhysics(),
-                            padding:
-                                EdgeInsets.fromLTRB(16, 6, 16, bottomInset),
+                            padding: EdgeInsets.fromLTRB(
+                              16,
+                              6,
+                              16,
+                              bottomInset,
+                            ),
                             children: [
                               _statsRow(total, active),
                               const SizedBox(height: 14),
@@ -208,19 +216,25 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('Students',
-                    style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        color: _ink,
-                        letterSpacing: -0.5,
-                        height: 1.1)),
+                const Text(
+                  'Students',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    color: _ink,
+                    letterSpacing: -0.5,
+                    height: 1.1,
+                  ),
+                ),
                 const SizedBox(height: 2),
-                Text('Manage and view your students',
-                    style: TextStyle(
-                        fontSize: 12.5,
-                        color: _ink.withValues(alpha: 0.5),
-                        fontWeight: FontWeight.w500)),
+                Text(
+                  'Manage and view your students',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: _ink.withValues(alpha: 0.5),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ],
             ),
           ),
@@ -256,9 +270,10 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
             borderRadius: BorderRadius.circular(14),
             boxShadow: [
               BoxShadow(
-                  color: _purple.withValues(alpha: 0.1),
-                  blurRadius: 12,
-                  offset: const Offset(0, 5)),
+                color: _purple.withValues(alpha: 0.1),
+                blurRadius: 12,
+                offset: const Offset(0, 5),
+              ),
             ],
           ),
           child: Icon(icon, color: _ink, size: 22),
@@ -277,13 +292,15 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
         child: Ink(
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-                colors: [Color(0xFF7B74FF), Color(0xFF5B52E8)]),
+              colors: [Color(0xFF7B74FF), Color(0xFF5B52E8)],
+            ),
             borderRadius: BorderRadius.circular(14),
             boxShadow: [
               BoxShadow(
-                  color: _purple.withValues(alpha: 0.35),
-                  blurRadius: 14,
-                  offset: const Offset(0, 6)),
+                color: _purple.withValues(alpha: 0.35),
+                blurRadius: 14,
+                offset: const Offset(0, 6),
+              ),
             ],
           ),
           child: const Padding(
@@ -293,11 +310,14 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
               children: [
                 Icon(Icons.add_rounded, color: Colors.white, size: 20),
                 SizedBox(width: 5),
-                Text('Add Student',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700)),
+                Text(
+                  'Add Student',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ],
             ),
           ),
@@ -317,9 +337,10 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
-                color: _purple.withValues(alpha: 0.06),
-                blurRadius: 10,
-                offset: const Offset(0, 4)),
+              color: _purple.withValues(alpha: 0.06),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
           ],
         ),
         child: Row(
@@ -339,8 +360,10 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
                   isDense: true,
                   border: InputBorder.none,
                   hintText: 'Search by name, roll or email',
-                  hintStyle:
-                      TextStyle(fontSize: 12.5, color: Color(0xFF9CA3AF)),
+                  hintStyle: TextStyle(
+                    fontSize: 12.5,
+                    color: Color(0xFF9CA3AF),
+                  ),
                 ),
               ),
             ),
@@ -351,133 +374,51 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
   }
 
   // ---------------------------------------------------------------------
+  /// Total / Boys / Girls — same three cards as the admin Students screen,
+  /// via the shared StatCard. Tapping Boys or Girls filters the roster, which
+  /// is what the existing _genderFilter already drives.
   Widget _statsRow(int total, int active) {
-    final absent = 0; // today's attendance not tracked here yet
-    final activePct = total > 0 ? (active / total * 100) : 0;
-    final absentPct = total > 0 ? (absent / total * 100) : 0;
-    return SizedBox(
-      height: 120,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
-        children: [
-          _statCard(
-            icon: Icons.groups_rounded,
-            color: _purple,
-            value: '$total',
-            label: 'Total Students',
-            sub: _classLabel.replaceFirst('Class ', 'Class '),
-            subColor: _purple,
+    final boys = _students
+        .where((s) => '${(s as Map)['gender']}' == 'MALE')
+        .length;
+    final girls = _students
+        .where((s) => '${(s as Map)['gender']}' == 'FEMALE')
+        .length;
+
+    return StatRow(
+      cards: [
+        StatCard(
+          icon: Icons.groups_rounded,
+          color: _purple,
+          value: '$total',
+          label: 'Total',
+          selected: _genderFilter == null,
+          onTap: () => setState(() => _genderFilter = null),
+        ),
+        StatCard(
+          icon: Icons.man_rounded,
+          color: const Color(0xFF22C55E),
+          value: '$boys',
+          label: 'Boys',
+          selected: _genderFilter == 'MALE',
+          onTap: () => setState(
+            () => _genderFilter = _genderFilter == 'MALE' ? null : 'MALE',
           ),
-          const SizedBox(width: 12),
-          _statCard(
-            icon: Icons.person_rounded,
-            color: const Color(0xFF22C55E),
-            value: '$active',
-            label: 'Active Students',
-            sub: '${activePct.toStringAsFixed(1)}%',
-            subColor: const Color(0xFF22C55E),
+        ),
+        StatCard(
+          icon: Icons.woman_rounded,
+          color: const Color(0xFFEC4899),
+          value: '$girls',
+          label: 'Girls',
+          selected: _genderFilter == 'FEMALE',
+          onTap: () => setState(
+            () => _genderFilter = _genderFilter == 'FEMALE' ? null : 'FEMALE',
           ),
-          const SizedBox(width: 12),
-          _statCard(
-            icon: Icons.person_off_rounded,
-            color: const Color(0xFFEF4444),
-            value: '$absent',
-            label: 'Today Absent',
-            sub: '${absentPct.toStringAsFixed(1)}%',
-            subColor: const Color(0xFFEF4444),
-          ),
-          const SizedBox(width: 12),
-          _statCard(
-            icon: Icons.emoji_events_rounded,
-            color: const Color(0xFFF59E0B),
-            value: '${total >= 5 ? 5 : total}',
-            label: 'Top Rank Students',
-            sub: 'View Top Students',
-            subColor: const Color(0xFFF59E0B),
-            subArrow: true,
-            onTap: () => openSmoothPage(context, const TeacherReportsScreen()),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  Widget _statCard({
-    required IconData icon,
-    required Color color,
-    required String value,
-    required String label,
-    required String sub,
-    required Color subColor,
-    bool subArrow = false,
-    VoidCallback? onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 150,
-        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [
-            BoxShadow(
-                color: color.withValues(alpha: 0.1),
-                blurRadius: 14,
-                offset: const Offset(0, 6)),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12)),
-              child: Icon(icon, color: color, size: 20),
-            ),
-            const SizedBox(height: 8),
-            Text(value,
-                style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    color: _ink,
-                    height: 1,
-                    letterSpacing: -0.5)),
-            const SizedBox(height: 2),
-            Text(label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: _ink.withValues(alpha: 0.5))),
-            const SizedBox(height: 3),
-            Row(
-              children: [
-                Flexible(
-                  child: Text(sub,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w700,
-                          color: subColor)),
-                ),
-                if (subArrow)
-                  Icon(Icons.chevron_right_rounded, size: 14, color: subColor),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ---------------------------------------------------------------------
   Widget _classFilterRow() {
     return Row(
       children: [
@@ -499,8 +440,8 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
             _genderFilter == null
                 ? 'All Students'
                 : _genderFilter == 'MALE'
-                    ? 'Boys'
-                    : 'Girls',
+                ? 'Boys'
+                : 'Girls',
             onTap: _showFilterSheet,
           ),
         ),
@@ -508,7 +449,12 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
     );
   }
 
-  Widget _pill(IconData icon, String label, String value, {VoidCallback? onTap}) {
+  Widget _pill(
+    IconData icon,
+    String label,
+    String value, {
+    VoidCallback? onTap,
+  }) {
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
@@ -516,22 +462,25 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
         height: 54,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: [
-              BoxShadow(
-                  color: _purple.withValues(alpha: 0.06),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4)),
-            ]),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: _purple.withValues(alpha: 0.06),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
         child: Row(
           children: [
             Container(
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                  color: _purple.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(9)),
+                color: _purple.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(9),
+              ),
               child: Icon(icon, size: 17, color: _purple),
             ),
             const SizedBox(width: 9),
@@ -540,21 +489,31 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(label,
-                      style: TextStyle(
-                          fontSize: 10, color: _ink.withValues(alpha: 0.45))),
-                  Text(value,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w700,
-                          color: _ink)),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: _ink.withValues(alpha: 0.45),
+                    ),
+                  ),
+                  Text(
+                    value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: _ink,
+                    ),
+                  ),
                 ],
               ),
             ),
-            Icon(Icons.keyboard_arrow_down_rounded,
-                size: 18, color: _ink.withValues(alpha: 0.4)),
+            Icon(
+              Icons.keyboard_arrow_down_rounded,
+              size: 18,
+              color: _ink.withValues(alpha: 0.4),
+            ),
           ],
         ),
       ),
@@ -567,18 +526,24 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('All Students ($count)',
-                style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    color: _ink,
-                    letterSpacing: -0.3)),
+            Text(
+              'All Students ($count)',
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+                color: _ink,
+                letterSpacing: -0.3,
+              ),
+            ),
             const SizedBox(height: 6),
             Container(
-                height: 3,
-                width: 60,
-                decoration: BoxDecoration(
-                    color: _purple, borderRadius: BorderRadius.circular(2))),
+              height: 3,
+              width: 60,
+              decoration: BoxDecoration(
+                color: _purple,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
           ],
         ),
       ],
@@ -593,9 +558,10 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-              color: _purple.withValues(alpha: 0.06),
-              blurRadius: 16,
-              offset: const Offset(0, 6)),
+            color: _purple.withValues(alpha: 0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
         ],
       ),
       child: Column(
@@ -604,18 +570,22 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
             _studentRow(items[i], first: i == 0, last: i == items.length - 1),
             if (i < items.length - 1)
               const Divider(
-                  height: 1,
-                  indent: 62,
-                  endIndent: 14,
-                  color: Color(0xFFF0F1F6)),
+                height: 1,
+                indent: 62,
+                endIndent: 14,
+                color: Color(0xFFF0F1F6),
+              ),
           ],
         ],
       ),
     );
   }
 
-  Widget _studentRow(Map<String, dynamic> s,
-      {required bool first, required bool last}) {
+  Widget _studentRow(
+    Map<String, dynamic> s, {
+    required bool first,
+    required bool last,
+  }) {
     final name = '${s['fullName'] ?? '?'}';
     final roll = '${s['rollNumber'] ?? '—'}';
     final email = '${s['email'] ?? ''}';
@@ -642,8 +612,11 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
             ),
             alignment: Alignment.center,
             child: avatar == null
-                ? Icon(isFemale ? Icons.face_3_rounded : Icons.face_rounded,
-                    color: tint, size: 22)
+                ? Icon(
+                    isFemale ? Icons.face_3_rounded : Icons.face_rounded,
+                    color: tint,
+                    size: 22,
+                  )
                 : null,
           ),
           const SizedBox(width: 12),
@@ -652,26 +625,36 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                        color: _ink,
-                        letterSpacing: -0.2)),
+                Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: _ink,
+                    letterSpacing: -0.2,
+                  ),
+                ),
                 const SizedBox(height: 2),
-                Text('Roll No. ${roll.padLeft(2, '0')}',
-                    style: TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w600,
-                        color: _ink.withValues(alpha: 0.55))),
+                Text(
+                  'Roll No. ${roll.padLeft(2, '0')}',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: _ink.withValues(alpha: 0.55),
+                  ),
+                ),
                 const SizedBox(height: 1),
-                Text(email.isNotEmpty ? email : code,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        fontSize: 11, color: _ink.withValues(alpha: 0.45))),
+                Text(
+                  email.isNotEmpty ? email : code,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: _ink.withValues(alpha: 0.45),
+                  ),
+                ),
               ],
             ),
           ),
@@ -679,17 +662,21 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
             decoration: BoxDecoration(
-              color: (isActive ? const Color(0xFF22C55E) : const Color(0xFF9CA3AF))
-                  .withValues(alpha: 0.12),
+              color:
+                  (isActive ? const Color(0xFF22C55E) : const Color(0xFF9CA3AF))
+                      .withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: Text(isActive ? 'Active' : 'Inactive',
-                style: TextStyle(
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w800,
-                    color: isActive
-                        ? const Color(0xFF16A34A)
-                        : const Color(0xFF6B7280))),
+            child: Text(
+              isActive ? 'Active' : 'Inactive',
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w800,
+                color: isActive
+                    ? const Color(0xFF16A34A)
+                    : const Color(0xFF6B7280),
+              ),
+            ),
           ),
           _rowMenu(s),
         ],
@@ -699,8 +686,11 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
 
   Widget _rowMenu(Map<String, dynamic> s) {
     return PopupMenuButton<String>(
-      icon:
-          const Icon(Icons.more_vert_rounded, size: 20, color: Color(0xFF9CA3AF)),
+      icon: const Icon(
+        Icons.more_vert_rounded,
+        size: 20,
+        color: Color(0xFF9CA3AF),
+      ),
       padding: EdgeInsets.zero,
       color: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -729,26 +719,36 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
     return Row(
       children: [
         Expanded(
-          child: Text('Showing $start to $end of $total students',
-              style: TextStyle(
-                  fontSize: 12, color: _ink.withValues(alpha: 0.5))),
+          child: Text(
+            'Showing $start to $end of $total students',
+            style: TextStyle(fontSize: 12, color: _ink.withValues(alpha: 0.5)),
+          ),
         ),
-        _pageBtn(Icons.chevron_left_rounded,
-            enabled: _page > 0, onTap: () => setState(() => _page--)),
+        _pageBtn(
+          Icons.chevron_left_rounded,
+          enabled: _page > 0,
+          onTap: () => setState(() => _page--),
+        ),
         const SizedBox(width: 6),
         for (var p = 0; p < pageCount && p < 3; p++) ...[
           if (p > 0) const SizedBox(width: 6),
           _pageNum(p),
         ],
         const SizedBox(width: 6),
-        _pageBtn(Icons.chevron_right_rounded,
-            enabled: _page < pageCount - 1, onTap: () => setState(() => _page++)),
+        _pageBtn(
+          Icons.chevron_right_rounded,
+          enabled: _page < pageCount - 1,
+          onTap: () => setState(() => _page++),
+        ),
       ],
     );
   }
 
-  Widget _pageBtn(IconData icon,
-      {required bool enabled, required VoidCallback onTap}) {
+  Widget _pageBtn(
+    IconData icon, {
+    required bool enabled,
+    required VoidCallback onTap,
+  }) {
     return GestureDetector(
       onTap: enabled ? onTap : null,
       child: Container(
@@ -759,9 +759,11 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: const Color(0xFFE5E7EB)),
         ),
-        child: Icon(icon,
-            size: 20,
-            color: enabled ? _ink : _ink.withValues(alpha: 0.3)),
+        child: Icon(
+          icon,
+          size: 20,
+          color: enabled ? _ink : _ink.withValues(alpha: 0.3),
+        ),
       ),
     );
   }
@@ -778,13 +780,17 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
           color: selected ? _purple.withValues(alpha: 0.1) : Colors.white,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-              color: selected ? _purple : const Color(0xFFE5E7EB)),
+            color: selected ? _purple : const Color(0xFFE5E7EB),
+          ),
         ),
-        child: Text('${p + 1}',
-            style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: selected ? _purple : _ink)),
+        child: Text(
+          '${p + 1}',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: selected ? _purple : _ink,
+          ),
+        ),
       ),
     );
   }
@@ -795,10 +801,15 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
       context: context,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(26))),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+      ),
       builder: (ctx) => Padding(
         padding: EdgeInsets.fromLTRB(
-            12, 14, 12, 12 + MediaQuery.paddingOf(ctx).bottom),
+          12,
+          14,
+          12,
+          12 + MediaQuery.paddingOf(ctx).bottom,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -806,9 +817,13 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
             const SizedBox(height: 8),
             for (final c in _classes)
               ListTile(
-                title: Text('Class ${(c as Map)['grade']} - ${c['section']}',
-                    style: const TextStyle(
-                        fontSize: 14, fontWeight: FontWeight.w600)),
+                title: Text(
+                  'Class ${(c as Map)['grade']} - ${c['section']}',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 trailing: '${c['id']}' == _classId
                     ? const Icon(Icons.check_rounded, color: _purple)
                     : null,
@@ -828,10 +843,15 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
       context: context,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(26))),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+      ),
       builder: (ctx) => Padding(
         padding: EdgeInsets.fromLTRB(
-            12, 14, 12, 12 + MediaQuery.paddingOf(ctx).bottom),
+          12,
+          14,
+          12,
+          12 + MediaQuery.paddingOf(ctx).bottom,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -843,9 +863,13 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
               'FEMALE': 'Girls',
             }.entries)
               ListTile(
-                title: Text(e.value,
-                    style: const TextStyle(
-                        fontSize: 14, fontWeight: FontWeight.w600)),
+                title: Text(
+                  e.value,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 trailing: _genderFilter == e.key
                     ? const Icon(Icons.check_rounded, color: _purple)
                     : null,
@@ -864,12 +888,13 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
   }
 
   Widget _grabber() => Container(
-        width: 42,
-        height: 4,
-        decoration: BoxDecoration(
-            color: Colors.grey.shade300,
-            borderRadius: BorderRadius.circular(2)),
-      );
+    width: 42,
+    height: 4,
+    decoration: BoxDecoration(
+      color: Colors.grey.shade300,
+      borderRadius: BorderRadius.circular(2),
+    ),
+  );
 
   void _showStudentSheet(Map<String, dynamic> s) {
     final gender = '${s['gender']}';
@@ -881,10 +906,15 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
       context: context,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(26))),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+      ),
       builder: (ctx) => Padding(
         padding: EdgeInsets.fromLTRB(
-            20, 12, 20, 20 + MediaQuery.paddingOf(ctx).bottom),
+          20,
+          12,
+          20,
+          20 + MediaQuery.paddingOf(ctx).bottom,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -896,35 +926,57 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: LinearGradient(
-                    colors: [color, Color.lerp(color, Colors.black, 0.18)!]),
+                  colors: [color, Color.lerp(color, Colors.black, 0.18)!],
+                ),
               ),
               alignment: Alignment.center,
-              child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?',
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 26)),
+              child: Text(
+                name.isNotEmpty ? name[0].toUpperCase() : '?',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 26,
+                ),
+              ),
             ),
             const SizedBox(height: 12),
-            Text(name,
-                style: const TextStyle(
-                    fontSize: 18, fontWeight: FontWeight.w800, color: _ink)),
+            Text(
+              name,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: _ink,
+              ),
+            ),
             const SizedBox(height: 4),
-            Text(_classLabel,
-                style: TextStyle(
-                    fontSize: 13, color: _ink.withValues(alpha: 0.5))),
+            Text(
+              _classLabel,
+              style: TextStyle(
+                fontSize: 13,
+                color: _ink.withValues(alpha: 0.5),
+              ),
+            ),
             const SizedBox(height: 18),
-            _detailRow(Icons.tag_rounded, 'Roll Number',
-                '${s['rollNumber'] ?? '—'}'),
-            _detailRow(Icons.badge_outlined, 'Student Code',
-                '${s['studentCode'] ?? '—'}'),
+            _detailRow(
+              Icons.tag_rounded,
+              'Roll Number',
+              '${s['rollNumber'] ?? '—'}',
+            ),
+            _detailRow(
+              Icons.badge_outlined,
+              'Student Code',
+              '${s['studentCode'] ?? '—'}',
+            ),
             if ('${s['email'] ?? ''}'.isNotEmpty)
               _detailRow(Icons.mail_outline_rounded, 'Email', '${s['email']}'),
             if ('${s['phone'] ?? ''}'.isNotEmpty)
               _detailRow(Icons.phone_outlined, 'Phone', '${s['phone']}'),
             if ('${s['fatherName'] ?? ''}'.isNotEmpty)
-              _detailRow(Icons.person_outline_rounded, 'Father',
-                  '${s['fatherName']}'),
+              _detailRow(
+                Icons.person_outline_rounded,
+                'Father',
+                '${s['fatherName']}',
+              ),
           ],
         ),
       ),
@@ -940,23 +992,28 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-                color: _purple.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10)),
+              color: _purple.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
             child: Icon(icon, size: 17, color: _purple),
           ),
           const SizedBox(width: 12),
-          Text(label,
-              style:
-                  TextStyle(fontSize: 13, color: _ink.withValues(alpha: 0.5))),
+          Text(
+            label,
+            style: TextStyle(fontSize: 13, color: _ink.withValues(alpha: 0.5)),
+          ),
           const Spacer(),
           Flexible(
-            child: Text(value,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w700,
-                    color: _ink)),
+            child: Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w700,
+                color: _ink,
+              ),
+            ),
           ),
         ],
       ),
@@ -973,29 +1030,37 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
             width: 90,
             height: 90,
             decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _purple.withValues(alpha: 0.08)),
+              shape: BoxShape.circle,
+              color: _purple.withValues(alpha: 0.08),
+            ),
             child: Icon(
-                searching
-                    ? Icons.search_off_rounded
-                    : Icons.groups_2_outlined,
-                size: 42,
-                color: _purple.withValues(alpha: 0.7)),
+              searching ? Icons.search_off_rounded : Icons.groups_2_outlined,
+              size: 42,
+              color: _purple.withValues(alpha: 0.7),
+            ),
           ),
           const SizedBox(height: 16),
-          Text(searching ? 'No students found' : 'No students yet',
-              style: const TextStyle(
-                  fontSize: 16, fontWeight: FontWeight.w800, color: _ink)),
+          Text(
+            searching ? 'No students found' : 'No students yet',
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: _ink,
+            ),
+          ),
           const SizedBox(height: 6),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 40),
             child: Text(
-                searching
-                    ? 'Try a different search or filter.'
-                    : 'Students added to your class will appear here.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    fontSize: 13, color: _ink.withValues(alpha: 0.5))),
+              searching
+                  ? 'Try a different search or filter.'
+                  : 'Students added to your class will appear here.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                color: _ink.withValues(alpha: 0.5),
+              ),
+            ),
           ),
         ],
       ),

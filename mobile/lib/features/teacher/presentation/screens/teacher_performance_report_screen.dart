@@ -50,10 +50,12 @@ class _TeacherPerformanceReportScreenState
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final res = await ref.read(dioProvider).get(
-        '/teacher/reports/performance',
-        queryParameters: {'classId': widget.classId},
-      );
+      final res = await ref
+          .read(dioProvider)
+          .get(
+            '/teacher/reports/performance',
+            queryParameters: {'classId': widget.classId},
+          );
       if (!mounted) return;
       final list = ((res.data as Map)['students'] as List<dynamic>? ?? [])
           .map((e) => Map<String, dynamic>.from(e as Map))
@@ -63,8 +65,9 @@ class _TeacherPerformanceReportScreenState
         final ra = (a['rank'] as num?)?.toInt();
         final rb = (b['rank'] as num?)?.toInt();
         if (ra == null && rb == null) {
-          return ((a['rollNumber'] as num?) ?? 0)
-              .compareTo((b['rollNumber'] as num?) ?? 0);
+          return ((a['rollNumber'] as num?) ?? 0).compareTo(
+            (b['rollNumber'] as num?) ?? 0,
+          );
         }
         if (ra == null) return 1;
         if (rb == null) return -1;
@@ -83,9 +86,11 @@ class _TeacherPerformanceReportScreenState
     final q = _query.trim().toLowerCase();
     if (q.isEmpty) return _students;
     return _students
-        .where((s) =>
-            '${s['fullName'] ?? ''}'.toLowerCase().contains(q) ||
-            '${s['rollNumber'] ?? ''}'.toLowerCase().contains(q))
+        .where(
+          (s) =>
+              '${s['fullName'] ?? ''}'.toLowerCase().contains(q) ||
+              '${s['rollNumber'] ?? ''}'.toLowerCase().contains(q),
+        )
         .toList();
   }
 
@@ -112,7 +117,8 @@ class _TeacherPerformanceReportScreenState
       appBar: reportAppBar('Student Performance', widget.classLabel),
       body: _loading
           ? const Center(
-              child: CircularProgressIndicator(color: AppColors.teacherPrimary))
+              child: CircularProgressIndicator(color: AppColors.teacherPrimary),
+            )
           : RefreshIndicator(
               onRefresh: _load,
               color: AppColors.teacherPrimary,
@@ -128,7 +134,7 @@ class _TeacherPerformanceReportScreenState
                       ('${_students.length}', 'Students'),
                       (
                         '${_students.where((s) => s['score'] != null).length}',
-                        'Ranked'
+                        'Ranked',
                       ),
                       ('70/30', 'Marks/Att'),
                     ],
@@ -169,8 +175,7 @@ class _TeacherPerformanceReportScreenState
     final att = (s['attendancePercent'] as num?)?.toInt();
     final color = _scoreColor(score);
     final isTop3 = rank != null && rank <= 3;
-    final rankColor =
-        isTop3 ? _rankColors[rank - 1] : const Color(0xFF9CA3AF);
+    final rankColor = isTop3 ? _rankColors[rank - 1] : const Color(0xFF9CA3AF);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -191,14 +196,18 @@ class _TeacherPerformanceReportScreenState
                 ),
                 alignment: Alignment.center,
                 child: isTop3
-                    ? Icon(Icons.emoji_events_rounded,
-                        size: 15, color: rankColor)
+                    ? Icon(
+                        Icons.emoji_events_rounded,
+                        size: 15,
+                        color: rankColor,
+                      )
                     : Text(
                         rank != null ? '$rank' : '–',
                         style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                            color: rankColor),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: rankColor,
+                        ),
                       ),
               ),
               const SizedBox(width: 10),
@@ -217,9 +226,10 @@ class _TeacherPerformanceReportScreenState
                 child: Text(
                   name.isNotEmpty ? name[0].toUpperCase() : '?',
                   style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 15),
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
+                  ),
                 ),
               ),
               const SizedBox(width: 11),
@@ -241,7 +251,9 @@ class _TeacherPerformanceReportScreenState
                     Text(
                       'Roll $roll',
                       style: const TextStyle(
-                          fontSize: 11, color: AppColors.textMuted),
+                        fontSize: 11,
+                        color: AppColors.textMuted,
+                      ),
                     ),
                   ],
                 ),
@@ -252,15 +264,17 @@ class _TeacherPerformanceReportScreenState
                   Text(
                     score != null ? '$score' : '—',
                     style: TextStyle(
-                        fontSize: 19,
-                        fontWeight: FontWeight.w800,
-                        color: color,
-                        height: 1),
+                      fontSize: 19,
+                      fontWeight: FontWeight.w800,
+                      color: color,
+                      height: 1,
+                    ),
                   ),
                   const SizedBox(height: 2),
-                  const Text('score',
-                      style:
-                          TextStyle(fontSize: 9.5, color: AppColors.textMuted)),
+                  const Text(
+                    'score',
+                    style: TextStyle(fontSize: 9.5, color: AppColors.textMuted),
+                  ),
                 ],
               ),
             ],
@@ -268,11 +282,19 @@ class _TeacherPerformanceReportScreenState
           const SizedBox(height: 10),
           Row(
             children: [
-              _metricChip(Icons.grade_rounded, 'Marks',
-                  marks != null ? '$marks%' : '—', const Color(0xFFF59E0B)),
+              _metricChip(
+                Icons.grade_rounded,
+                'Marks',
+                marks != null ? '$marks%' : '—',
+                const Color(0xFFF59E0B),
+              ),
               const SizedBox(width: 8),
-              _metricChip(Icons.fact_check_rounded, 'Attendance',
-                  att != null ? '$att%' : '—', const Color(0xFF16A34A)),
+              _metricChip(
+                Icons.fact_check_rounded,
+                'Attendance',
+                att != null ? '$att%' : '—',
+                const Color(0xFF16A34A),
+              ),
             ],
           ),
         ],
@@ -294,16 +316,16 @@ class _TeacherPerformanceReportScreenState
             const SizedBox(width: 6),
             Text(
               label,
-              style: const TextStyle(
-                  fontSize: 11, color: AppColors.textMuted),
+              style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
             ),
             const Spacer(),
             Text(
               value,
               style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w800,
-                  color: color),
+                fontSize: 12.5,
+                fontWeight: FontWeight.w800,
+                color: color,
+              ),
             ),
           ],
         ),

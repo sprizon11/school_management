@@ -8,7 +8,8 @@ class TeacherClassesScreen extends ConsumerStatefulWidget {
   const TeacherClassesScreen({super.key});
 
   @override
-  ConsumerState<TeacherClassesScreen> createState() => _TeacherClassesScreenState();
+  ConsumerState<TeacherClassesScreen> createState() =>
+      _TeacherClassesScreenState();
 }
 
 class _TeacherClassesScreenState extends ConsumerState<TeacherClassesScreen> {
@@ -46,15 +47,19 @@ class _TeacherClassesScreenState extends ConsumerState<TeacherClassesScreen> {
       child: Column(
         children: [
           TeacherPlainHeader(
-            icon: Icons.school_rounded,
             title: 'My Classes',
-            subtitle: '${_classes.length} assigned class${_classes.length == 1 ? '' : 'es'}',
+            subtitle:
+                '${_classes.length} assigned class${_classes.length == 1 ? '' : 'es'}',
           ),
           Expanded(
             child: Transform.translate(
               offset: Offset.zero,
               child: _loading
-                  ? const Center(child: CircularProgressIndicator(color: AppColors.teacherPrimary))
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        color: AppColors.teacherPrimary,
+                      ),
+                    )
                   : RefreshIndicator(
                       onRefresh: _load,
                       color: AppColors.teacherPrimary,
@@ -68,17 +73,26 @@ class _TeacherClassesScreenState extends ConsumerState<TeacherClassesScreen> {
                                   decoration: teacherCardDecoration(),
                                   child: const Column(
                                     children: [
-                                      Icon(Icons.class_outlined, size: 48, color: AppColors.textMuted),
+                                      Icon(
+                                        Icons.class_outlined,
+                                        size: 48,
+                                        color: AppColors.textMuted,
+                                      ),
                                       SizedBox(height: 12),
                                       Text(
                                         'No classes assigned yet',
-                                        style: TextStyle(fontWeight: FontWeight.w700),
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                        ),
                                       ),
                                       SizedBox(height: 6),
                                       Text(
                                         'Ask your admin to assign you as class teacher.',
                                         textAlign: TextAlign.center,
-                                        style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+                                        style: TextStyle(
+                                          color: AppColors.textMuted,
+                                          fontSize: 13,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -89,7 +103,9 @@ class _TeacherClassesScreenState extends ConsumerState<TeacherClassesScreen> {
                               physics: const AlwaysScrollableScrollPhysics(),
                               padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
                               itemCount: _classes.length,
-                              itemBuilder: (_, i) => _classCard(_classes[i] as Map<String, dynamic>),
+                              itemBuilder: (_, i) => _classCard(
+                                _classes[i] as Map<String, dynamic>,
+                              ),
                             ),
                     ),
             ),
@@ -151,7 +167,10 @@ class _TeacherClassesScreenState extends ConsumerState<TeacherClassesScreen> {
                   const SizedBox(height: 4),
                   Text(
                     '$count students${c['room'] != null ? ' · Room ${c['room']}' : ''}',
-                    style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textMuted,
+                    ),
                   ),
                 ],
               ),

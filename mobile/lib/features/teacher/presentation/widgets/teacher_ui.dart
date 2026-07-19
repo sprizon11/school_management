@@ -7,32 +7,30 @@ const teacherHeaderEnd = Color(0xFF7C3AED);
 const teacherCardRadius = 18.0;
 
 BoxDecoration teacherCardDecoration() => BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(teacherCardRadius),
-      border: Border.all(color: const Color(0xFFE8EDF5)),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.04),
-          blurRadius: 12,
-          offset: const Offset(0, 4),
-        ),
-      ],
-    );
+  color: Colors.white,
+  borderRadius: BorderRadius.circular(teacherCardRadius),
+  border: Border.all(color: const Color(0xFFE8EDF5)),
+  boxShadow: [
+    BoxShadow(
+      color: Colors.black.withValues(alpha: 0.04),
+      blurRadius: 12,
+      offset: const Offset(0, 4),
+    ),
+  ],
+);
 
-/// Plain light header used by all teacher tab screens: gradient icon chip,
-/// dark title + muted subtitle, optional trailing widget and a bottom slot
-/// (search bar, filter chips) rendered on the page background.
+/// Plain light header used by all teacher tab screens: menu button that opens
+/// the shell's side panel, dark title + muted subtitle, optional trailing
+/// widget and a bottom slot (search bar, filter chips).
 class TeacherPlainHeader extends StatelessWidget {
   const TeacherPlainHeader({
     super.key,
-    required this.icon,
     required this.title,
     this.subtitle,
     this.trailing,
     this.bottomChild,
   });
 
-  final IconData icon;
   final String title;
   final String? subtitle;
   final Widget? trailing;
@@ -51,26 +49,25 @@ class TeacherPlainHeader extends StatelessWidget {
         children: [
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [teacherHeaderStart, teacherHeaderEnd],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(14),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.teacherPrimary.withValues(alpha: 0.3),
-                      blurRadius: 12,
-                      offset: const Offset(0, 5),
+              // Menu button, not a decorative icon tile — it opens the shell's
+              // side panel. Builder gives it a context beneath the Scaffold so
+              // Scaffold.of can find the drawer.
+              Builder(
+                builder: (context) => Material(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                  child: InkWell(
+                    onTap: () => Scaffold.of(context).openDrawer(),
+                    borderRadius: BorderRadius.circular(12),
+                    child: const SizedBox(
+                      height: 42,
+                      width: 42,
+                      child: Icon(Icons.segment_rounded, color: _ink, size: 24),
                     ),
-                  ],
+                  ),
                 ),
-                child: Icon(icon, color: Colors.white, size: 20),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -103,10 +100,7 @@ class TeacherPlainHeader extends StatelessWidget {
                   ],
                 ),
               ),
-              if (trailing != null) ...[
-                const SizedBox(width: 10),
-                trailing!,
-              ],
+              if (trailing != null) ...[const SizedBox(width: 10), trailing!],
             ],
           ),
           if (bottomChild != null) ...[
@@ -155,7 +149,11 @@ class TeacherSearchField extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.search_rounded, size: 20, color: AppColors.textMuted),
+          const Icon(
+            Icons.search_rounded,
+            size: 20,
+            color: AppColors.textMuted,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: TextField(
@@ -168,15 +166,20 @@ class TeacherSearchField extends StatelessWidget {
                 border: InputBorder.none,
                 hintText: hint,
                 hintStyle: const TextStyle(
-                    fontSize: 13, color: AppColors.textMuted),
+                  fontSize: 13,
+                  color: AppColors.textMuted,
+                ),
               ),
             ),
           ),
           if (showClear)
             GestureDetector(
               onTap: onClear,
-              child: const Icon(Icons.close_rounded,
-                  size: 18, color: AppColors.textMuted),
+              child: const Icon(
+                Icons.close_rounded,
+                size: 18,
+                color: AppColors.textMuted,
+              ),
             ),
         ],
       ),
@@ -210,8 +213,7 @@ class TeacherPageHeader extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius:
-            const BorderRadius.vertical(bottom: Radius.circular(28)),
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(28)),
         boxShadow: [
           BoxShadow(
             color: teacherHeaderStart.withValues(alpha: 0.3),
@@ -250,7 +252,11 @@ class TeacherPageHeader extends StatelessWidget {
           ),
           Padding(
             padding: EdgeInsets.fromLTRB(
-                16, top + 12, 16, bottomChild != null ? 20 : 28),
+              16,
+              top + 12,
+              16,
+              bottomChild != null ? 20 : 28,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -410,7 +416,9 @@ class TeacherMenuTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = destructive ? const Color(0xFFDC2626) : const Color(0xFF111827);
+    final color = destructive
+        ? const Color(0xFFDC2626)
+        : const Color(0xFF111827);
 
     return Material(
       color: Colors.transparent,
@@ -426,10 +434,16 @@ class TeacherMenuTile extends StatelessWidget {
                 height: 42,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: (destructive ? const Color(0xFFFEE2E2) : iconColor.withValues(alpha: 0.1)),
+                  color: (destructive
+                      ? const Color(0xFFFEE2E2)
+                      : iconColor.withValues(alpha: 0.1)),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(icon, color: destructive ? const Color(0xFFDC2626) : iconColor, size: 20),
+                child: Icon(
+                  icon,
+                  color: destructive ? const Color(0xFFDC2626) : iconColor,
+                  size: 20,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -447,7 +461,10 @@ class TeacherMenuTile extends StatelessWidget {
                     if (subtitle != null)
                       Text(
                         subtitle!,
-                        style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textMuted,
+                        ),
                       ),
                   ],
                 ),
@@ -455,7 +472,9 @@ class TeacherMenuTile extends StatelessWidget {
               trailing ??
                   Icon(
                     Icons.chevron_right_rounded,
-                    color: destructive ? const Color(0xFFDC2626) : const Color(0xFF9CA3AF),
+                    color: destructive
+                        ? const Color(0xFFDC2626)
+                        : const Color(0xFF9CA3AF),
                   ),
             ],
           ),
@@ -673,7 +692,10 @@ Widget reportEmptyState({
             searching ? 'Try a different name or roll number.' : text,
             textAlign: TextAlign.center,
             style: const TextStyle(
-                fontSize: 12.5, height: 1.4, color: AppColors.textMuted),
+              fontSize: 12.5,
+              height: 1.4,
+              color: AppColors.textMuted,
+            ),
           ),
         ),
       ],
@@ -686,16 +708,16 @@ Widget reportEmptyState({
 // ---------------------------------------------------------------------------
 
 Widget teacherFieldLabel(String text) => Padding(
-      padding: const EdgeInsets.only(bottom: 7),
-      child: Text(
-        text,
-        style: const TextStyle(
-          fontSize: 12.5,
-          fontWeight: FontWeight.w700,
-          color: Color(0xFF374151),
-        ),
-      ),
-    );
+  padding: const EdgeInsets.only(bottom: 7),
+  child: Text(
+    text,
+    style: const TextStyle(
+      fontSize: 12.5,
+      fontWeight: FontWeight.w700,
+      color: Color(0xFF374151),
+    ),
+  ),
+);
 
 InputDecoration teacherInputDecoration({
   required String hint,
@@ -705,8 +727,9 @@ InputDecoration teacherInputDecoration({
   return InputDecoration(
     hintText: hint,
     hintStyle: const TextStyle(fontSize: 13.5, color: AppColors.textMuted),
-    prefixIcon:
-        icon != null ? Icon(icon, size: 19, color: AppColors.teacherPrimary) : null,
+    prefixIcon: icon != null
+        ? Icon(icon, size: 19, color: AppColors.teacherPrimary)
+        : null,
     suffixIcon: suffixIcon,
     filled: true,
     fillColor: Colors.white,

@@ -41,10 +41,12 @@ class _TeacherAssignmentsReportScreenState
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final res = await ref.read(dioProvider).get(
-        '/teacher/reports/assignments',
-        queryParameters: {'classId': widget.classId},
-      );
+      final res = await ref
+          .read(dioProvider)
+          .get(
+            '/teacher/reports/assignments',
+            queryParameters: {'classId': widget.classId},
+          );
       if (!mounted) return;
       setState(() {
         _data = res.data as Map<String, dynamic>;
@@ -77,9 +79,11 @@ class _TeacherAssignmentsReportScreenState
     final dt = DateTime.tryParse('$raw');
     if (dt == null) return 0;
     final now = DateTime.now();
-    return DateTime(dt.year, dt.month, dt.day)
-        .difference(DateTime(now.year, now.month, now.day))
-        .inDays;
+    return DateTime(
+      dt.year,
+      dt.month,
+      dt.day,
+    ).difference(DateTime(now.year, now.month, now.day)).inDays;
   }
 
   @override
@@ -101,7 +105,8 @@ class _TeacherAssignmentsReportScreenState
       ),
       body: _loading
           ? const Center(
-              child: CircularProgressIndicator(color: AppColors.teacherPrimary))
+              child: CircularProgressIndicator(color: AppColors.teacherPrimary),
+            )
           : RefreshIndicator(
               onRefresh: _load,
               color: AppColors.teacherPrimary,
@@ -194,10 +199,10 @@ class _TeacherAssignmentsReportScreenState
   }
 
   Widget _divider() => Container(
-        width: 1,
-        height: 34,
-        color: Colors.white.withValues(alpha: 0.18),
-      );
+    width: 1,
+    height: 34,
+    color: Colors.white.withValues(alpha: 0.18),
+  );
 
   Widget _sectionTitle(String title, int count, Color color) {
     return Row(
@@ -220,7 +225,10 @@ class _TeacherAssignmentsReportScreenState
           child: Text(
             '$count',
             style: TextStyle(
-                fontSize: 11, fontWeight: FontWeight.w800, color: color),
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              color: color,
+            ),
           ),
         ),
       ],
@@ -238,8 +246,8 @@ class _TeacherAssignmentsReportScreenState
       dueTag = days == 0
           ? 'Due today'
           : days == 1
-              ? 'Due tomorrow'
-              : 'In $days days';
+          ? 'Due tomorrow'
+          : 'In $days days';
     } else {
       dueTag = 'Ended';
     }
@@ -283,24 +291,34 @@ class _TeacherAssignmentsReportScreenState
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                        fontSize: 12, color: AppColors.textMuted, height: 1.3),
+                      fontSize: 12,
+                      color: AppColors.textMuted,
+                      height: 1.3,
+                    ),
                   ),
                 ],
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    const Icon(Icons.event_outlined,
-                        size: 13, color: AppColors.textMuted),
+                    const Icon(
+                      Icons.event_outlined,
+                      size: 13,
+                      color: AppColors.textMuted,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       _dateLabel(h['dueDate']),
                       style: const TextStyle(
-                          fontSize: 11, color: AppColors.textMuted),
+                        fontSize: 11,
+                        color: AppColors.textMuted,
+                      ),
                     ),
                     const Spacer(),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 9, vertical: 3),
+                        horizontal: 9,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
                         color: color.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(20),

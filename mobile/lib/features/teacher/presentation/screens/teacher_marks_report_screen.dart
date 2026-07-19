@@ -51,10 +51,12 @@ class _TeacherMarksReportScreenState
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final res = await ref.read(dioProvider).get(
-        '/teacher/reports/marks',
-        queryParameters: {'classId': widget.classId},
-      );
+      final res = await ref
+          .read(dioProvider)
+          .get(
+            '/teacher/reports/marks',
+            queryParameters: {'classId': widget.classId},
+          );
       if (!mounted) return;
       setState(() {
         _data = res.data as Map<String, dynamic>;
@@ -72,9 +74,11 @@ class _TeacherMarksReportScreenState
     final q = _query.trim().toLowerCase();
     if (q.isEmpty) return raw;
     return raw
-        .where((s) =>
-            '${s['fullName'] ?? ''}'.toLowerCase().contains(q) ||
-            '${s['rollNumber'] ?? ''}'.toLowerCase().contains(q))
+        .where(
+          (s) =>
+              '${s['fullName'] ?? ''}'.toLowerCase().contains(q) ||
+              '${s['rollNumber'] ?? ''}'.toLowerCase().contains(q),
+        )
         .toList();
   }
 
@@ -110,7 +114,8 @@ class _TeacherMarksReportScreenState
       ),
       body: _loading
           ? const Center(
-              child: CircularProgressIndicator(color: AppColors.teacherPrimary))
+              child: CircularProgressIndicator(color: AppColors.teacherPrimary),
+            )
           : RefreshIndicator(
               onRefresh: _load,
               color: AppColors.teacherPrimary,
@@ -180,8 +185,9 @@ class _TeacherMarksReportScreenState
             borderRadius: BorderRadius.circular(teacherCardRadius),
             onTap: subjects.isEmpty
                 ? null
-                : () => setState(() =>
-                    open ? _expanded.remove(id) : _expanded.add(id)),
+                : () => setState(
+                    () => open ? _expanded.remove(id) : _expanded.add(id),
+                  ),
             child: Padding(
               padding: const EdgeInsets.fromLTRB(12, 12, 14, 12),
               child: Row(
@@ -197,9 +203,10 @@ class _TeacherMarksReportScreenState
                     child: Text(
                       name.isNotEmpty ? name[0].toUpperCase() : '?',
                       style: TextStyle(
-                          color: color,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 16),
+                        color: color,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 16,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -223,7 +230,9 @@ class _TeacherMarksReportScreenState
                               ? 'Roll $roll · no marks'
                               : 'Roll $roll · ${subjects.length} subjects',
                           style: const TextStyle(
-                              fontSize: 11, color: AppColors.textMuted),
+                            fontSize: 11,
+                            color: AppColors.textMuted,
+                          ),
                         ),
                       ],
                     ),
@@ -282,9 +291,10 @@ class _TeacherMarksReportScreenState
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF374151)),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF374151),
+              ),
             ),
           ),
           Expanded(
@@ -308,9 +318,10 @@ class _TeacherMarksReportScreenState
               '$marks/$max',
               textAlign: TextAlign.right,
               style: const TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF111827)),
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF111827),
+              ),
             ),
           ),
           if ('${sub['grade'] ?? ''}'.isNotEmpty) ...[
@@ -324,9 +335,10 @@ class _TeacherMarksReportScreenState
               child: Text(
                 '${sub['grade']}',
                 style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    color: color),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: color,
+                ),
               ),
             ),
           ],

@@ -51,10 +51,12 @@ class _TeacherAttendanceReportScreenState
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final res = await ref.read(dioProvider).get(
-        '/teacher/reports/attendance',
-        queryParameters: {'classId': widget.classId},
-      );
+      final res = await ref
+          .read(dioProvider)
+          .get(
+            '/teacher/reports/attendance',
+            queryParameters: {'classId': widget.classId},
+          );
       if (!mounted) return;
       setState(() {
         _data = res.data as Map<String, dynamic>;
@@ -73,15 +75,20 @@ class _TeacherAttendanceReportScreenState
     var list = q.isEmpty
         ? raw
         : raw
-            .where((s) =>
-                '${s['fullName'] ?? ''}'.toLowerCase().contains(q) ||
-                '${s['rollNumber'] ?? ''}'.toLowerCase().contains(q))
-            .toList();
+              .where(
+                (s) =>
+                    '${s['fullName'] ?? ''}'.toLowerCase().contains(q) ||
+                    '${s['rollNumber'] ?? ''}'.toLowerCase().contains(q),
+              )
+              .toList();
     int pct(Map<String, dynamic> s) => (s['percent'] as num?)?.toInt() ?? -1;
     switch (_sort) {
       case _Sort.rollAsc:
-        list.sort((a, b) =>
-            ((a['rollNumber'] as num?) ?? 0).compareTo((b['rollNumber'] as num?) ?? 0));
+        list.sort(
+          (a, b) => ((a['rollNumber'] as num?) ?? 0).compareTo(
+            (b['rollNumber'] as num?) ?? 0,
+          ),
+        );
       case _Sort.percentDesc:
         list.sort((a, b) => pct(b).compareTo(pct(a)));
       case _Sort.percentAsc:
@@ -131,7 +138,8 @@ class _TeacherAttendanceReportScreenState
       ),
       body: _loading
           ? const Center(
-              child: CircularProgressIndicator(color: AppColors.teacherPrimary))
+              child: CircularProgressIndicator(color: AppColors.teacherPrimary),
+            )
           : RefreshIndicator(
               onRefresh: _load,
               color: AppColors.teacherPrimary,
@@ -311,14 +319,17 @@ class _TeacherAttendanceReportScreenState
     return PopupMenuButton<_Sort>(
       onSelected: (v) => setState(() => _sort = v),
       color: Colors.white,
-      shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       itemBuilder: (_) => const [
         PopupMenuItem(value: _Sort.rollAsc, child: Text('Roll number')),
         PopupMenuItem(
-            value: _Sort.percentDesc, child: Text('Highest attendance')),
+          value: _Sort.percentDesc,
+          child: Text('Highest attendance'),
+        ),
         PopupMenuItem(
-            value: _Sort.percentAsc, child: Text('Lowest attendance')),
+          value: _Sort.percentAsc,
+          child: Text('Lowest attendance'),
+        ),
       ],
       child: Container(
         width: 44,
@@ -328,8 +339,11 @@ class _TeacherAttendanceReportScreenState
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: const Color(0xFFE8EDF5)),
         ),
-        child: const Icon(Icons.sort_rounded,
-            color: AppColors.teacherPrimary, size: 22),
+        child: const Icon(
+          Icons.sort_rounded,
+          color: AppColors.teacherPrimary,
+          size: 22,
+        ),
       ),
     );
   }
@@ -415,10 +429,10 @@ class _TeacherAttendanceReportScreenState
                     pct == null
                         ? 'no data'
                         : pct >= 85
-                            ? 'Good'
-                            : pct >= 75
-                                ? 'Average'
-                                : 'Low',
+                        ? 'Good'
+                        : pct >= 75
+                        ? 'Average'
+                        : 'Low',
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
@@ -440,11 +454,20 @@ class _TeacherAttendanceReportScreenState
                   : Row(
                       children: [
                         if (present > 0)
-                          Expanded(flex: present, child: Container(color: _green)),
+                          Expanded(
+                            flex: present,
+                            child: Container(color: _green),
+                          ),
                         if (leave > 0)
-                          Expanded(flex: leave, child: Container(color: _amber)),
+                          Expanded(
+                            flex: leave,
+                            child: Container(color: _amber),
+                          ),
                         if (absent > 0)
-                          Expanded(flex: absent, child: Container(color: _red)),
+                          Expanded(
+                            flex: absent,
+                            child: Container(color: _red),
+                          ),
                       ],
                     ),
             ),
@@ -525,7 +548,10 @@ class _TeacherAttendanceReportScreenState
               'Attendance percentages appear here once students are added and attendance is marked.',
               textAlign: TextAlign.center,
               style: TextStyle(
-                  fontSize: 12.5, height: 1.4, color: AppColors.textMuted),
+                fontSize: 12.5,
+                height: 1.4,
+                color: AppColors.textMuted,
+              ),
             ),
           ),
         ],

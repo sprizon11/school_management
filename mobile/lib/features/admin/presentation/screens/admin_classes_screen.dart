@@ -10,7 +10,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../widgets/admin_fab.dart';
 import '../widgets/admin_screen_header.dart';
 import '../widgets/admin_search_field.dart';
-import '../widgets/admin_stat_card.dart';
+import '../../../../core/widgets/stat_card.dart';
 import '../../../../core/widgets/motion.dart';
 import '../../../../core/widgets/skeleton.dart';
 import 'admin_add_class_screen.dart';
@@ -244,21 +244,21 @@ class _AdminClassesScreenState extends ConsumerState<AdminClassesScreen> {
     final totalStudents = _stats?['totalStudents'] as int? ?? 0;
     final withTeacher = _withTeacherCount;
 
-    return AdminStatRow(
+    return StatRow(
       cards: [
-        AdminStatCard(
+        StatCard(
           icon: Icons.class_rounded,
           color: const Color(0xFF7C3AED),
           value: _formatNum(totalClasses),
           label: 'Classes',
         ),
-        AdminStatCard(
+        StatCard(
           icon: Icons.groups_rounded,
           color: const Color(0xFF3B6FF5),
           value: _formatNum(totalStudents),
           label: 'Students',
         ),
-        AdminStatCard(
+        StatCard(
           icon: Icons.school_rounded,
           color: const Color(0xFF16A34A),
           value: _formatNum(withTeacher),

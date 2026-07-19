@@ -17,31 +17,33 @@ const _headerPurple = Color(0xFF1E1B4B);
 const _hPad = 16.0;
 
 BoxDecoration _premiumCard({Color? color, Border? border}) => BoxDecoration(
-      color: color ?? Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      border: border,
-      boxShadow: [
-        BoxShadow(
-          color: const Color(0xFF5C59E8).withValues(alpha: 0.07),
-          blurRadius: 24,
-          offset: const Offset(0, 8),
-        ),
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.03),
-          blurRadius: 6,
-          offset: const Offset(0, 2),
-        ),
-      ],
-    );
+  color: color ?? Colors.white,
+  borderRadius: BorderRadius.circular(16),
+  border: border,
+  boxShadow: [
+    BoxShadow(
+      color: const Color(0xFF5C59E8).withValues(alpha: 0.07),
+      blurRadius: 24,
+      offset: const Offset(0, 8),
+    ),
+    BoxShadow(
+      color: Colors.black.withValues(alpha: 0.03),
+      blurRadius: 6,
+      offset: const Offset(0, 2),
+    ),
+  ],
+);
 
 class TeacherDashboardScreen extends ConsumerStatefulWidget {
   const TeacherDashboardScreen({super.key});
 
   @override
-  ConsumerState<TeacherDashboardScreen> createState() => _TeacherDashboardScreenState();
+  ConsumerState<TeacherDashboardScreen> createState() =>
+      _TeacherDashboardScreenState();
 }
 
-class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen> {
+class _TeacherDashboardScreenState
+    extends ConsumerState<TeacherDashboardScreen> {
   Map<String, dynamic>? _data;
   List<dynamic> _schedule = [];
 
@@ -108,10 +110,9 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
       _showAllPeriods = false;
     });
     try {
-      final res = await ref.read(dioProvider).get(
-        '/teacher/dashboard/schedule',
-        queryParameters: {'day': day},
-      );
+      final res = await ref
+          .read(dioProvider)
+          .get('/teacher/dashboard/schedule', queryParameters: {'day': day});
       if (!mounted || _selectedDay != day) return;
       setState(() {
         _schedule = res.data as List<dynamic>? ?? [];
@@ -126,8 +127,7 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
   }
 
   Future<void> _openTimetableEditor() async {
-    final dayLabel =
-        _dayChips.firstWhere((c) => c.day == _selectedDay).label;
+    final dayLabel = _dayChips.firstWhere((c) => c.day == _selectedDay).label;
     final classOptions = <String>{
       for (final c in _classes)
         'Class ${(c as Map<String, dynamic>)['grade']}${c['section']}',
@@ -149,13 +149,15 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
 
     setState(() => _scheduleLoading = true);
     try {
-      final res = await ref.read(dioProvider).post(
-        '/teacher/dashboard/schedule',
-        data: {
-          'day': _selectedDay,
-          'slots': result['reset'] == true ? <dynamic>[] : result['slots'],
-        },
-      );
+      final res = await ref
+          .read(dioProvider)
+          .post(
+            '/teacher/dashboard/schedule',
+            data: {
+              'day': _selectedDay,
+              'slots': result['reset'] == true ? <dynamic>[] : result['slots'],
+            },
+          );
       if (!mounted) return;
       setState(() {
         _schedule = res.data as List<dynamic>? ?? [];
@@ -164,9 +166,11 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(result['reset'] == true
-              ? 'Timetable reset to default'
-              : 'Timetable saved'),
+          content: Text(
+            result['reset'] == true
+                ? 'Timetable reset to default'
+                : 'Timetable saved',
+          ),
           behavior: SnackBarBehavior.floating,
           backgroundColor: AppColors.teacherPrimary,
         ),
@@ -222,8 +226,10 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
 
   /// Minutes since midnight for a "08:00 AM" / "14:30" style label.
   int? _clockMinutes(dynamic raw) {
-    final match = RegExp(r'^(\d{1,2}):(\d{2})\s*(AM|PM)?', caseSensitive: false)
-        .firstMatch('$raw'.trim());
+    final match = RegExp(
+      r'^(\d{1,2}):(\d{2})\s*(AM|PM)?',
+      caseSensitive: false,
+    ).firstMatch('$raw'.trim());
     if (match == null) return null;
     var h = int.parse(match.group(1)!);
     final m = int.parse(match.group(2)!);
@@ -385,8 +391,10 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
                 ),
                 const SizedBox(height: 5),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.teacherPrimary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
@@ -535,7 +543,8 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
     } else if (remaining <= 0) {
       statusLine = 'All classes done 🎉';
     } else {
-      statusLine = '$remaining ${remaining == 1 ? 'class' : 'classes'} left today';
+      statusLine =
+          '$remaining ${remaining == 1 ? 'class' : 'classes'} left today';
     }
 
     return GestureDetector(
@@ -815,7 +824,10 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
               ),
               Text(
                 _shortDate(today),
-                style: const TextStyle(fontSize: 10.5, color: AppColors.textMuted),
+                style: const TextStyle(
+                  fontSize: 10.5,
+                  color: AppColors.textMuted,
+                ),
               ),
               const SizedBox(width: 8),
               GestureDetector(
@@ -946,8 +958,11 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
         child: Center(
           child: Column(
             children: [
-              Icon(Icons.event_busy_rounded,
-                  size: 30, color: Colors.grey.shade300),
+              Icon(
+                Icons.event_busy_rounded,
+                size: 30,
+                color: Colors.grey.shade300,
+              ),
               const SizedBox(height: 8),
               const Text(
                 'No classes on this day',
@@ -963,8 +978,8 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
     final visible = _showAllPeriods
         ? _schedule.length
         : (_schedule.length > collapsedCount
-            ? collapsedCount
-            : _schedule.length);
+              ? collapsedCount
+              : _schedule.length);
     final hiddenCount = _schedule.length - visible;
 
     return Padding(
@@ -979,8 +994,7 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
             ),
           if (hiddenCount > 0 || _showAllPeriods)
             GestureDetector(
-              onTap: () =>
-                  setState(() => _showAllPeriods = !_showAllPeriods),
+              onTap: () => setState(() => _showAllPeriods = !_showAllPeriods),
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 9),
@@ -1031,9 +1045,7 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
       decoration: BoxDecoration(
         border: isLast
             ? null
-            : const Border(
-                bottom: BorderSide(color: Color(0xFFF0F1F6)),
-              ),
+            : const Border(bottom: BorderSide(color: Color(0xFFF0F1F6))),
       ),
       child: Row(
         children: [
@@ -1123,34 +1135,37 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
   }
 
   Widget _buildQuickAccess() {
-    final tiles = <({IconData icon, String label, Color color, VoidCallback onTap})>[
-      (
-        icon: Icons.school_rounded,
-        label: 'My Classes',
-        color: AppColors.teacherPrimary,
-        onTap: () => openSmoothPage(context, const TeacherClassesScreen()),
-      ),
-      (
-        icon: Icons.fact_check_rounded,
-        label: 'Attendance',
-        color: AppColors.statGreen,
-        onTap: () => _comingSoon('Attendance'),
-      ),
-      (
-        icon: Icons.menu_book_rounded,
-        label: 'Homework',
-        color: AppColors.statPink,
-        onTap: () => _comingSoon('Homework'),
-      ),
-      (
-        icon: Icons.description_rounded,
-        label: 'Reports',
-        color: const Color(0xFF3B82F6),
-        onTap: () => _goToTab(3),
-      ),
-    ];
+    final tiles =
+        <({IconData icon, String label, Color color, VoidCallback onTap})>[
+          (
+            icon: Icons.school_rounded,
+            label: 'My Classes',
+            color: AppColors.teacherPrimary,
+            onTap: () => openSmoothPage(context, const TeacherClassesScreen()),
+          ),
+          (
+            icon: Icons.fact_check_rounded,
+            label: 'Attendance',
+            color: AppColors.statGreen,
+            onTap: () => _comingSoon('Attendance'),
+          ),
+          (
+            icon: Icons.menu_book_rounded,
+            label: 'Homework',
+            color: AppColors.statPink,
+            onTap: () => _comingSoon('Homework'),
+          ),
+          (
+            icon: Icons.description_rounded,
+            label: 'Reports',
+            color: const Color(0xFF3B82F6),
+            onTap: () => _goToTab(3),
+          ),
+        ];
 
-    Widget tile(({IconData icon, String label, Color color, VoidCallback onTap}) t) {
+    Widget tile(
+      ({IconData icon, String label, Color color, VoidCallback onTap}) t,
+    ) {
       return Expanded(
         child: GestureDetector(
           onTap: t.onTap,
@@ -1195,11 +1210,7 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
     return Container(
       padding: const EdgeInsets.fromLTRB(10, 14, 10, 14),
       decoration: _premiumCard(),
-      child: Row(
-        children: [
-          for (final t in tiles) tile(t),
-        ],
-      ),
+      child: Row(children: [for (final t in tiles) tile(t)]),
     );
   }
 
@@ -1233,7 +1244,11 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
             ),
             child: Text(
               gradeSection,
-              style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 12),
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.w800,
+                fontSize: 12,
+              ),
             ),
           ),
           const SizedBox(width: 12),
@@ -1250,23 +1265,39 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(subject, style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                Text(
+                  subject,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textMuted,
+                  ),
+                ),
                 const SizedBox(height: 3),
                 Row(
                   children: [
-                    const Icon(Icons.people_outline, size: 12, color: AppColors.textMuted),
+                    const Icon(
+                      Icons.people_outline,
+                      size: 12,
+                      color: AppColors.textMuted,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       '$count Students',
-                      style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textMuted,
+                      ),
                     ),
                   ],
                 ),
               ],
             ),
           ),
-          const Icon(Icons.chevron_right_rounded,
-              size: 20, color: Color(0xFF9CA3AF)),
+          const Icon(
+            Icons.chevron_right_rounded,
+            size: 20,
+            color: Color(0xFF9CA3AF),
+          ),
         ],
       ),
     );
@@ -1294,10 +1325,14 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
         itemBuilder: (_, i) {
           final h = _homework[i] as Map<String, dynamic>;
           final cls = h['class'] as Map<String, dynamic>?;
-          final gradeSection = cls != null ? '${cls['grade']}${cls['section']}' : '';
+          final gradeSection = cls != null
+              ? '${cls['grade']}${cls['section']}'
+              : '';
           final subject = cls?['category'] ?? 'Subject';
           final due = DateTime.tryParse('${h['dueDate']}');
-          final dueLabel = due != null ? DateFormat('d MMM yyyy').format(due) : '—';
+          final dueLabel = due != null
+              ? DateFormat('d MMM yyyy').format(due)
+              : '—';
           final color = colors[i % colors.length];
 
           return Container(
@@ -1316,7 +1351,11 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
                         color: color.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: Icon(Icons.assignment_rounded, size: 16, color: color),
+                      child: Icon(
+                        Icons.assignment_rounded,
+                        size: 16,
+                        color: color,
+                      ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
@@ -1337,18 +1376,28 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
                 const Spacer(),
                 Text(
                   'Class $gradeSection • $subject',
-                  style: const TextStyle(fontSize: 10, color: AppColors.textMuted),
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: AppColors.textMuted,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Divider(height: 1, color: Colors.grey.shade200),
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    const Icon(Icons.event_outlined, size: 12, color: AppColors.textMuted),
+                    const Icon(
+                      Icons.event_outlined,
+                      size: 12,
+                      color: AppColors.textMuted,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       'Due: $dueLabel',
-                      style: const TextStyle(fontSize: 10, color: AppColors.textMuted),
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: AppColors.textMuted,
+                      ),
                     ),
                   ],
                 ),
@@ -1365,7 +1414,10 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: _premiumCard(),
-      child: Text(message, style: const TextStyle(color: AppColors.textMuted, fontSize: 13)),
+      child: Text(
+        message,
+        style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+      ),
     );
   }
 }
@@ -1407,8 +1459,8 @@ class _EditSlot {
     required String subject,
     required String room,
     this.classLabel,
-  })  : subjectCtrl = TextEditingController(text: subject),
-        roomCtrl = TextEditingController(text: room);
+  }) : subjectCtrl = TextEditingController(text: subject),
+       roomCtrl = TextEditingController(text: room);
 
   String start;
   String end;
@@ -1476,8 +1528,9 @@ class _TimetableEditorSheetState extends State<_TimetableEditorSheet> {
           end: last != null ? _shiftHour(last.end) : '08:45 AM',
           subject: '',
           room: last?.roomCtrl.text ?? '',
-          classLabel:
-              widget.classOptions.isNotEmpty ? widget.classOptions.first : null,
+          classLabel: widget.classOptions.isNotEmpty
+              ? widget.classOptions.first
+              : null,
         ),
       );
     });
@@ -1486,15 +1539,21 @@ class _TimetableEditorSheetState extends State<_TimetableEditorSheet> {
   static String _shiftHour(String label) {
     final t = _parseTime(label);
     if (t == null) return label;
-    final dt = DateTime(2024, 1, 1, t.hour, t.minute)
-        .add(const Duration(hours: 1));
+    final dt = DateTime(
+      2024,
+      1,
+      1,
+      t.hour,
+      t.minute,
+    ).add(const Duration(hours: 1));
     return DateFormat('hh:mm a').format(dt);
   }
 
   static TimeOfDay? _parseTime(String label) {
-    final match =
-        RegExp(r'^(\d{1,2}):(\d{2})\s*(AM|PM)$', caseSensitive: false)
-            .firstMatch(label.trim());
+    final match = RegExp(
+      r'^(\d{1,2}):(\d{2})\s*(AM|PM)$',
+      caseSensitive: false,
+    ).firstMatch(label.trim());
     if (match == null) return null;
     var hour = int.parse(match.group(1)!);
     final minute = int.parse(match.group(2)!);
@@ -1504,7 +1563,8 @@ class _TimetableEditorSheetState extends State<_TimetableEditorSheet> {
   }
 
   Future<void> _pickTime(_EditSlot slot, {required bool isStart}) async {
-    final current = _parseTime(isStart ? slot.start : slot.end) ??
+    final current =
+        _parseTime(isStart ? slot.start : slot.end) ??
         const TimeOfDay(hour: 8, minute: 0);
     final picked = await showTimePicker(
       context: context,
@@ -1519,8 +1579,9 @@ class _TimetableEditorSheetState extends State<_TimetableEditorSheet> {
       ),
     );
     if (picked == null) return;
-    final label = DateFormat('hh:mm a')
-        .format(DateTime(2024, 1, 1, picked.hour, picked.minute));
+    final label = DateFormat(
+      'hh:mm a',
+    ).format(DateTime(2024, 1, 1, picked.hour, picked.minute));
     setState(() {
       if (isStart) {
         slot.start = label;
@@ -1583,8 +1644,11 @@ class _TimetableEditorSheetState extends State<_TimetableEditorSheet> {
                     ),
                     borderRadius: BorderRadius.circular(11),
                   ),
-                  child: const Icon(Icons.edit_calendar_rounded,
-                      size: 17, color: Colors.white),
+                  child: const Icon(
+                    Icons.edit_calendar_rounded,
+                    size: 17,
+                    color: Colors.white,
+                  ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -1602,15 +1666,19 @@ class _TimetableEditorSheetState extends State<_TimetableEditorSheet> {
                       const Text(
                         'Tap times to change · swipe fields to edit',
                         style: TextStyle(
-                            fontSize: 11, color: AppColors.textMuted),
+                          fontSize: 11,
+                          color: AppColors.textMuted,
+                        ),
                       ),
                     ],
                   ),
                 ),
                 IconButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.close_rounded,
-                      color: AppColors.textMuted),
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    color: AppColors.textMuted,
+                  ),
                 ),
               ],
             ),
@@ -1636,8 +1704,7 @@ class _TimetableEditorSheetState extends State<_TimetableEditorSheet> {
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.teacherPrimary,
                       side: BorderSide(
-                        color:
-                            AppColors.teacherPrimary.withValues(alpha: 0.4),
+                        color: AppColors.teacherPrimary.withValues(alpha: 0.4),
                       ),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
@@ -1685,8 +1752,7 @@ class _TimetableEditorSheetState extends State<_TimetableEditorSheet> {
           SafeArea(
             top: false,
             child: TextButton(
-              onPressed: () =>
-                  Navigator.of(context).pop({'reset': true}),
+              onPressed: () => Navigator.of(context).pop({'reset': true}),
               child: const Text(
                 'Reset this day to default',
                 style: TextStyle(fontSize: 12, color: AppColors.textMuted),
@@ -1733,8 +1799,7 @@ class _TimetableEditorSheetState extends State<_TimetableEditorSheet> {
               _timeChip(slot.start, () => _pickTime(slot, isStart: true)),
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 4),
-                child: Text('–',
-                    style: TextStyle(color: AppColors.textMuted)),
+                child: Text('–', style: TextStyle(color: AppColors.textMuted)),
               ),
               _timeChip(slot.end, () => _pickTime(slot, isStart: false)),
               const Spacer(),
@@ -1742,8 +1807,8 @@ class _TimetableEditorSheetState extends State<_TimetableEditorSheet> {
                 onTap: _slots.length <= 1
                     ? null
                     : () => setState(() {
-                          _slots.removeAt(index).dispose();
-                        }),
+                        _slots.removeAt(index).dispose();
+                      }),
                 child: Icon(
                   Icons.delete_outline_rounded,
                   size: 19,
@@ -1790,8 +1855,10 @@ class _TimetableEditorSheetState extends State<_TimetableEditorSheet> {
                   value: slot.classLabel,
                   isExpanded: true,
                   isDense: true,
-                  hint: const Text('Select class',
-                      style: TextStyle(fontSize: 12.5)),
+                  hint: const Text(
+                    'Select class',
+                    style: TextStyle(fontSize: 12.5),
+                  ),
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   style: const TextStyle(
                     fontSize: 12.5,
@@ -1799,9 +1866,7 @@ class _TimetableEditorSheetState extends State<_TimetableEditorSheet> {
                     color: _headerPurple,
                   ),
                   items: widget.classOptions
-                      .map(
-                        (c) => DropdownMenuItem(value: c, child: Text(c)),
-                      )
+                      .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                       .toList(),
                   onChanged: (v) => setState(() => slot.classLabel = v),
                 ),
@@ -1828,8 +1893,11 @@ class _TimetableEditorSheetState extends State<_TimetableEditorSheet> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.schedule_rounded,
-                size: 12, color: AppColors.teacherPrimary),
+            const Icon(
+              Icons.schedule_rounded,
+              size: 12,
+              color: AppColors.teacherPrimary,
+            ),
             const SizedBox(width: 4),
             Text(
               label,
@@ -1855,16 +1923,19 @@ class _TimetableEditorSheetState extends State<_TimetableEditorSheet> {
       style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle:
-            TextStyle(fontSize: 12.5, color: Colors.grey.shade400),
+        hintStyle: TextStyle(fontSize: 12.5, color: Colors.grey.shade400),
         prefixIcon: Icon(icon, size: 15, color: AppColors.teacherPrimary),
-        prefixIconConstraints:
-            const BoxConstraints(minWidth: 32, minHeight: 32),
+        prefixIconConstraints: const BoxConstraints(
+          minWidth: 32,
+          minHeight: 32,
+        ),
         isDense: true,
         filled: true,
         fillColor: Colors.white,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 10,
+          vertical: 10,
+        ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(11),
           borderSide: const BorderSide(color: Color(0xFFE5E7EB)),

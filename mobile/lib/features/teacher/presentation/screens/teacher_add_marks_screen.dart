@@ -66,8 +66,9 @@ class _TeacherAddMarksScreenState extends ConsumerState<TeacherAddMarksScreen> {
     setState(() => _loading = true);
     try {
       final dio = ref.read(dioProvider);
-      final subjectsRes =
-          await dio.get('/teacher/classes/${widget.classId}/subjects');
+      final subjectsRes = await dio.get(
+        '/teacher/classes/${widget.classId}/subjects',
+      );
       final studentsRes = await dio.get(
         '/teacher/classes/${widget.classId}/students',
         queryParameters: {'limit': 200},
@@ -146,18 +147,25 @@ class _TeacherAddMarksScreenState extends ConsumerState<TeacherAddMarksScreen> {
     });
 
     try {
-      final res = await ref.read(dioProvider).post('/teacher/marks', data: {
-        'classId': widget.classId,
-        'subjectName': subjectName,
-        'termLabel': examName,
-        'maxMarks': maxMarks,
-        'entries': entries,
-      });
+      final res = await ref
+          .read(dioProvider)
+          .post(
+            '/teacher/marks',
+            data: {
+              'classId': widget.classId,
+              'subjectName': subjectName,
+              'termLabel': examName,
+              'maxMarks': maxMarks,
+              'entries': entries,
+            },
+          );
       if (!mounted) return;
       final saved = (res.data as Map)['saved'] ?? entries.length;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Saved marks for $saved student${saved == 1 ? '' : 's'}'),
+          content: Text(
+            'Saved marks for $saved student${saved == 1 ? '' : 's'}',
+          ),
           behavior: SnackBarBehavior.floating,
           backgroundColor: AppColors.teacherPrimary,
         ),
@@ -165,7 +173,8 @@ class _TeacherAddMarksScreenState extends ConsumerState<TeacherAddMarksScreen> {
       Navigator.of(context).pop(true);
     } on DioException catch (e) {
       setState(() {
-        _error = e.response?.data?['message']?.toString() ?? 'Could not save marks';
+        _error =
+            e.response?.data?['message']?.toString() ?? 'Could not save marks';
         _saving = false;
       });
     } catch (_) {
@@ -183,7 +192,8 @@ class _TeacherAddMarksScreenState extends ConsumerState<TeacherAddMarksScreen> {
       appBar: reportAppBar('Add Marks', widget.classLabel),
       body: _loading
           ? const Center(
-              child: CircularProgressIndicator(color: AppColors.teacherPrimary))
+              child: CircularProgressIndicator(color: AppColors.teacherPrimary),
+            )
           : Column(
               children: [
                 Expanded(
@@ -198,8 +208,7 @@ class _TeacherAddMarksScreenState extends ConsumerState<TeacherAddMarksScreen> {
                         spacing: 8,
                         runSpacing: 8,
                         children: [
-                          for (final preset in _examPresets)
-                            _examChip(preset),
+                          for (final preset in _examPresets) _examChip(preset),
                         ],
                       ),
                       const SizedBox(height: 8),
@@ -238,10 +247,13 @@ class _TeacherAddMarksScreenState extends ConsumerState<TeacherAddMarksScreen> {
                           const SizedBox(width: 6),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 2),
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
-                              color:
-                                  AppColors.teacherPrimary.withValues(alpha: 0.1),
+                              color: AppColors.teacherPrimary.withValues(
+                                alpha: 0.1,
+                              ),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
@@ -260,7 +272,8 @@ class _TeacherAddMarksScreenState extends ConsumerState<TeacherAddMarksScreen> {
                         reportEmptyState(
                           icon: Icons.groups_outlined,
                           searching: false,
-                          text: 'Add students to this class before entering marks.',
+                          text:
+                              'Add students to this class before entering marks.',
                         )
                       else
                         ..._students.map(_studentMarkRow),
@@ -283,8 +296,10 @@ class _TeacherAddMarksScreenState extends ConsumerState<TeacherAddMarksScreen> {
           suffixIcon: _subjects.isEmpty
               ? null
               : IconButton(
-                  icon: const Icon(Icons.list_rounded,
-                      color: AppColors.teacherPrimary),
+                  icon: const Icon(
+                    Icons.list_rounded,
+                    color: AppColors.teacherPrimary,
+                  ),
                   onPressed: () => setState(() => _customSubject = false),
                 ),
         ),
@@ -303,8 +318,10 @@ class _TeacherAddMarksScreenState extends ConsumerState<TeacherAddMarksScreen> {
           isExpanded: true,
           icon: const Padding(
             padding: EdgeInsets.only(right: 8),
-            child: Icon(Icons.keyboard_arrow_down_rounded,
-                color: AppColors.textMuted),
+            child: Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: AppColors.textMuted,
+            ),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           items: [
@@ -336,7 +353,8 @@ class _TeacherAddMarksScreenState extends ConsumerState<TeacherAddMarksScreen> {
         decoration: BoxDecoration(
           gradient: selected
               ? const LinearGradient(
-                  colors: [teacherHeaderStart, teacherHeaderEnd])
+                  colors: [teacherHeaderStart, teacherHeaderEnd],
+                )
               : null,
           color: selected ? null : const Color(0xFFF3F4F8),
           borderRadius: BorderRadius.circular(20),
@@ -399,7 +417,10 @@ class _TeacherAddMarksScreenState extends ConsumerState<TeacherAddMarksScreen> {
                 ),
                 Text(
                   'Roll $roll',
-                  style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textMuted,
+                  ),
                 ),
               ],
             ),
@@ -412,16 +433,19 @@ class _TeacherAddMarksScreenState extends ConsumerState<TeacherAddMarksScreen> {
               textAlign: TextAlign.center,
               onChanged: (_) => setState(() {}),
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              style: const TextStyle(
-                  fontSize: 14, fontWeight: FontWeight.w700),
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
               decoration: InputDecoration(
                 isDense: true,
                 hintText: '—',
                 suffixText: '/$_maxMarks',
-                suffixStyle:
-                    const TextStyle(fontSize: 10.5, color: AppColors.textMuted),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                suffixStyle: const TextStyle(
+                  fontSize: 10.5,
+                  color: AppColors.textMuted,
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 10,
+                ),
                 filled: true,
                 fillColor: const Color(0xFFF8F9FC),
                 enabledBorder: OutlineInputBorder(
@@ -457,8 +481,10 @@ class _TeacherAddMarksScreenState extends ConsumerState<TeacherAddMarksScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (_error != null) ...[
-              Text(_error!,
-                  style: const TextStyle(color: Colors.red, fontSize: 12.5)),
+              Text(
+                _error!,
+                style: const TextStyle(color: Colors.red, fontSize: 12.5),
+              ),
               const SizedBox(height: 8),
             ],
             teacherPrimaryButton(

@@ -9,16 +9,22 @@ import '../../../admin/presentation/widgets/admin_avatar_picker.dart';
 import '../../../admin/presentation/widgets/admin_sub_page.dart';
 
 class TeacherAddStudentScreen extends ConsumerStatefulWidget {
-  const TeacherAddStudentScreen({super.key, required this.classId, required this.classLabel});
+  const TeacherAddStudentScreen({
+    super.key,
+    required this.classId,
+    required this.classLabel,
+  });
 
   final String classId;
   final String classLabel;
 
   @override
-  ConsumerState<TeacherAddStudentScreen> createState() => _TeacherAddStudentScreenState();
+  ConsumerState<TeacherAddStudentScreen> createState() =>
+      _TeacherAddStudentScreenState();
 }
 
-class _TeacherAddStudentScreenState extends ConsumerState<TeacherAddStudentScreen> {
+class _TeacherAddStudentScreenState
+    extends ConsumerState<TeacherAddStudentScreen> {
   final _formKey = GlobalKey<FormState>();
   final _name = TextEditingController();
   final _phone = TextEditingController();
@@ -35,7 +41,15 @@ class _TeacherAddStudentScreenState extends ConsumerState<TeacherAddStudentScree
 
   @override
   void dispose() {
-    for (final c in [_name, _phone, _roll, _fatherName, _fatherPhone, _motherName, _motherPhone]) {
+    for (final c in [
+      _name,
+      _phone,
+      _roll,
+      _fatherName,
+      _fatherPhone,
+      _motherName,
+      _motherPhone,
+    ]) {
       c.dispose();
     }
     super.dispose();
@@ -58,27 +72,41 @@ class _TeacherAddStudentScreenState extends ConsumerState<TeacherAddStudentScree
       _error = null;
     });
     try {
-      await ref.read(dioProvider).post('/teacher/students', data: {
-        'fullName': _name.text.trim(),
-        'gender': _gender,
-        'classId': widget.classId,
-        if (_phone.text.trim().isNotEmpty) 'phone': _phone.text.trim(),
-        if (_roll.text.trim().isNotEmpty) 'rollNumber': int.parse(_roll.text.trim()),
-        if (_dob != null) 'dateOfBirth': DateFormat('yyyy-MM-dd').format(_dob!),
-        if (_avatarBase64 != null) 'avatarUrl': _avatarBase64,
-        if (_fatherName.text.trim().isNotEmpty) 'fatherName': _fatherName.text.trim(),
-        if (_fatherPhone.text.trim().isNotEmpty) 'fatherPhone': _fatherPhone.text.trim(),
-        if (_motherName.text.trim().isNotEmpty) 'motherName': _motherName.text.trim(),
-        if (_motherPhone.text.trim().isNotEmpty) 'motherPhone': _motherPhone.text.trim(),
-      });
+      await ref
+          .read(dioProvider)
+          .post(
+            '/teacher/students',
+            data: {
+              'fullName': _name.text.trim(),
+              'gender': _gender,
+              'classId': widget.classId,
+              if (_phone.text.trim().isNotEmpty) 'phone': _phone.text.trim(),
+              if (_roll.text.trim().isNotEmpty)
+                'rollNumber': int.parse(_roll.text.trim()),
+              if (_dob != null)
+                'dateOfBirth': DateFormat('yyyy-MM-dd').format(_dob!),
+              if (_avatarBase64 != null) 'avatarUrl': _avatarBase64,
+              if (_fatherName.text.trim().isNotEmpty)
+                'fatherName': _fatherName.text.trim(),
+              if (_fatherPhone.text.trim().isNotEmpty)
+                'fatherPhone': _fatherPhone.text.trim(),
+              if (_motherName.text.trim().isNotEmpty)
+                'motherName': _motherName.text.trim(),
+              if (_motherPhone.text.trim().isNotEmpty)
+                'motherPhone': _motherPhone.text.trim(),
+            },
+          );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Student added. Parent can log in with Parent@123')),
+        const SnackBar(
+          content: Text('Student added. Parent can log in with Parent@123'),
+        ),
       );
       Navigator.pop(context, true);
     } on DioException catch (e) {
       setState(() {
-        _error = e.response?.data?['message']?.toString() ?? 'Could not add student';
+        _error =
+            e.response?.data?['message']?.toString() ?? 'Could not add student';
         _loading = false;
       });
     } catch (_) {
@@ -110,7 +138,8 @@ class _TeacherAddStudentScreenState extends ConsumerState<TeacherAddStudentScree
               label: 'Full name *',
               controller: _name,
               icon: Icons.person_outline,
-              validator: (v) => (v == null || v.trim().length < 2) ? 'Required' : null,
+              validator: (v) =>
+                  (v == null || v.trim().length < 2) ? 'Required' : null,
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
@@ -123,21 +152,53 @@ class _TeacherAddStudentScreenState extends ConsumerState<TeacherAddStudentScree
               onChanged: (v) => setState(() => _gender = v ?? 'MALE'),
             ),
             const SizedBox(height: 12),
-            AdminFormField(label: 'Phone', controller: _phone, icon: Icons.phone_outlined),
-            AdminFormField(label: 'Roll number', controller: _roll, icon: Icons.tag, keyboardType: TextInputType.number),
+            AdminFormField(
+              label: 'Phone',
+              controller: _phone,
+              icon: Icons.phone_outlined,
+            ),
+            AdminFormField(
+              label: 'Roll number',
+              controller: _roll,
+              icon: Icons.tag,
+              keyboardType: TextInputType.number,
+            ),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              title: Text(_dob == null ? 'Date of birth' : DateFormat('d MMM yyyy').format(_dob!)),
+              title: Text(
+                _dob == null
+                    ? 'Date of birth'
+                    : DateFormat('d MMM yyyy').format(_dob!),
+              ),
               trailing: const Icon(Icons.calendar_today_outlined),
               onTap: _pickDob,
             ),
             const SizedBox(height: 8),
-            const Text('Parent details', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+            const Text(
+              'Parent details',
+              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+            ),
             const SizedBox(height: 8),
-            AdminFormField(label: 'Father name', controller: _fatherName, icon: Icons.man_outlined),
-            AdminFormField(label: 'Father phone', controller: _fatherPhone, icon: Icons.phone_outlined),
-            AdminFormField(label: 'Mother name', controller: _motherName, icon: Icons.woman_outlined),
-            AdminFormField(label: 'Mother phone', controller: _motherPhone, icon: Icons.phone_outlined),
+            AdminFormField(
+              label: 'Father name',
+              controller: _fatherName,
+              icon: Icons.man_outlined,
+            ),
+            AdminFormField(
+              label: 'Father phone',
+              controller: _fatherPhone,
+              icon: Icons.phone_outlined,
+            ),
+            AdminFormField(
+              label: 'Mother name',
+              controller: _motherName,
+              icon: Icons.woman_outlined,
+            ),
+            AdminFormField(
+              label: 'Mother phone',
+              controller: _motherPhone,
+              icon: Icons.phone_outlined,
+            ),
             if (_error != null) ...[
               const SizedBox(height: 12),
               Text(_error!, style: const TextStyle(color: Colors.red)),
@@ -153,7 +214,10 @@ class _TeacherAddStudentScreenState extends ConsumerState<TeacherAddStudentScree
                   ? const SizedBox(
                       height: 20,
                       width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     )
                   : const Text('Save Student'),
             ),

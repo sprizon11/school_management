@@ -9,7 +9,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../widgets/admin_fab.dart';
 import '../widgets/admin_screen_header.dart';
 import '../widgets/admin_search_field.dart';
-import '../widgets/admin_stat_card.dart';
+import '../../../../core/widgets/stat_card.dart';
 import '../../../../core/widgets/motion.dart';
 import '../../../../core/widgets/skeleton.dart';
 import 'admin_add_teacher_screen.dart';
@@ -270,9 +270,9 @@ class _AdminTeachersScreenState extends ConsumerState<AdminTeachersScreen> {
     final gents = stats['male'] as int? ?? 0;
     final ladies = stats['female'] as int? ?? 0;
 
-    return AdminStatRow(
+    return StatRow(
       cards: [
-        AdminStatCard(
+        StatCard(
           icon: Icons.groups_rounded,
           color: const Color(0xFF3B6FF5),
           value: _formatNum(total),
@@ -280,7 +280,7 @@ class _AdminTeachersScreenState extends ConsumerState<AdminTeachersScreen> {
           selected: _genderFilter == null,
           onTap: () => setState(() => _genderFilter = null),
         ),
-        AdminStatCard(
+        StatCard(
           icon: Icons.man_rounded,
           color: const Color(0xFF16A34A),
           value: _formatNum(gents),
@@ -290,7 +290,7 @@ class _AdminTeachersScreenState extends ConsumerState<AdminTeachersScreen> {
             () => _genderFilter = _genderFilter == 'MALE' ? null : 'MALE',
           ),
         ),
-        AdminStatCard(
+        StatCard(
           icon: Icons.woman_rounded,
           color: const Color(0xFFDB2777),
           value: _formatNum(ladies),

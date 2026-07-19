@@ -14,7 +14,8 @@ class TeacherAnnouncementsScreen extends ConsumerStatefulWidget {
       _TeacherAnnouncementsScreenState();
 }
 
-class _TeacherAnnouncementsScreenState extends ConsumerState<TeacherAnnouncementsScreen> {
+class _TeacherAnnouncementsScreenState
+    extends ConsumerState<TeacherAnnouncementsScreen> {
   List<dynamic> _items = [];
   bool _loading = true;
 
@@ -63,7 +64,9 @@ class _TeacherAnnouncementsScreenState extends ConsumerState<TeacherAnnouncement
         surfaceTintColor: Colors.transparent,
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.teacherPrimary))
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.teacherPrimary),
+            )
           : RefreshIndicator(
               onRefresh: _load,
               color: AppColors.teacherPrimary,
@@ -72,7 +75,11 @@ class _TeacherAnnouncementsScreenState extends ConsumerState<TeacherAnnouncement
                       physics: const AlwaysScrollableScrollPhysics(),
                       children: [
                         const SizedBox(height: 80),
-                        Icon(Icons.campaign_outlined, size: 48, color: Colors.grey.shade400),
+                        Icon(
+                          Icons.campaign_outlined,
+                          size: 48,
+                          color: Colors.grey.shade400,
+                        ),
                         const SizedBox(height: 12),
                         const Center(
                           child: Text(
@@ -94,7 +101,9 @@ class _TeacherAnnouncementsScreenState extends ConsumerState<TeacherAnnouncement
                           decoration: teacherCardDecoration().copyWith(
                             border: isLatest
                                 ? Border.all(
-                                    color: AppColors.teacherPrimary.withValues(alpha: 0.3),
+                                    color: AppColors.teacherPrimary.withValues(
+                                      alpha: 0.3,
+                                    ),
                                   )
                                 : null,
                           ),
@@ -123,7 +132,10 @@ class _TeacherAnnouncementsScreenState extends ConsumerState<TeacherAnnouncement
                                 ),
                               Text(
                                 '${item['body'] ?? ''}',
-                                style: const TextStyle(fontSize: 14, height: 1.5),
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  height: 1.5,
+                                ),
                               ),
                               const SizedBox(height: 10),
                               Row(

@@ -22,7 +22,6 @@ class TeacherMoreScreen extends ConsumerWidget {
       child: Column(
         children: [
           TeacherPlainHeader(
-            icon: Icons.grid_view_rounded,
             title: 'More',
             subtitle: user?.email ?? '',
             trailing: Container(
@@ -77,7 +76,11 @@ class TeacherMoreScreen extends ConsumerWidget {
                             borderRadius: BorderRadius.circular(16),
                           ),
                           alignment: Alignment.center,
-                          child: const Icon(Icons.person_rounded, color: Colors.white, size: 28),
+                          child: const Icon(
+                            Icons.person_rounded,
+                            color: Colors.white,
+                            size: 28,
+                          ),
                         ),
                         const SizedBox(width: 14),
                         Expanded(
@@ -135,7 +138,9 @@ class TeacherMoreScreen extends ConsumerWidget {
                                 )
                               : null,
                           onTap: () => Navigator.of(context).push(
-                            SmoothPageRoute(page: const TeacherAnnouncementsScreen()),
+                            SmoothPageRoute(
+                              page: const TeacherAnnouncementsScreen(),
+                            ),
                           ),
                         ),
                         const Divider(height: 1, indent: 68, endIndent: 14),

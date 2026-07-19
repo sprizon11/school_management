@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../../core/widgets/motion.dart';
-import 'admin_screen_header.dart';
+import 'motion.dart';
+import '../../features/admin/presentation/widgets/admin_screen_header.dart';
 
 /// Compact stat card used across the admin list screens.
 ///
@@ -11,8 +11,8 @@ import 'admin_screen_header.dart';
 /// Pass [onTap] to make it a filter: [selected] tints the surface, thickens
 /// the border and deepens the shadow, animated so the state change doesn't
 /// snap.
-class AdminStatCard extends StatelessWidget {
-  const AdminStatCard({
+class StatCard extends StatelessWidget {
+  const StatCard({
     required this.icon,
     required this.color,
     required this.value,
@@ -93,11 +93,11 @@ class AdminStatCard extends StatelessWidget {
   }
 }
 
-/// Row of [AdminStatCard]s with the screens' shared spacing.
-class AdminStatRow extends StatelessWidget {
-  const AdminStatRow({required this.cards, super.key});
+/// Row of [StatCard]s with the screens' shared spacing.
+class StatRow extends StatelessWidget {
+  const StatRow({required this.cards, super.key});
 
-  final List<AdminStatCard> cards;
+  final List<StatCard> cards;
 
   @override
   Widget build(BuildContext context) {

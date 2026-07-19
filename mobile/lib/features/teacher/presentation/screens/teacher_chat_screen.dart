@@ -51,7 +51,9 @@ class _TeacherChatScreenState extends ConsumerState<TeacherChatScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final res = await ref.read(dioProvider).get('/teacher/chat/conversations');
+      final res = await ref
+          .read(dioProvider)
+          .get('/teacher/chat/conversations');
       if (!mounted) return;
       setState(() {
         _items = res.data as List<dynamic>? ?? [];
@@ -64,7 +66,9 @@ class _TeacherChatScreenState extends ConsumerState<TeacherChatScreen> {
 
   List<Map<String, dynamic>> get _filtered {
     final q = _query.trim().toLowerCase();
-    final list = _items.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    final list = _items
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
     if (q.isEmpty) return list;
     return list.where((c) {
       final p = '${c['parentName'] ?? ''}'.toLowerCase();
@@ -74,9 +78,9 @@ class _TeacherChatScreenState extends ConsumerState<TeacherChatScreen> {
   }
 
   int get _unreadTotal => _items.fold<int>(
-        0,
-        (sum, e) => sum + (((e as Map)['unread'] as num?)?.toInt() ?? 0),
-      );
+    0,
+    (sum, e) => sum + (((e as Map)['unread'] as num?)?.toInt() ?? 0),
+  );
 
   String _timeLabel(dynamic raw) {
     final dt = DateTime.tryParse('$raw');
@@ -84,7 +88,9 @@ class _TeacherChatScreenState extends ConsumerState<TeacherChatScreen> {
     final local = dt.toLocal();
     final now = DateTime.now();
     final isToday =
-        local.year == now.year && local.month == now.month && local.day == now.day;
+        local.year == now.year &&
+        local.month == now.month &&
+        local.day == now.day;
     if (isToday) return DateFormat('h:mm a').format(local);
     final yesterday = now.subtract(const Duration(days: 1));
     if (local.year == yesterday.year &&
@@ -112,7 +118,8 @@ class _TeacherChatScreenState extends ConsumerState<TeacherChatScreen> {
             child: _loading
                 ? const Center(
                     child: CircularProgressIndicator(
-                        color: AppColors.teacherPrimary),
+                      color: AppColors.teacherPrimary,
+                    ),
                   )
                 : RefreshIndicator(
                     onRefresh: _load,
@@ -134,17 +141,15 @@ class _TeacherChatScreenState extends ConsumerState<TeacherChatScreen> {
     final count = _items.length;
 
     return TeacherPlainHeader(
-      icon: Icons.forum_rounded,
       title: 'Messages',
       subtitle: _loading
           ? 'Chat with parents'
           : _unreadTotal > 0
-              ? '$count chats · $_unreadTotal unread'
-              : '$count ${count == 1 ? 'parent chat' : 'parent chats'}',
+          ? '$count chats · $_unreadTotal unread'
+          : '$count ${count == 1 ? 'parent chat' : 'parent chats'}',
       trailing: _unreadTotal > 0
           ? Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
                 color: _wa,
                 borderRadius: BorderRadius.circular(20),
@@ -280,8 +285,9 @@ class _TeacherChatScreenState extends ConsumerState<TeacherChatScreen> {
                             _timeLabel(c['lastMessageAt']),
                             style: TextStyle(
                               fontSize: 11,
-                              fontWeight:
-                                  hasUnread ? FontWeight.w700 : FontWeight.w500,
+                              fontWeight: hasUnread
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
                               color: hasUnread ? _wa : AppColors.textMuted,
                             ),
                           ),
@@ -292,8 +298,11 @@ class _TeacherChatScreenState extends ConsumerState<TeacherChatScreen> {
                       children: [
                         if (lastMessage == null ||
                             '$lastMessage'.trim().isEmpty) ...[
-                          const Icon(Icons.person_outline_rounded,
-                              size: 13, color: AppColors.textMuted),
+                          const Icon(
+                            Icons.person_outline_rounded,
+                            size: 13,
+                            color: AppColors.textMuted,
+                          ),
                           const SizedBox(width: 4),
                         ],
                         Expanded(
@@ -363,9 +372,7 @@ class _TeacherChatScreenState extends ConsumerState<TeacherChatScreen> {
               color: AppColors.teacherPrimary.withValues(alpha: 0.08),
             ),
             child: Icon(
-              searching
-                  ? Icons.search_off_rounded
-                  : Icons.forum_outlined,
+              searching ? Icons.search_off_rounded : Icons.forum_outlined,
               size: 44,
               color: AppColors.teacherPrimary.withValues(alpha: 0.7),
             ),

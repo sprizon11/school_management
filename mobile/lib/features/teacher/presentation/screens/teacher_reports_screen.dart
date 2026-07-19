@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/navigation/smooth_page_route.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/motion.dart';
 import '../widgets/teacher_ui.dart';
 import 'teacher_assignments_report_screen.dart';
 import 'teacher_attendance_report_screen.dart';
@@ -38,7 +39,9 @@ class _TeacherReportsScreenState extends ConsumerState<TeacherReportsScreen> {
         return;
       }
       final first = list.first as Map<String, dynamic>;
-      final res = await ref.read(dioProvider).get(
+      final res = await ref
+          .read(dioProvider)
+          .get(
             '/teacher/reports/overview',
             queryParameters: {'classId': first['id']},
           );
@@ -71,6 +74,11 @@ class _TeacherReportsScreenState extends ConsumerState<TeacherReportsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Three states, not two. Previously a teacher with no class fell through
+    // to a page showing only the four report tiles floating on empty space,
+    // with nothing explaining why the analytics were missing.
+    final hasClass = _classInfo != null;
+
     return ColoredBox(
       color: teacherBg,
       child: Column(
@@ -80,7 +88,8 @@ class _TeacherReportsScreenState extends ConsumerState<TeacherReportsScreen> {
             child: _loading
                 ? const Center(
                     child: CircularProgressIndicator(
-                        color: AppColors.teacherPrimary),
+                      color: AppColors.teacherPrimary,
+                    ),
                   )
                 : RefreshIndicator(
                     onRefresh: _load,
@@ -89,86 +98,53 @@ class _TeacherReportsScreenState extends ConsumerState<TeacherReportsScreen> {
                       physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
                       children: [
-                        if (_overview != null) ...[
-                          _performanceCard(),
-                          const SizedBox(height: 22),
-                          _leaderboard(
-                            title: 'Top Students',
-                            icon: Icons.emoji_events_rounded,
-                            items: _overview!['topStudents'] as List<dynamic>? ??
-                                const [],
-                            valueKey: 'avgMarks',
-                            accent: const Color(0xFFF59E0B),
-                            emptyText:
-                                'No marks recorded yet — rankings appear once exams are graded.',
+                        if (!hasClass) ...[
+                          const EntranceFade(child: _NoClassNotice()),
+                          const SizedBox(height: 20),
+                        ] else ...[
+                          EntranceFade(child: _performanceCard()),
+                          const SizedBox(height: 20),
+                          EntranceFade(
+                            delay: const Duration(milliseconds: 70),
+                            child: _leaderboard(
+                              title: 'Top Students',
+                              icon: Icons.emoji_events_rounded,
+                              items:
+                                  _overview!['topStudents'] as List<dynamic>? ??
+                                  const [],
+                              valueKey: 'avgMarks',
+                              accent: const Color(0xFFF59E0B),
+                              emptyText:
+                                  'No marks recorded yet — rankings appear once exams are graded.',
+                            ),
                           ),
-                          const SizedBox(height: 22),
-                          _leaderboard(
-                            title: 'Best Attendance',
-                            icon: Icons.verified_rounded,
-                            items: _overview!['topAttendance']
-                                    as List<dynamic>? ??
-                                const [],
-                            valueKey: 'attendancePercent',
-                            accent: AppColors.statGreen,
-                            emptyText:
-                                'No attendance records yet — rankings appear once attendance is marked.',
+                          const SizedBox(height: 20),
+                          EntranceFade(
+                            delay: const Duration(milliseconds: 140),
+                            child: _leaderboard(
+                              title: 'Best Attendance',
+                              icon: Icons.verified_rounded,
+                              items:
+                                  _overview!['topAttendance']
+                                      as List<dynamic>? ??
+                                  const [],
+                              valueKey: 'attendancePercent',
+                              accent: AppColors.statGreen,
+                              emptyText:
+                                  'No attendance records yet — rankings appear once attendance is marked.',
+                            ),
                           ),
-                          const SizedBox(height: 22),
+                          const SizedBox(height: 20),
                         ],
-                        const Text(
-                          'Report Types',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF111827),
+                        EntranceFade(
+                          delay: Duration(milliseconds: hasClass ? 210 : 70),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const TeacherSectionTitle('Report Types'),
+                              _reportGrid(),
+                            ],
                           ),
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            _reportCard(
-                              icon: Icons.calendar_month_rounded,
-                              color: AppColors.statGreen,
-                              title: 'Attendance',
-                              subtitle: 'Per-student %',
-                              onTap: _openAttendanceReport,
-                            ),
-                            const SizedBox(width: 12),
-                            _reportCard(
-                              icon: Icons.assignment_rounded,
-                              color: const Color(0xFF3B82F6),
-                              title: 'Marks',
-                              subtitle: 'Subject grades',
-                              onTap: () => _openReport((id, label) =>
-                                  TeacherMarksReportScreen(
-                                      classId: id, classLabel: label)),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            _reportCard(
-                              icon: Icons.insights_rounded,
-                              color: AppColors.statPurple,
-                              title: 'Performance',
-                              subtitle: 'Marks + attendance',
-                              onTap: () => _openReport((id, label) =>
-                                  TeacherPerformanceReportScreen(
-                                      classId: id, classLabel: label)),
-                            ),
-                            const SizedBox(width: 12),
-                            _reportCard(
-                              icon: Icons.task_alt_rounded,
-                              color: AppColors.statOrange,
-                              title: 'Assignments',
-                              subtitle: 'Homework & due dates',
-                              onTap: () => _openReport((id, label) =>
-                                  TeacherAssignmentsReportScreen(
-                                      classId: id, classLabel: label)),
-                            ),
-                          ],
                         ),
                       ],
                     ),
@@ -176,6 +152,91 @@ class _TeacherReportsScreenState extends ConsumerState<TeacherReportsScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  /// The four report tiles. Kept as one builder so the grid spacing lives in
+  /// a single place.
+  Widget _reportGrid() {
+    final tiles =
+        <
+          ({
+            IconData icon,
+            Color color,
+            String title,
+            String sub,
+            VoidCallback tap,
+          })
+        >[
+          (
+            icon: Icons.calendar_month_rounded,
+            color: AppColors.statGreen,
+            title: 'Attendance',
+            sub: 'Per-student %',
+            tap: _openAttendanceReport,
+          ),
+          (
+            icon: Icons.assignment_rounded,
+            color: const Color(0xFF3B82F6),
+            title: 'Marks',
+            sub: 'Subject grades',
+            tap: () => _openReport(
+              (id, label) =>
+                  TeacherMarksReportScreen(classId: id, classLabel: label),
+            ),
+          ),
+          (
+            icon: Icons.insights_rounded,
+            color: AppColors.statPurple,
+            title: 'Performance',
+            sub: 'Marks + attendance',
+            tap: () => _openReport(
+              (id, label) => TeacherPerformanceReportScreen(
+                classId: id,
+                classLabel: label,
+              ),
+            ),
+          ),
+          (
+            icon: Icons.task_alt_rounded,
+            color: AppColors.statOrange,
+            title: 'Assignments',
+            sub: 'Homework & due dates',
+            tap: () => _openReport(
+              (id, label) => TeacherAssignmentsReportScreen(
+                classId: id,
+                classLabel: label,
+              ),
+            ),
+          ),
+        ];
+
+    return Column(
+      children: [
+        for (var row = 0; row < 2; row++) ...[
+          if (row > 0) const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (var col = 0; col < 2; col++) ...[
+                if (col > 0) const SizedBox(width: 12),
+                Expanded(
+                  child: EntranceFadeItem(
+                    index: row * 2 + col,
+                    child: _reportCard(
+                      icon: tiles[row * 2 + col].icon,
+                      color: tiles[row * 2 + col].color,
+                      title: tiles[row * 2 + col].title,
+                      subtitle: tiles[row * 2 + col].sub,
+                      onTap: tiles[row * 2 + col].tap,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ],
     );
   }
 
@@ -188,23 +249,24 @@ class _TeacherReportsScreenState extends ConsumerState<TeacherReportsScreen> {
         : null;
 
     return TeacherPlainHeader(
-      icon: Icons.bar_chart_rounded,
       title: 'Reports',
       subtitle: classLabel != null
           ? '$classLabel · Performance & analytics'
           : 'Performance & analytics',
       trailing: _overview != null
           ? Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
               decoration: BoxDecoration(
                 color: AppColors.teacherPrimary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.groups_rounded,
-                      color: AppColors.teacherPrimary, size: 13),
+                  const Icon(
+                    Icons.groups_rounded,
+                    color: AppColors.teacherPrimary,
+                    size: 13,
+                  ),
                   const SizedBox(width: 5),
                   Text(
                     '${_overview!['totalStudents']}',
@@ -225,26 +287,27 @@ class _TeacherReportsScreenState extends ConsumerState<TeacherReportsScreen> {
   // Class performance hero
   // ---------------------------------------------------------------------
   Widget _performanceCard() {
-    final metrics = <({String label, dynamic value, Color color, IconData icon})>[
-      (
-        label: 'Attendance',
-        value: _overview!['averageAttendance'],
-        color: const Color(0xFF34D399),
-        icon: Icons.fact_check_rounded,
-      ),
-      (
-        label: 'Avg Marks',
-        value: _overview!['classAverageMarks'],
-        color: const Color(0xFFFBBF24),
-        icon: Icons.grade_rounded,
-      ),
-      (
-        label: 'Pass Rate',
-        value: _overview!['passPercentage'],
-        color: const Color(0xFF93C5FD),
-        icon: Icons.trending_up_rounded,
-      ),
-    ];
+    final metrics =
+        <({String label, dynamic value, Color color, IconData icon})>[
+          (
+            label: 'Attendance',
+            value: _overview!['averageAttendance'],
+            color: const Color(0xFF34D399),
+            icon: Icons.fact_check_rounded,
+          ),
+          (
+            label: 'Avg Marks',
+            value: _overview!['classAverageMarks'],
+            color: const Color(0xFFFBBF24),
+            icon: Icons.grade_rounded,
+          ),
+          (
+            label: 'Pass Rate',
+            value: _overview!['passPercentage'],
+            color: const Color(0xFF93C5FD),
+            icon: Icons.trending_up_rounded,
+          ),
+        ];
 
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 15, 16, 16),
@@ -298,7 +361,8 @@ class _TeacherReportsScreenState extends ConsumerState<TeacherReportsScreen> {
   }
 
   Widget _metricBar(
-      ({String label, dynamic value, Color color, IconData icon}) m) {
+    ({String label, dynamic value, Color color, IconData icon}) m,
+  ) {
     final pct = _pct(m.value);
     return Row(
       children: [
@@ -397,8 +461,11 @@ class _TeacherReportsScreenState extends ConsumerState<TeacherReportsScreen> {
                   padding: const EdgeInsets.all(18),
                   child: Row(
                     children: [
-                      Icon(Icons.hourglass_empty_rounded,
-                          size: 18, color: Colors.grey.shade400),
+                      Icon(
+                        Icons.hourglass_empty_rounded,
+                        size: 18,
+                        color: Colors.grey.shade400,
+                      ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
@@ -418,7 +485,10 @@ class _TeacherReportsScreenState extends ConsumerState<TeacherReportsScreen> {
                     for (var i = 0; i < items.length; i++) ...[
                       if (i > 0)
                         const Divider(
-                            height: 1, indent: 60, color: Color(0xFFF0F1F6)),
+                          height: 1,
+                          indent: 60,
+                          color: Color(0xFFF0F1F6),
+                        ),
                       _rankRow(
                         items[i] as Map<String, dynamic>,
                         i,
@@ -434,7 +504,11 @@ class _TeacherReportsScreenState extends ConsumerState<TeacherReportsScreen> {
   }
 
   Widget _rankRow(
-      Map<String, dynamic> s, int rank, String valueKey, Color accent) {
+    Map<String, dynamic> s,
+    int rank,
+    String valueKey,
+    Color accent,
+  ) {
     final name = '${s['fullName'] ?? '?'}';
     final roll = '${s['rollNumber'] ?? '—'}';
     final value = s[valueKey];
@@ -539,8 +613,10 @@ class _TeacherReportsScreenState extends ConsumerState<TeacherReportsScreen> {
   // ---------------------------------------------------------------------
   // Report type cards — 2×2 colorful grid
   // ---------------------------------------------------------------------
-  void _openAttendanceReport() => _openReport((id, label) =>
-      TeacherAttendanceReportScreen(classId: id, classLabel: label));
+  void _openAttendanceReport() => _openReport(
+    (id, label) =>
+        TeacherAttendanceReportScreen(classId: id, classLabel: label),
+  );
 
   void _openReport(Widget Function(String classId, String classLabel) build) {
     if (_classInfo == null) return;
@@ -561,78 +637,137 @@ class _TeacherReportsScreenState extends ConsumerState<TeacherReportsScreen> {
     required String subtitle,
     VoidCallback? onTap,
   }) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap ?? () => _comingSoon('$title report'),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(14, 14, 12, 13),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            boxShadow: [
-              BoxShadow(
-                color: color.withValues(alpha: 0.12),
-                blurRadius: 14,
-                offset: const Offset(0, 7),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          color,
-                          Color.lerp(color, Colors.black, 0.18)!,
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(11),
-                      boxShadow: [
-                        BoxShadow(
-                          color: color.withValues(alpha: 0.35),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: Icon(icon, color: Colors.white, size: 18),
-                  ),
-                  const Spacer(),
-                  Icon(Icons.arrow_forward_rounded,
-                      size: 16, color: color.withValues(alpha: 0.6)),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF111827),
-                  letterSpacing: -0.2,
-                ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                subtitle,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: AppColors.textMuted,
-                ),
-              ),
-            ],
-          ),
+    return PressableScale(
+      onTap: onTap ?? () => _comingSoon('$title report'),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(14, 14, 12, 13),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: color.withValues(alpha: 0.12),
+              blurRadius: 14,
+              offset: const Offset(0, 7),
+            ),
+          ],
         ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [color, Color.lerp(color, Colors.black, 0.18)!],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(11),
+                    boxShadow: [
+                      BoxShadow(
+                        color: color.withValues(alpha: 0.35),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Icon(icon, color: Colors.white, size: 18),
+                ),
+                const Spacer(),
+                Icon(
+                  Icons.arrow_forward_rounded,
+                  size: 16,
+                  color: color.withValues(alpha: 0.6),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF111827),
+                letterSpacing: -0.2,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              subtitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Shown when the signed-in teacher isn't a class teacher for any class.
+///
+/// Without this the screen rendered only the four report tiles on an
+/// otherwise blank page, with nothing to explain why the analytics were
+/// missing — it read as broken rather than as "nothing assigned yet".
+class _NoClassNotice extends StatelessWidget {
+  const _NoClassNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 22, 18, 22),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.teacherPrimary.withValues(alpha: 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 54,
+            height: 54,
+            decoration: BoxDecoration(
+              color: AppColors.teacherPrimary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(
+              Icons.insights_rounded,
+              color: AppColors.teacherPrimary,
+              size: 26,
+            ),
+          ),
+          const SizedBox(height: 14),
+          const Text(
+            'No class assigned yet',
+            style: TextStyle(
+              fontSize: 15.5,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF111827),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Class analytics — attendance, marks and rankings — appear here '
+            'once your school admin makes you a class teacher.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 12.5,
+              height: 1.5,
+              color: const Color(0xFF111827).withValues(alpha: 0.55),
+            ),
+          ),
+        ],
       ),
     );
   }

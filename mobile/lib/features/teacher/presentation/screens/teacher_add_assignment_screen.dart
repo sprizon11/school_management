@@ -64,13 +64,18 @@ class _TeacherAddAssignmentScreenState
       _error = null;
     });
     try {
-      await ref.read(dioProvider).post('/teacher/homework', data: {
-        'classId': widget.classId,
-        'title': _title.text.trim(),
-        if (_description.text.trim().isNotEmpty)
-          'description': _description.text.trim(),
-        'dueDate': DateFormat('yyyy-MM-dd').format(_dueDate),
-      });
+      await ref
+          .read(dioProvider)
+          .post(
+            '/teacher/homework',
+            data: {
+              'classId': widget.classId,
+              'title': _title.text.trim(),
+              if (_description.text.trim().isNotEmpty)
+                'description': _description.text.trim(),
+              'dueDate': DateFormat('yyyy-MM-dd').format(_dueDate),
+            },
+          );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -83,7 +88,8 @@ class _TeacherAddAssignmentScreenState
     } on DioException catch (e) {
       setState(() {
         _error =
-            e.response?.data?['message']?.toString() ?? 'Could not save assignment';
+            e.response?.data?['message']?.toString() ??
+            'Could not save assignment';
         _saving = false;
       });
     } catch (_) {
@@ -130,8 +136,10 @@ class _TeacherAddAssignmentScreenState
               borderRadius: BorderRadius.circular(14),
               onTap: _pickDueDate,
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 15,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(14),
@@ -139,8 +147,11 @@ class _TeacherAddAssignmentScreenState
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.event_rounded,
-                        size: 19, color: AppColors.teacherPrimary),
+                    const Icon(
+                      Icons.event_rounded,
+                      size: 19,
+                      color: AppColors.teacherPrimary,
+                    ),
                     const SizedBox(width: 10),
                     Text(
                       DateFormat('EEEE, d MMM yyyy').format(_dueDate),
@@ -151,16 +162,20 @@ class _TeacherAddAssignmentScreenState
                       ),
                     ),
                     const Spacer(),
-                    const Icon(Icons.keyboard_arrow_down_rounded,
-                        color: AppColors.textMuted),
+                    const Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: AppColors.textMuted,
+                    ),
                   ],
                 ),
               ),
             ),
             if (_error != null) ...[
               const SizedBox(height: 14),
-              Text(_error!,
-                  style: const TextStyle(color: Colors.red, fontSize: 12.5)),
+              Text(
+                _error!,
+                style: const TextStyle(color: Colors.red, fontSize: 12.5),
+              ),
             ],
             const SizedBox(height: 24),
             teacherPrimaryButton(
