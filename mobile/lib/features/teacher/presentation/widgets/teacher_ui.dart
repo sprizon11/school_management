@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/motion.dart';
 
 const teacherBg = Color(0xFFF8F9FE);
 const teacherHeaderStart = Color(0xFF4F46E5);
@@ -18,6 +19,83 @@ BoxDecoration teacherCardDecoration() => BoxDecoration(
     ),
   ],
 );
+
+/// Floating "+" action for the teacher tab screens — the purple counterpart to
+/// the admin `AdminFab`.
+///
+/// The tab screens live inside [TeacherShell]'s IndexedStack rather than their
+/// own Scaffold, so they can't use `Scaffold.floatingActionButton`. Wrap the
+/// body in [TeacherFabScaffold] so every screen sits it in the same place.
+class TeacherFab extends StatelessWidget {
+  const TeacherFab({
+    required this.icon,
+    required this.onTap,
+    this.tooltip,
+    super.key,
+  });
+
+  final IconData icon;
+  final VoidCallback onTap;
+  final String? tooltip;
+
+  /// Gap between the FAB and the nav bar. The shell sets `extendBody: true`,
+  /// so the Scaffold already reports the nav bar height in the bottom inset —
+  /// adding the nav height again would push the button far too high.
+  static double bottomOffset(BuildContext context) =>
+      MediaQuery.paddingOf(context).bottom + 16;
+
+  @override
+  Widget build(BuildContext context) {
+    final button = PressableScale(
+      onTap: onTap,
+      pressedScale: 0.92,
+      child: Container(
+        height: 56,
+        width: 56,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: const LinearGradient(
+            colors: [teacherHeaderStart, teacherHeaderEnd],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.teacherPrimary.withValues(alpha: 0.42),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Icon(icon, color: Colors.white, size: 26),
+      ),
+    );
+
+    return tooltip == null ? button : Tooltip(message: tooltip!, child: button);
+  }
+}
+
+/// Places a [TeacherFab] over a screen body, clear of the shell's nav bar.
+class TeacherFabScaffold extends StatelessWidget {
+  const TeacherFabScaffold({required this.child, required this.fab, super.key});
+
+  final Widget child;
+  final TeacherFab fab;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        child,
+        Positioned(
+          right: 16,
+          bottom: TeacherFab.bottomOffset(context),
+          child: fab,
+        ),
+      ],
+    );
+  }
+}
 
 /// Plain light header used by all teacher tab screens: menu button that opens
 /// the shell's side panel, dark title + muted subtitle, optional trailing

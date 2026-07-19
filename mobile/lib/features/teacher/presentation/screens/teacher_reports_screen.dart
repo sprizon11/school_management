@@ -5,6 +5,7 @@ import '../../../../core/network/api_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/motion.dart';
 import '../widgets/teacher_ui.dart';
+import 'teacher_add_marks_screen.dart';
 import 'teacher_assignments_report_screen.dart';
 import 'teacher_attendance_report_screen.dart';
 import 'teacher_marks_report_screen.dart';
@@ -79,7 +80,7 @@ class _TeacherReportsScreenState extends ConsumerState<TeacherReportsScreen> {
     // with nothing explaining why the analytics were missing.
     final hasClass = _classInfo != null;
 
-    return ColoredBox(
+    final body = ColoredBox(
       color: teacherBg,
       child: Column(
         children: [
@@ -153,6 +154,33 @@ class _TeacherReportsScreenState extends ConsumerState<TeacherReportsScreen> {
         ],
       ),
     );
+
+    // Recording marks is a write action, so it gets a FAB rather than hiding
+    // behind the Marks *report* two screens down. No class means nothing to
+    // grade, so the button stays off.
+    if (!hasClass) return body;
+    return TeacherFabScaffold(
+      fab: TeacherFab(
+        icon: Icons.post_add_rounded,
+        tooltip: 'Enter marks',
+        onTap: _openAddMarks,
+      ),
+      child: body,
+    );
+  }
+
+  Future<void> _openAddMarks() async {
+    if (_classInfo == null) return;
+    final saved = await Navigator.of(context).push<bool>(
+      SmoothPageRoute(
+        page: TeacherAddMarksScreen(
+          classId: '${_classInfo!['id']}',
+          classLabel:
+              'Class ${_classInfo!['grade']}${_classInfo!['section']}',
+        ),
+      ),
+    );
+    if (saved == true) _load();
   }
 
   /// The four report tiles. Kept as one builder so the grid spacing lives in

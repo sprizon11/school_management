@@ -1,13 +1,15 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
-import '../../../core/network/api_client.dart';
-import '../../../core/navigation/smooth_page_route.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../teacher/presentation/screens/chat_thread_screen.dart';
+import 'screens/parent_home_screen.dart';
+import 'screens/parent_messages_screen.dart';
 
+/// Parent shell. Home draws its own gradient header, so there is no AppBar —
+/// the header runs to the top of the screen and the nav floats over the body.
 class ParentShell extends ConsumerStatefulWidget {
   const ParentShell({super.key});
 
@@ -16,118 +18,127 @@ class ParentShell extends ConsumerStatefulWidget {
 }
 
 class _ParentShellState extends ConsumerState<ParentShell> {
-  List<dynamic> _items = [];
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    setState(() => _loading = true);
-    try {
-      final res = await ref.read(dioProvider).get('/parent/chat/conversations');
-      if (!mounted) return;
-      setState(() {
-        _items = res.data as List<dynamic>? ?? [];
-        _loading = false;
-      });
-    } catch (_) {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  String _timeLabel(dynamic raw) {
-    final dt = DateTime.tryParse('$raw');
-    if (dt == null) return '';
-    return DateFormat('h:mm a').format(dt.toLocal());
-  }
+  int _index = 0;
 
   @override
   Widget build(BuildContext context) {
-    final user = ref.watch(authProvider).user;
+    final screens = [
+      ParentHomeScreen(onOpenMessages: () => setState(() => _index = 1)),
+      const ParentMessagesScreen(),
+    ];
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FE),
-      appBar: AppBar(
-        title: const Text('Messages'),
-        backgroundColor: AppColors.parentPrimary,
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            onPressed: () async {
-              await ref.read(authProvider.notifier).logout();
-            },
-            icon: const Icon(Icons.logout_rounded),
-          ),
-        ],
+      extendBody: true,
+      backgroundColor: const Color(0xFFF6F6FB),
+      body: IndexedStack(index: _index, children: screens),
+      bottomNavigationBar: _ParentNavBar(
+        index: _index,
+        onTap: (i) async {
+          if (i == 2) {
+            await ref.read(authProvider.notifier).logout();
+            return;
+          }
+          setState(() => _index = i);
+        },
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.parentPrimary))
-          : RefreshIndicator(
-              onRefresh: _load,
-              child: _items.isEmpty
-                  ? ListView(
-                      children: [
-                        const SizedBox(height: 80),
-                        const Icon(Icons.chat_bubble_outline, size: 48, color: AppColors.textMuted),
-                        const SizedBox(height: 12),
-                        Center(
-                          child: Text(
-                            'Hi ${user?.fullName ?? 'Parent'},\nno teacher chat yet.',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(color: AppColors.textMuted),
-                          ),
-                        ),
-                      ],
-                    )
-                  : ListView.separated(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: _items.length,
-                      separatorBuilder: (_, index) => const SizedBox(height: 8),
-                      itemBuilder: (_, i) {
-                        final c = _items[i] as Map<String, dynamic>;
-                        return ListTile(
-                          tileColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                          leading: CircleAvatar(
-                            backgroundColor: AppColors.parentPrimary.withValues(alpha: 0.12),
-                            child: Text(
-                              '${c['teacherName'] ?? 'T'}'[0].toUpperCase(),
-                              style: const TextStyle(
-                                color: AppColors.parentPrimary,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                          title: Text('${c['teacherName']}', style: const TextStyle(fontWeight: FontWeight.w800)),
-                          subtitle: Text(
-                            '${c['studentName']} · Class ${c['classLabel']}',
-                            style: const TextStyle(fontSize: 12),
-                          ),
-                          trailing: c['lastMessageAt'] != null
-                              ? Text(_timeLabel(c['lastMessageAt']), style: const TextStyle(fontSize: 10))
-                              : null,
-                          onTap: () async {
-                            await Navigator.of(context).push(
-                              SmoothPageRoute(
-                                page: ChatThreadScreen(
-                                  conversationId: '${c['id']}',
-                                  apiPrefix: '/parent/chat',
-                                  title: '${c['teacherName']}',
-                                  subtitle:
-                                      '${c['studentName']} · ${c['subject'] ?? 'Class teacher'}',
-                                ),
-                              ),
-                            );
-                            _load();
-                          },
-                        );
-                      },
-                    ),
+    );
+  }
+}
+
+/// Frosted floating nav, matching the admin and teacher shells.
+class _ParentNavBar extends StatelessWidget {
+  const _ParentNavBar({required this.index, required this.onTap});
+
+  final int index;
+  final ValueChanged<int> onTap;
+
+  static const _items = <({IconData icon, String label})>[
+    (icon: Icons.home_rounded, label: 'Home'),
+    (icon: Icons.chat_bubble_rounded, label: 'Messages'),
+    (icon: Icons.logout_rounded, label: 'Log out'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomSafe = MediaQuery.paddingOf(context).bottom;
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16, 0, 16, bottomSafe > 0 ? bottomSafe : 14),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(26),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+          child: Container(
+            height: 64,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.9),
+              borderRadius: BorderRadius.circular(26),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.6),
+                width: 1.2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.parentPrimary.withValues(alpha: 0.18),
+                  blurRadius: 22,
+                  offset: const Offset(0, 9),
+                ),
+              ],
             ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                for (var i = 0; i < _items.length; i++) _item(i),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _item(int i) {
+    final selected = i == index;
+    // Log out is an action, never a "current tab".
+    final isAction = i == 2;
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => onTap(i),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 240),
+        curve: Curves.easeOutCubic,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected && !isAction
+              ? AppColors.parentPrimary.withValues(alpha: 0.12)
+              : null,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              _items[i].icon,
+              size: 21,
+              color: selected && !isAction
+                  ? AppColors.parentPrimary
+                  : const Color(0xFF8A8AA3),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              _items[i].label,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: selected && !isAction
+                    ? AppColors.parentPrimary
+                    : const Color(0xFF8A8AA3),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

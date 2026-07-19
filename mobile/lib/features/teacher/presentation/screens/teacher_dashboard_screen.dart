@@ -10,6 +10,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../providers/teacher_shell_provider.dart';
 import '../widgets/teacher_ui.dart';
 import 'teacher_announcements_screen.dart';
+import 'teacher_attendance_screen.dart';
 import 'teacher_classes_screen.dart';
 
 const _dashBg = Color(0xFFF8F9FE);
@@ -263,6 +264,80 @@ class _TeacherDashboardScreenState
     );
   }
 
+  /// Open the attendance sheet. One class goes straight there; several show a
+  /// short picker first so marking is never more than two taps away.
+  Future<void> _openAttendance() async {
+    if (_classes.isEmpty) {
+      _comingSoon('No classes assigned yet');
+      return;
+    }
+
+    Map<String, dynamic>? target;
+    if (_classes.length == 1) {
+      target = Map<String, dynamic>.from(_classes.first as Map);
+    } else {
+      target = await showModalBottomSheet<Map<String, dynamic>>(
+        context: context,
+        backgroundColor: Colors.white,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (ctx) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 18, 20, 6),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Mark attendance for',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF1F2937),
+                    ),
+                  ),
+                ),
+              ),
+              for (final raw in _classes)
+                ListTile(
+                  leading: const Icon(
+                    Icons.school_rounded,
+                    color: AppColors.teacherPrimary,
+                  ),
+                  title: Text(
+                    '${(raw as Map)['name'] ?? '${raw['grade']}${raw['section']}'}',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  subtitle: Text(
+                    '${raw['_count']?['students'] ?? 0} students',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  onTap: () =>
+                      Navigator.of(ctx).pop(Map<String, dynamic>.from(raw)),
+                ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (target == null || !mounted) return;
+    openSmoothPage(
+      context,
+      TeacherAttendanceScreen(
+        classId: '${target['id']}',
+        classLabel:
+            '${target['name'] ?? '${target['grade']}${target['section']}'}',
+      ),
+    );
+  }
+
   void _comingSoon(String label) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -360,8 +435,29 @@ class _TeacherDashboardScreenState
       padding: EdgeInsets.fromLTRB(_hPad, top + 8, _hPad, 4),
       child: Row(
         children: [
-          _headerAvatar(displayName),
-          const SizedBox(width: 12),
+          // Same side-panel control the other teacher tabs get from
+          // TeacherPlainHeader. Builder supplies a context below the Scaffold
+          // so Scaffold.of can reach the shell's drawer.
+          Builder(
+            builder: (context) => Material(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+              child: InkWell(
+                onTap: () => Scaffold.of(context).openDrawer(),
+                borderRadius: BorderRadius.circular(12),
+                child: const SizedBox(
+                  height: 42,
+                  width: 42,
+                  child: Icon(
+                    Icons.segment_rounded,
+                    color: _headerPurple,
+                    size: 24,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -425,47 +521,6 @@ class _TeacherDashboardScreenState
           const SizedBox(width: 10),
           _notificationBell(context, unread),
         ],
-      ),
-    );
-  }
-
-  Widget _headerAvatar(String displayName) {
-    return GestureDetector(
-      onTap: () => _goToTab(4),
-      child: Container(
-        height: 52,
-        width: 52,
-        padding: const EdgeInsets.all(2.5),
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.teacherPrimary.withValues(alpha: 0.28),
-              blurRadius: 14,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Container(
-          decoration: const BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: LinearGradient(
-              colors: [teacherHeaderStart, teacherHeaderEnd],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            displayName.isNotEmpty ? displayName[0].toUpperCase() : 'T',
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w800,
-              fontSize: 20,
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -1147,7 +1202,7 @@ class _TeacherDashboardScreenState
             icon: Icons.fact_check_rounded,
             label: 'Attendance',
             color: AppColors.statGreen,
-            onTap: () => _comingSoon('Attendance'),
+            onTap: _openAttendance,
           ),
           (
             icon: Icons.menu_book_rounded,

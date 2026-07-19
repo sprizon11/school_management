@@ -4,8 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/navigation/smooth_page_route.dart';
+import '../../../../core/widgets/motion.dart';
+import '../../../../core/widgets/skeleton.dart';
 import '../../../../core/widgets/stat_card.dart';
 import '../../../../core/providers/auth_provider.dart';
+import '../widgets/teacher_ui.dart';
 import 'teacher_add_student_screen.dart';
 
 class TeacherStudentsScreen extends ConsumerStatefulWidget {
@@ -17,9 +20,9 @@ class TeacherStudentsScreen extends ConsumerStatefulWidget {
 }
 
 class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
+  static const _hPad = 16.0;
   static const _ink = Color(0xFF1A1533);
   static const _purple = Color(0xFF635BFF);
-  static const _perPage = 10;
 
   List<dynamic> _classes = [];
   String? _classId;
@@ -28,8 +31,6 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
   bool _loading = true;
   String _query = '';
   String? _genderFilter;
-  int _page = 0;
-  bool _searchOpen = false;
   final _search = TextEditingController();
 
   @override
@@ -70,7 +71,6 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
       _loading = true;
       _query = '';
       _genderFilter = null;
-      _page = 0;
     });
     try {
       final dio = ref.read(dioProvider);
@@ -140,195 +140,123 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final filtered = _filtered;
+    final visible = _filtered;
     final total = _students.length;
     final active = _students
         .where((s) => '${(s as Map)['status']}' == 'ACTIVE')
         .length;
-    final pageCount = (filtered.length / _perPage).ceil().clamp(1, 9999);
-    if (_page >= pageCount) _page = 0;
-    final start = _page * _perPage;
-    final pageItems = filtered.skip(start).take(_perPage).toList();
-    final bottomInset = MediaQuery.paddingOf(context).bottom + 100;
+    final bottomInset = MediaQuery.paddingOf(context).bottom + 96;
 
-    return ColoredBox(
-      color: const Color(0xFFF5F5FB),
-      child: SafeArea(
-        bottom: false,
-        child: Stack(
-          children: [
-            Column(
-              children: [
-                _header(),
-                if (_searchOpen) _searchField(),
-                Expanded(
-                  child: _loading
-                      ? const Center(
-                          child: CircularProgressIndicator(color: _purple),
-                        )
-                      : RefreshIndicator(
+    // Same shape as the admin Students screen: fixed header, then stats /
+    // search / list header above one continuous scrolling roster.
+    final body = ColoredBox(
+      color: const Color(0xFFF4F6FA),
+      child: Column(
+        children: [
+          _header(),
+          Expanded(
+            child: _loading
+                ? _loadingSkeleton()
+                : Column(
+                    children: [
+                      const SizedBox(height: 14),
+                      EntranceFade(child: _statsRow(total, active)),
+                      const SizedBox(height: 12),
+                      EntranceFade(
+                        delay: const Duration(milliseconds: 60),
+                        child: _searchField(),
+                      ),
+                      const SizedBox(height: 10),
+                      EntranceFade(
+                        delay: const Duration(milliseconds: 100),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: _hPad),
+                          child: _classFilterRow(),
+                        ),
+                      ),
+                      _listHeader(visible.length),
+                      Expanded(
+                        child: RefreshIndicator(
                           color: _purple,
                           onRefresh: () => _classId != null
                               ? _loadStudents(_classId!)
                               : _loadClasses(),
-                          child: ListView(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            padding: EdgeInsets.fromLTRB(
-                              16,
-                              6,
-                              16,
-                              bottomInset,
-                            ),
-                            children: [
-                              _statsRow(total, active),
-                              const SizedBox(height: 14),
-                              _classFilterRow(),
-                              const SizedBox(height: 16),
-                              _listTab(filtered.length),
-                              const SizedBox(height: 10),
-                              if (filtered.isEmpty)
-                                _emptyState()
-                              else ...[
-                                _listCard(pageItems),
-                                const SizedBox(height: 14),
-                                _pagination(filtered.length, pageCount),
-                              ],
-                            ],
-                          ),
+                          child: visible.isEmpty
+                              ? ListView(
+                                  physics:
+                                      const AlwaysScrollableScrollPhysics(),
+                                  children: [_emptyState()],
+                                )
+                              : ListView.builder(
+                                  physics:
+                                      const AlwaysScrollableScrollPhysics(),
+                                  padding: EdgeInsets.only(
+                                    left: _hPad,
+                                    right: _hPad,
+                                    bottom: bottomInset,
+                                  ),
+                                  itemCount: visible.length,
+                                  itemBuilder: (_, i) => EntranceFadeItem(
+                                    index: i,
+                                    child: _studentRow(
+                                      visible[i],
+                                      first: i == 0,
+                                      last: i == visible.length - 1,
+                                    ),
+                                  ),
+                                ),
                         ),
-                ),
-              ],
-            ),
-          ],
-        ),
+                      ),
+                    ],
+                  ),
+          ),
+        ],
+      ),
+    );
+
+    // Add sits in a floating "+" clear of the nav bar, matching the admin
+    // Students screen — the header only carries the title and the menu.
+    if (!_isClassTeacher) return body;
+    return TeacherFabScaffold(
+      fab: TeacherFab(
+        icon: Icons.add_rounded,
+        tooltip: 'Add student',
+        onTap: _openAddStudent,
+      ),
+      child: body,
+    );
+  }
+
+  Widget _loadingSkeleton() {
+    return const Padding(
+      padding: EdgeInsets.all(16),
+      child: Column(
+        children: [
+          // Mirrors the real layout — stats, search, filters — so nothing
+          // jumps when the roster lands.
+          SkeletonBox(height: 52, borderRadius: 14),
+          SizedBox(height: 12),
+          SkeletonBox(height: 48, borderRadius: 14),
+          SizedBox(height: 12),
+          SkeletonBox(height: 54, borderRadius: 14),
+          SizedBox(height: 12),
+          SkeletonBox(height: 300, borderRadius: 18),
+        ],
       ),
     );
   }
 
   // ---------------------------------------------------------------------
   Widget _header() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'Students',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w800,
-                    color: _ink,
-                    letterSpacing: -0.5,
-                    height: 1.1,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Manage and view your students',
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    color: _ink.withValues(alpha: 0.5),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          _squareIcon(
-            _searchOpen ? Icons.close_rounded : Icons.search_rounded,
-            onTap: () => setState(() {
-              _searchOpen = !_searchOpen;
-              if (!_searchOpen) {
-                _search.clear();
-                _query = '';
-              }
-            }),
-          ),
-          const SizedBox(width: 10),
-          if (_isClassTeacher) _addButton(),
-        ],
-      ),
-    );
-  }
-
-  Widget _squareIcon(IconData icon, {required VoidCallback onTap}) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          height: 48,
-          width: 48,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: [
-              BoxShadow(
-                color: _purple.withValues(alpha: 0.1),
-                blurRadius: 12,
-                offset: const Offset(0, 5),
-              ),
-            ],
-          ),
-          child: Icon(icon, color: _ink, size: 22),
-        ),
-      ),
-    );
-  }
-
-  Widget _addButton() {
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        onTap: _openAddStudent,
-        borderRadius: BorderRadius.circular(14),
-        child: Ink(
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF7B74FF), Color(0xFF5B52E8)],
-            ),
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: [
-              BoxShadow(
-                color: _purple.withValues(alpha: 0.35),
-                blurRadius: 14,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.add_rounded, color: Colors.white, size: 20),
-                SizedBox(width: 5),
-                Text(
-                  'Add Student',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+    return const TeacherPlainHeader(
+      title: 'Students',
+      subtitle: 'Manage and view your students',
     );
   }
 
   Widget _searchField() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
       child: Container(
         height: 48,
         padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -348,13 +276,14 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
             const Icon(Icons.search_rounded, size: 20, color: _purple),
             const SizedBox(width: 8),
             Expanded(
+              // No autofocus: the field is always on screen now, so grabbing
+              // focus would pop the keyboard every time the tab is opened.
               child: TextField(
                 controller: _search,
-                autofocus: true,
                 style: const TextStyle(fontSize: 13.5),
+                textInputAction: TextInputAction.search,
                 onChanged: (v) => setState(() {
                   _query = v;
-                  _page = 0;
                 }),
                 decoration: const InputDecoration(
                   isDense: true,
@@ -367,6 +296,26 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
                 ),
               ),
             ),
+            // Clearing used to happen when the search toggle closed; with the
+            // field permanent it needs its own control.
+            if (_query.isNotEmpty)
+              GestureDetector(
+                onTap: () {
+                  _search.clear();
+                  FocusScope.of(context).unfocus();
+                  setState(() {
+                    _query = '';
+                  });
+                },
+                child: const Padding(
+                  padding: EdgeInsets.only(left: 6),
+                  child: Icon(
+                    Icons.close_rounded,
+                    size: 18,
+                    color: Color(0xFF9CA3AF),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -419,33 +368,17 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
     );
   }
 
+  /// Class picker only. Gender filtering lives on the Total / Boys / Girls
+  /// stat cards above, so a separate filter control would be a second way to
+  /// set the same thing.
   Widget _classFilterRow() {
-    return Row(
-      children: [
-        Expanded(
-          child: _pill(
-            Icons.school_rounded,
-            'Class',
-            _classInfo != null
-                ? 'Class ${_classInfo!['grade']} - ${_classInfo!['section']}'
-                : 'Select',
-            onTap: _classes.length > 1 ? _showClassSheet : null,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _pill(
-            Icons.tune_rounded,
-            'Filter',
-            _genderFilter == null
-                ? 'All Students'
-                : _genderFilter == 'MALE'
-                ? 'Boys'
-                : 'Girls',
-            onTap: _showFilterSheet,
-          ),
-        ),
-      ],
+    return _pill(
+      Icons.school_rounded,
+      'Class',
+      _classInfo != null
+          ? 'Class ${_classInfo!['grade']} - ${_classInfo!['section']}'
+          : 'Select',
+      onTap: _classes.length > 1 ? _showClassSheet : null,
     );
   }
 
@@ -520,67 +453,47 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
     );
   }
 
-  Widget _listTab(int count) {
-    return Row(
-      children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'All Students ($count)',
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w800,
-                color: _ink,
-                letterSpacing: -0.3,
+  Widget _listHeader(int count) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(_hPad, 14, _hPad, 10),
+      child: Row(
+        children: [
+          Text(
+            'All Students ($count)',
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: _ink,
+              letterSpacing: -0.2,
+            ),
+          ),
+          const Spacer(),
+          // Gender filter comes from the stat cards; this is the way back.
+          if (_genderFilter != null)
+            GestureDetector(
+              onTap: () => setState(() => _genderFilter = null),
+              behavior: HitTestBehavior.opaque,
+              child: Row(
+                children: [
+                  Text(
+                    _genderFilter == 'MALE' ? 'Boys' : 'Girls',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: _purple,
+                    ),
+                  ),
+                  const SizedBox(width: 3),
+                  const Icon(Icons.close_rounded, size: 14, color: _purple),
+                ],
               ),
             ),
-            const SizedBox(height: 6),
-            Container(
-              height: 3,
-              width: 60,
-              decoration: BoxDecoration(
-                color: _purple,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ],
-        ),
-      ],
+        ],
+      ),
     );
   }
 
   // ---------------------------------------------------------------------
-  Widget _listCard(List<Map<String, dynamic>> items) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: _purple.withValues(alpha: 0.06),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          for (var i = 0; i < items.length; i++) ...[
-            _studentRow(items[i], first: i == 0, last: i == items.length - 1),
-            if (i < items.length - 1)
-              const Divider(
-                height: 1,
-                indent: 62,
-                endIndent: 14,
-                color: Color(0xFFF0F1F6),
-              ),
-          ],
-        ],
-      ),
-    );
-  }
-
   Widget _studentRow(
     Map<String, dynamic> s, {
     required bool first,
@@ -589,97 +502,143 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
     final name = '${s['fullName'] ?? '?'}';
     final roll = '${s['rollNumber'] ?? '—'}';
     final email = '${s['email'] ?? ''}';
+    final phone = '${s['phone'] ?? ''}';
     final code = '${s['studentCode'] ?? ''}';
+    final line2 = email.isNotEmpty ? email : code;
     final gender = '${s['gender']}';
     final isFemale = gender == 'FEMALE';
     final tint = isFemale ? const Color(0xFFEC4899) : const Color(0xFF3B82F6);
     final isActive = '${s['status']}' == 'ACTIVE';
     final avatar = _avatar(s['avatarUrl'] as String?);
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 12, 8, 12),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: tint.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(13),
-              image: avatar != null
-                  ? DecorationImage(image: avatar, fit: BoxFit.cover)
-                  : null,
-            ),
-            alignment: Alignment.center,
-            child: avatar == null
-                ? Icon(
-                    isFemale ? Icons.face_3_rounded : Icons.face_rounded,
-                    color: tint,
-                    size: 22,
-                  )
-                : null,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+    final radius = BorderRadius.vertical(
+      top: first ? const Radius.circular(18) : Radius.zero,
+      bottom: last ? const Radius.circular(18) : Radius.zero,
+    );
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: radius,
+        border: Border(
+          bottom: last
+              ? BorderSide.none
+              : const BorderSide(color: Color(0xFFF0F1F6)),
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _showStudentSheet(s),
+          borderRadius: radius,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 8, 12),
+            child: Row(
               children: [
-                Text(
-                  name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    color: _ink,
-                    letterSpacing: -0.2,
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: tint.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(14),
+                    image: avatar != null
+                        ? DecorationImage(image: avatar, fit: BoxFit.cover)
+                        : null,
+                  ),
+                  alignment: Alignment.center,
+                  child: avatar == null
+                      ? Icon(
+                          isFemale ? Icons.face_3_rounded : Icons.face_rounded,
+                          color: tint,
+                          size: 24,
+                        )
+                      : null,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w800,
+                          color: _ink,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        line2,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: _ink.withValues(alpha: 0.5),
+                        ),
+                      ),
+                      if (phone.isNotEmpty) ...[
+                        const SizedBox(height: 1),
+                        Text(
+                          phone,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            color: _ink.withValues(alpha: 0.5),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  'Roll No. ${roll.padLeft(2, '0')}',
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w600,
-                    color: _ink.withValues(alpha: 0.55),
-                  ),
+                const SizedBox(width: 8),
+                // Admin puts the class here; inside a single class roster that
+                // would repeat on every row, so the roll number takes the slot.
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 9,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _purple.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        'Roll No. ${roll.padLeft(2, '0')}',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: _purple,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      isActive ? 'Active' : 'Inactive',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: isActive
+                            ? const Color(0xFF16A34A)
+                            : const Color(0xFF9CA3AF),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 1),
-                Text(
-                  email.isNotEmpty ? email : code,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: _ink.withValues(alpha: 0.45),
-                  ),
-                ),
+                _rowMenu(s),
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-            decoration: BoxDecoration(
-              color:
-                  (isActive ? const Color(0xFF22C55E) : const Color(0xFF9CA3AF))
-                      .withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              isActive ? 'Active' : 'Inactive',
-              style: TextStyle(
-                fontSize: 10.5,
-                fontWeight: FontWeight.w800,
-                color: isActive
-                    ? const Color(0xFF16A34A)
-                    : const Color(0xFF6B7280),
-              ),
-            ),
-          ),
-          _rowMenu(s),
-        ],
+        ),
       ),
     );
   }
@@ -709,89 +668,6 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
           ),
         ),
       ],
-    );
-  }
-
-  // ---------------------------------------------------------------------
-  Widget _pagination(int total, int pageCount) {
-    final start = total == 0 ? 0 : _page * _perPage + 1;
-    final end = ((_page + 1) * _perPage).clamp(0, total);
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            'Showing $start to $end of $total students',
-            style: TextStyle(fontSize: 12, color: _ink.withValues(alpha: 0.5)),
-          ),
-        ),
-        _pageBtn(
-          Icons.chevron_left_rounded,
-          enabled: _page > 0,
-          onTap: () => setState(() => _page--),
-        ),
-        const SizedBox(width: 6),
-        for (var p = 0; p < pageCount && p < 3; p++) ...[
-          if (p > 0) const SizedBox(width: 6),
-          _pageNum(p),
-        ],
-        const SizedBox(width: 6),
-        _pageBtn(
-          Icons.chevron_right_rounded,
-          enabled: _page < pageCount - 1,
-          onTap: () => setState(() => _page++),
-        ),
-      ],
-    );
-  }
-
-  Widget _pageBtn(
-    IconData icon, {
-    required bool enabled,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: enabled ? onTap : null,
-      child: Container(
-        width: 34,
-        height: 34,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: const Color(0xFFE5E7EB)),
-        ),
-        child: Icon(
-          icon,
-          size: 20,
-          color: enabled ? _ink : _ink.withValues(alpha: 0.3),
-        ),
-      ),
-    );
-  }
-
-  Widget _pageNum(int p) {
-    final selected = p == _page;
-    return GestureDetector(
-      onTap: () => setState(() => _page = p),
-      child: Container(
-        width: 34,
-        height: 34,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: selected ? _purple.withValues(alpha: 0.1) : Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: selected ? _purple : const Color(0xFFE5E7EB),
-          ),
-        ),
-        child: Text(
-          '${p + 1}',
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: selected ? _purple : _ink,
-          ),
-        ),
-      ),
     );
   }
 
@@ -830,55 +706,6 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
                 onTap: () {
                   Navigator.pop(ctx);
                   _loadStudents('${c['id']}');
-                },
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showFilterSheet() {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
-      ),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.fromLTRB(
-          12,
-          14,
-          12,
-          12 + MediaQuery.paddingOf(ctx).bottom,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _grabber(),
-            const SizedBox(height: 8),
-            for (final e in {
-              null: 'All Students',
-              'MALE': 'Boys',
-              'FEMALE': 'Girls',
-            }.entries)
-              ListTile(
-                title: Text(
-                  e.value,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                trailing: _genderFilter == e.key
-                    ? const Icon(Icons.check_rounded, color: _purple)
-                    : null,
-                onTap: () {
-                  setState(() {
-                    _genderFilter = e.key;
-                    _page = 0;
-                  });
-                  Navigator.pop(ctx);
                 },
               ),
           ],
@@ -1021,27 +848,27 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
   }
 
   Widget _emptyState() {
-    final searching = _query.trim().isNotEmpty || _genderFilter != null;
+    final filtered = _query.trim().isNotEmpty || _genderFilter != null;
     return Padding(
-      padding: const EdgeInsets.only(top: 30),
+      padding: const EdgeInsets.fromLTRB(_hPad, 40, _hPad, 40),
       child: Column(
         children: [
           Container(
-            width: 90,
-            height: 90,
+            height: 92,
+            width: 92,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: _purple.withValues(alpha: 0.08),
             ),
             child: Icon(
-              searching ? Icons.search_off_rounded : Icons.groups_2_outlined,
-              size: 42,
+              filtered ? Icons.search_off_rounded : Icons.groups_2_outlined,
+              size: 44,
               color: _purple.withValues(alpha: 0.7),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
           Text(
-            searching ? 'No students found' : 'No students yet',
+            filtered ? 'No matching students' : 'No students yet',
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w800,
@@ -1049,19 +876,38 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
             ),
           ),
           const SizedBox(height: 6),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 40),
-            child: Text(
-              searching
-                  ? 'Try a different search or filter.'
-                  : 'Students added to your class will appear here.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                color: _ink.withValues(alpha: 0.5),
+          Text(
+            filtered
+                ? 'Try adjusting your search or filters.'
+                : 'Students added to your class will appear here.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13, color: _ink.withValues(alpha: 0.5)),
+          ),
+          const SizedBox(height: 20),
+          if (filtered)
+            OutlinedButton.icon(
+              onPressed: () {
+                _search.clear();
+                FocusScope.of(context).unfocus();
+                setState(() {
+                  _query = '';
+                  _genderFilter = null;
+                });
+              },
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('Clear filters'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: _purple,
+                side: BorderSide(color: _purple.withValues(alpha: 0.4)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
-          ),
         ],
       ),
     );
