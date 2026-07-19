@@ -199,6 +199,7 @@ async function seedFullDemo() {
 
     const teacher = await prisma.teacher.create({
       data: {
+        schoolId: school.id,
         userId: user.id,
         employeeCode: `TCH24${String(t + 1).padStart(3, '0')}`,
         department:
@@ -233,6 +234,7 @@ async function seedFullDemo() {
   const studentsPerClass = Math.ceil(STUDENT_COUNT / classes.length);
   let studentIndex = 0;
   const allStudents: { id: string; classId: string }[] = [];
+  let aryan: { id: string } | undefined;
 
   for (const cls of classes) {
     const count =
@@ -266,6 +268,7 @@ async function seedFullDemo() {
           classId: cls.id,
         },
       });
+      if (isAryan) aryan = { id: student.id };
       allStudents.push({ id: student.id, classId: cls.id });
     }
   }
@@ -429,10 +432,10 @@ async function seedFullDemo() {
 
   await prisma.activityLog.createMany({
     data: [
-      { action: 'Added new student', actorName: 'Admin' },
-      { action: 'Fee payment recorded', actorName: 'Admin' },
-      { action: 'Published announcement', actorName: 'Admin' },
-      { action: 'Updated class timetable', actorName: 'Admin' },
+      { schoolId: school.id, action: 'Added new student', actorName: 'Admin' },
+      { schoolId: school.id, action: 'Fee payment recorded', actorName: 'Admin' },
+      { schoolId: school.id, action: 'Published announcement', actorName: 'Admin' },
+      { schoolId: school.id, action: 'Updated class timetable', actorName: 'Admin' },
     ],
   });
 

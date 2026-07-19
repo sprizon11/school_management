@@ -36,6 +36,10 @@ Dev portal  ──►        (same backend)   ──►
 - CORS: `origin: true` (open); listens on `0.0.0.0:$PORT` (Cloud Run injects PORT)
 - Auth: JWT (`@nestjs/jwt` + passport-jwt). Role guard via `@Roles(...)` +
   `RolesGuard`. Roles: `ADMIN`, `TEACHER`, `PARENT` (see `UserRole` enum).
+- `JWT_SECRET` is **required** — the app throws on boot if it is unset
+  (`src/auth/jwt-secret.ts`). The same secret signs user sessions and
+  platform-owner dev-portal tokens, so a fallback default would let anyone forge
+  either. Set it in `backend/.env` locally and in the Cloud Run env when deployed.
 
 ---
 
@@ -75,6 +79,16 @@ Parent, ChatConversation, ChatMessage, AttendanceRecord, Subject, Mark, Homework
 Announcement, AppNotification, Event, FeeStructure, FeeAssignment, FeeInstallment,
 FeePayment, ActivityLog. Enums: UserRole, Gender, StudentStatus, AttendanceStatus,
 FeeInstallmentStatus, FeeStructureType, AnnouncementAudience.
+
+**Tenant scoping.** `Teacher` and `ActivityLog` both carry a `schoolId`.
+`Teacher.employeeCode` is unique **per school** (`@@unique([schoolId, employeeCode])`),
+not globally — codes read `TCH0001` upwards within each school, and
+`AdminService.nextEmployeeCode()` derives the next one from the highest code in
+use so a deletion can't hand a new hire an existing code. `ActivityLog` rows are
+always written with the acting school's id; the dashboard and reports feeds
+filter on it. Models still lacking a tenant column — `Subject`, `Event`,
+`FeeStructure` — are safe only because callers reach them through school-scoped
+relations. Add `schoolId` before querying them directly.
 
 ### Scripts (`backend/package.json`)
 `build` (prisma generate + nest build), `start:dev`, `start:prod`,

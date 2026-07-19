@@ -81,6 +81,7 @@ export class AdminService {
           take: 5,
         }),
         this.prisma.activityLog.findMany({
+          where: { schoolId },
           orderBy: { createdAt: 'desc' },
           take: 10,
         }),
@@ -267,20 +268,18 @@ export class AdminService {
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const data: { day: string; percent: number }[] = [];
     for (let i = 0; i < 6; i++) {
-      const d = new Date();
-      d.setDate(d.getDate() - (5 - i));
-      const start = new Date(d.setHours(0, 0, 0, 0));
-      const end = new Date(d.setHours(23, 59, 59, 999));
+      // One exact day, not a straddling range — see utcDay().
+      const day = AdminService.utcDay(-(5 - i));
       const [present, total] = await Promise.all([
         this.prisma.attendanceRecord.count({
           where: {
-            date: { gte: start, lte: end },
+            date: day,
             status: 'PRESENT',
             student: { class: { schoolId } },
           },
         }),
         this.prisma.attendanceRecord.count({
-          where: { date: { gte: start, lte: end }, student: { class: { schoolId } } },
+          where: { date: day, student: { class: { schoolId } } },
         }),
       ]);
       data.push({
@@ -461,6 +460,7 @@ export class AdminService {
 
     await this.prisma.activityLog.create({
       data: {
+        schoolId,
         action: `Updated student ${dto.fullName ?? existing.fullName}`,
         actorName: 'Admin',
       },
@@ -621,6 +621,7 @@ export class AdminService {
 
     await this.prisma.activityLog.create({
       data: {
+        schoolId,
         action: `Deleted teacher ${teacher.user.fullName}`,
         actorName: 'Admin',
       },
@@ -818,6 +819,7 @@ export class AdminService {
 
     await this.prisma.activityLog.create({
       data: {
+        schoolId: cls.schoolId,
         action: `Added student ${student.fullName}`,
         actorName: 'Admin',
       },
@@ -832,6 +834,23 @@ export class AdminService {
     };
   }
 
+  // Codes run per school (TCH0001 upwards). Derived from the highest code in
+  // use rather than a head count, so deleting a teacher can't hand the next
+  // hire a code that already belongs to someone.
+  private async nextEmployeeCode(schoolId: string) {
+    const teachers = await this.prisma.teacher.findMany({
+      where: { schoolId },
+      select: { employeeCode: true },
+    });
+
+    const highest = teachers.reduce((max, { employeeCode }) => {
+      const suffix = Number(employeeCode.replace(/\D/g, ''));
+      return Number.isFinite(suffix) && suffix > max ? suffix : max;
+    }, 0);
+
+    return `TCH${String(highest + 1).padStart(4, '0')}`;
+  }
+
   async createTeacher(schoolId: string, dto: CreateTeacherDto) {
     const email = dto.email.trim().toLowerCase();
     const existing = await this.prisma.user.findUnique({
@@ -839,33 +858,37 @@ export class AdminService {
     });
     if (existing) throw new ConflictException('Email already registered');
 
-    const count = await this.prisma.teacher.count({
-      where: { user: { schoolId } },
-    });
-    const employeeCode = `TCH${String(count + 1).padStart(4, '0')}`;
+    const employeeCode = await this.nextEmployeeCode(schoolId);
     const passwordHash = await bcrypt.hash(dto.password ?? 'Admin@123', 10);
 
-    const user = await this.prisma.user.create({
-      data: {
-        schoolId,
-        email,
-        passwordHash,
-        role: UserRole.TEACHER,
-        fullName: dto.fullName.trim(),
-        phone: dto.phone?.trim(),
-        avatarUrl: dto.avatarUrl,
-      },
-    });
+    // User and Teacher are created together: a half-written teacher would leave
+    // the email taken and block the admin from retrying.
+    const { user, teacher } = await this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          schoolId,
+          email,
+          passwordHash,
+          role: UserRole.TEACHER,
+          fullName: dto.fullName.trim(),
+          phone: dto.phone?.trim(),
+          avatarUrl: dto.avatarUrl,
+        },
+      });
 
-    const teacher = await this.prisma.teacher.create({
-      data: {
-        userId: user.id,
-        employeeCode,
-        gender: dto.gender ?? 'MALE',
-        department:
-          dto.department?.trim() || dto.subjects[0]?.trim() || 'General',
-        subjects: dto.subjects,
-      },
+      const teacher = await tx.teacher.create({
+        data: {
+          schoolId,
+          userId: user.id,
+          employeeCode,
+          gender: dto.gender ?? 'MALE',
+          department:
+            dto.department?.trim() || dto.subjects[0]?.trim() || 'General',
+          subjects: dto.subjects,
+        },
+      });
+
+      return { user, teacher };
     });
 
     if (dto.classTeacherClassId) {
@@ -918,6 +941,7 @@ export class AdminService {
 
     await this.prisma.activityLog.create({
       data: {
+        schoolId,
         action: `Added teacher ${user.fullName}`,
         actorName: 'Admin',
       },
@@ -1001,6 +1025,7 @@ export class AdminService {
 
     await this.prisma.activityLog.create({
       data: {
+        schoolId,
         action: `Added class ${cls.name}`,
         actorName: 'Admin',
       },
@@ -1015,11 +1040,25 @@ export class AdminService {
     };
   }
 
+  /**
+   * UTC midnight for the calendar day `offsetDays` from today.
+   *
+   * `AttendanceRecord.date` is a `@db.Date`, so Postgres compares the bound as
+   * a bare date. Building it from local midnight shifts the boundary back a day
+   * in positive-offset zones (IST etc.) and silently drops today's rows — so
+   * take the local calendar date and pin it to UTC, matching how
+   * `TeacherService` writes attendance.
+   */
+  private static utcDay(offsetDays = 0): Date {
+    const now = new Date();
+    return new Date(
+      Date.UTC(now.getFullYear(), now.getMonth(), now.getDate() + offsetDays),
+    );
+  }
+
   async attendanceOverview(schoolId: string) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const today = AdminService.utcDay();
+    const tomorrow = AdminService.utcDay(1);
 
     const [present, absent, leave, totalStudents] = await Promise.all([
       this.prisma.attendanceRecord.count({
@@ -1350,6 +1389,7 @@ export class AdminService {
 
     await this.prisma.activityLog.create({
       data: {
+        schoolId,
         action: `Published announcement (${dto.audience === AnnouncementAudience.TEACHERS ? 'teachers' : 'teachers & parents'})`,
         actorName: postedBy,
       },
@@ -1364,7 +1404,11 @@ export class AdminService {
         this.studentStats(schoolId),
         this.teacherStats(schoolId),
         this.classStats(schoolId),
-        this.prisma.activityLog.findMany({ orderBy: { createdAt: 'desc' }, take: 6 }),
+        this.prisma.activityLog.findMany({
+          where: { schoolId },
+          orderBy: { createdAt: 'desc' },
+          take: 6,
+        }),
         this.feeChart(schoolId),
       ]);
 

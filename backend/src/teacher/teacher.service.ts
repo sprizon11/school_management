@@ -309,6 +309,124 @@ export class TeacherService {
     return { items, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
+  /**
+   * Normalize an incoming `YYYY-MM-DD` (or today) to UTC midnight so it lands
+   * cleanly in the `@db.Date` column regardless of server timezone.
+   */
+  private static attendanceDate(input?: string): Date {
+    if (input) {
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(input.trim());
+      if (!m) throw new BadRequestException('Invalid date');
+      return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+    }
+    const now = new Date();
+    return new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+  }
+
+  /**
+   * Roster for the attendance sheet. Everyone defaults to PRESENT — the
+   * teacher only marks the exceptions — so a student with no saved record
+   * still comes back PRESENT rather than blank.
+   */
+  async attendanceRoster(classId: string, teacherId: string, date?: string) {
+    await this.assertClassAccess(classId, teacherId);
+    const day = TeacherService.attendanceDate(date);
+
+    const [cls, students, records] = await Promise.all([
+      this.prisma.class.findUnique({
+        where: { id: classId },
+        select: { id: true, name: true },
+      }),
+      this.prisma.student.findMany({
+        where: { classId, status: StudentStatus.ACTIVE },
+        orderBy: { rollNumber: 'asc' },
+        select: {
+          id: true,
+          fullName: true,
+          rollNumber: true,
+          studentCode: true,
+          avatarUrl: true,
+        },
+      }),
+      this.prisma.attendanceRecord.findMany({
+        where: { date: day, student: { classId } },
+        select: { studentId: true, status: true },
+      }),
+    ]);
+
+    const saved = new Map(records.map((r) => [r.studentId, r.status]));
+    return {
+      classId,
+      className: cls?.name ?? '',
+      date: day.toISOString().slice(0, 10),
+      alreadyMarked: records.length > 0,
+      students: students.map((s) => ({
+        ...s,
+        status: saved.get(s.id) ?? AttendanceStatus.PRESENT,
+      })),
+    };
+  }
+
+  /**
+   * Save a day's attendance. The client sends only the exceptions; every other
+   * active student in the class is recorded PRESENT. Re-saving the same day
+   * overwrites it, so a teacher can correct a mistake.
+   */
+  async saveAttendance(
+    teacherId: string,
+    dto: {
+      classId: string;
+      date?: string;
+      absentStudentIds?: string[];
+      leaveStudentIds?: string[];
+    },
+  ) {
+    await this.assertClassAccess(dto.classId, teacherId);
+    const day = TeacherService.attendanceDate(dto.date);
+
+    const students = await this.prisma.student.findMany({
+      where: { classId: dto.classId, status: StudentStatus.ACTIVE },
+      select: { id: true },
+    });
+    if (students.length === 0) {
+      throw new BadRequestException('This class has no active students');
+    }
+
+    const absent = new Set(dto.absentStudentIds ?? []);
+    const leave = new Set(dto.leaveStudentIds ?? []);
+
+    // Iterating the roster (not the payload) means ids for students outside
+    // this class are ignored rather than trusted.
+    const rows = students.map((s) => ({
+      studentId: s.id,
+      status: leave.has(s.id)
+        ? AttendanceStatus.LEAVE
+        : absent.has(s.id)
+          ? AttendanceStatus.ABSENT
+          : AttendanceStatus.PRESENT,
+    }));
+
+    await this.prisma.$transaction(
+      rows.map((r) =>
+        this.prisma.attendanceRecord.upsert({
+          where: { studentId_date: { studentId: r.studentId, date: day } },
+          update: { status: r.status },
+          create: { studentId: r.studentId, date: day, status: r.status },
+        }),
+      ),
+    );
+
+    const tally = (s: AttendanceStatus) =>
+      rows.filter((r) => r.status === s).length;
+    return {
+      date: day.toISOString().slice(0, 10),
+      total: rows.length,
+      present: tally(AttendanceStatus.PRESENT),
+      absent: tally(AttendanceStatus.ABSENT),
+      leave: tally(AttendanceStatus.LEAVE),
+    };
+  }
+
   /** Subject names this teacher can record marks for in a given class. */
   async subjectOptionsForClass(classId: string, teacherId: string) {
     await this.assertClassAccess(classId, teacherId);

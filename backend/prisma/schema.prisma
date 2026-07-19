@@ -58,7 +58,9 @@ model School {
   createdAt     DateTime       @default(now())
   classes       Class[]
   users         User[]
+  teachers      Teacher[]
   announcements Announcement[]
+  activityLogs  ActivityLog[]
 }
 
 model User {
@@ -82,9 +84,11 @@ model User {
 
 model Teacher {
   id           String   @id @default(cuid())
+  schoolId     String
+  school       School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   userId       String   @unique
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  employeeCode String   @unique
+  employeeCode String
   gender       Gender   @default(MALE)
   department   String
   subjects     String[]
@@ -94,6 +98,8 @@ model Teacher {
   homework          Homework[]
   chatConversations ChatConversation[]
   timetableSlots    TimetableSlot[]
+
+  @@unique([schoolId, employeeCode])
 }
 
 model TimetableSlot {
@@ -334,7 +340,11 @@ model FeePayment {
 
 model ActivityLog {
   id        String   @id @default(cuid())
+  schoolId  String
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   action    String
   actorName String
   createdAt DateTime @default(now())
+
+  @@index([schoolId, createdAt])
 }

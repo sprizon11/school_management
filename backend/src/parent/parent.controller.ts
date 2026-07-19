@@ -1,12 +1,18 @@
 import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { IsNotEmpty, IsString } from 'class-validator';
 import { UserRole } from '@prisma/client';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { ChatService } from '../chat/chat.service';
+import { ParentService } from './parent.service';
 
+// The global ValidationPipe uses `whitelist: true`, which strips any property
+// without a class-validator decorator — an undecorated DTO arrives empty.
 class SendMessageDto {
+  @IsString()
+  @IsNotEmpty()
   body!: string;
 }
 
@@ -14,7 +20,20 @@ class SendMessageDto {
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.PARENT)
 export class ParentController {
-  constructor(private chat: ChatService) {}
+  constructor(
+    private chat: ChatService,
+    private parent: ParentService,
+  ) {}
+
+  @Get('home')
+  home(@CurrentUser() user: { userId: string }) {
+    return this.parent.home(user.userId);
+  }
+
+  @Get('marks')
+  marks(@CurrentUser() user: { userId: string }) {
+    return this.parent.marks(user.userId);
+  }
 
   @Get('chat/conversations')
   conversations(@CurrentUser() user: { userId: string; schoolId: string }) {
