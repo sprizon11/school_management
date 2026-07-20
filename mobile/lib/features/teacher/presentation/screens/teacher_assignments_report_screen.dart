@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/navigation/smooth_page_route.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/motion.dart';
 import '../widgets/teacher_ui.dart';
 import 'teacher_add_assignment_screen.dart';
 
@@ -127,13 +128,21 @@ class _TeacherAssignmentsReportScreenState
                     if (upcoming.isNotEmpty) ...[
                       _sectionTitle('Upcoming', upcoming.length, _orange),
                       const SizedBox(height: 10),
-                      ...upcoming.map((h) => _assignmentCard(h, true)),
+                      for (var i = 0; i < upcoming.length; i++)
+                        EntranceFadeItem(
+                          index: i,
+                          child: _assignmentCard(upcoming[i], true),
+                        ),
                       const SizedBox(height: 12),
                     ],
                     if (past.isNotEmpty) ...[
                       _sectionTitle('Past', past.length, AppColors.textMuted),
                       const SizedBox(height: 10),
-                      ...past.map((h) => _assignmentCard(h, false)),
+                      for (var i = 0; i < past.length; i++)
+                        EntranceFadeItem(
+                          index: i,
+                          child: _assignmentCard(past[i], false),
+                        ),
                     ],
                   ],
                 ],

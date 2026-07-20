@@ -14,10 +14,10 @@ import '../../../../core/widgets/motion.dart';
 /// Everything here comes from GET /parent/home, scoped server-side to the one
 /// student linked to this account.
 class ParentHomeScreen extends ConsumerStatefulWidget {
-  const ParentHomeScreen({super.key, this.onOpenMessages});
+  const ParentHomeScreen({super.key, this.onOpenTab});
 
-  /// Lets the quick actions jump to the shell's Messages tab.
-  final VoidCallback? onOpenMessages;
+  /// Lets the quick actions jump to a shell tab (1 Marks, 2 Fees, 3 Messages).
+  final void Function(int index)? onOpenTab;
 
   @override
   ConsumerState<ParentHomeScreen> createState() => _ParentHomeScreenState();
@@ -67,7 +67,8 @@ class _ParentHomeScreenState extends ConsumerState<ParentHomeScreen> {
       Map<String, dynamic>.from(_data?['attendance'] as Map? ?? {});
   Map<String, dynamic> get _marks =>
       Map<String, dynamic>.from(_data?['marks'] as Map? ?? {});
-  List<dynamic> get _homework => _data?['homework'] as List<dynamic>? ?? [];
+  List<dynamic> get _upcomingTests =>
+      _data?['upcomingTests'] as List<dynamic>? ?? [];
   Map<String, dynamic>? get _announcement {
     final a = _data?['announcement'];
     return a == null ? null : Map<String, dynamic>.from(a as Map);
@@ -123,7 +124,7 @@ class _ParentHomeScreenState extends ConsumerState<ParentHomeScreen> {
               const SizedBox(height: 24),
               EntranceFade(
                 delay: const Duration(milliseconds: 180),
-                child: _homeworkSection(),
+                child: _testsSection(),
               ),
               const SizedBox(height: 24),
               EntranceFade(
@@ -422,7 +423,6 @@ class _ParentHomeScreenState extends ConsumerState<ParentHomeScreen> {
   /// so nothing is hidden off the right edge.
   Widget _statsRow() {
     final pct = _attendance['percent'];
-    final avg = _marks['average'];
     final absentMonth = _attendance['absentThisMonth'] ?? 0;
 
     return Padding(
@@ -441,33 +441,22 @@ class _ParentHomeScreenState extends ConsumerState<ParentHomeScreen> {
                 color: AppColors.statGreen,
                 label: 'Attendance',
                 // Dash, not 0% — nothing marked yet is not zero attendance.
-                value: pct == null ? '—' : '$pct%',
-                note: pct == null ? 'Not marked' : _attendanceNote(pct as int),
+                intValue: pct as int?,
+                suffix: '%',
+                note: pct == null ? 'Not marked' : _attendanceNote(pct),
                 noteColor: pct == null
                     ? _ink.withValues(alpha: 0.4)
                     : AppColors.statGreen,
               ),
             ),
-            const SizedBox(width: 9),
-            Expanded(
-              child: _statTile(
-                icon: Icons.trending_up_rounded,
-                color: AppColors.primary,
-                label: 'Avg Marks',
-                value: avg == null ? '—' : '$avg%',
-                note: avg == null ? 'No marks' : _marksNote(avg as int),
-                noteColor: avg == null
-                    ? _ink.withValues(alpha: 0.4)
-                    : AppColors.primary,
-              ),
-            ),
-            const SizedBox(width: 9),
+            const SizedBox(width: 10),
             Expanded(
               child: _statTile(
                 icon: Icons.person_off_rounded,
                 color: AppColors.statPink,
                 label: 'Absences',
-                value: '$absentMonth',
+                intValue: absentMonth as int,
+                suffix: '',
                 note: 'This Month',
                 noteColor: AppColors.statPink,
               ),
@@ -484,37 +473,38 @@ class _ParentHomeScreenState extends ConsumerState<ParentHomeScreen> {
     return 'Needs care';
   }
 
-  String _marksNote(int pct) {
-    if (pct >= 85) return 'Very Good';
-    if (pct >= 70) return 'Good';
-    if (pct >= 40) return 'Fair';
-    return 'Needs work';
-  }
-
   Widget _statTile({
     required IconData icon,
     required Color color,
     required String label,
-    required String value,
+    required int? intValue,
+    required String suffix,
     required String note,
     required Color noteColor,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 6),
+      padding: const EdgeInsets.fromLTRB(6, 13, 6, 12),
       decoration: _cardDecoration(radius: 16),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            height: 30,
-            width: 30,
+            height: 34,
+            width: 34,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: color.withValues(alpha: 0.12),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  color.withValues(alpha: 0.18),
+                  color.withValues(alpha: 0.08),
+                ],
+              ),
             ),
-            child: Icon(icon, size: 16, color: color),
+            child: Icon(icon, size: 17, color: color),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Text(
             label,
             maxLines: 1,
@@ -525,21 +515,10 @@ class _ParentHomeScreenState extends ConsumerState<ParentHomeScreen> {
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 1),
+          const SizedBox(height: 2),
           // scaleDown keeps "100%" from wrapping in the narrow tile.
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              value,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: _ink,
-                height: 1.1,
-              ),
-            ),
-          ),
-          const SizedBox(height: 1),
+          FittedBox(fit: BoxFit.scaleDown, child: _countUp(intValue, suffix)),
+          const SizedBox(height: 2),
           Text(
             note,
             maxLines: 1,
@@ -553,6 +532,20 @@ class _ParentHomeScreenState extends ConsumerState<ParentHomeScreen> {
         ],
       ),
     );
+  }
+
+  /// The stat number counts up from zero on entrance — the motion that makes
+  /// the tiles feel alive. A null value (nothing recorded) shows a dash, no
+  /// animation.
+  Widget _countUp(int? value, String suffix) {
+    const style = TextStyle(
+      fontSize: 19,
+      fontWeight: FontWeight.w800,
+      color: _ink,
+      height: 1.1,
+    );
+    if (value == null) return const Text('—', style: style);
+    return CountUpText(value: value, suffix: suffix, style: style);
   }
 
   // ---------------------------------------------------------------------
@@ -771,84 +764,172 @@ class _ParentHomeScreenState extends ConsumerState<ParentHomeScreen> {
   }
 
   // ---------------------------------------------------------------------
-  Widget _homeworkSection() {
+  Widget _testsSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionHeader('Upcoming Homework'),
-        const SizedBox(height: 10),
-        if (_homework.isEmpty)
+        _sectionHeader('Upcoming Tests'),
+        const SizedBox(height: 12),
+        if (_upcomingTests.isEmpty)
           _emptyCard(
-            Icons.menu_book_outlined,
-            'Nothing due',
-            'Homework with a future due date shows up here.',
+            Icons.fact_check_outlined,
+            'No tests scheduled',
+            'Tests your school announces will show up here.',
           )
         else
-          for (var i = 0; i < _homework.length; i++)
+          for (var i = 0; i < _upcomingTests.length; i++)
             Padding(
               padding: EdgeInsets.only(
-                bottom: i == _homework.length - 1 ? 0 : 8,
+                bottom: i == _upcomingTests.length - 1 ? 0 : 10,
               ),
-              child: _homeworkCard(
-                Map<String, dynamic>.from(_homework[i] as Map),
+              // Cascade the cards in after the section, each a touch later.
+              child: EntranceFade(
+                delay: Duration(milliseconds: 60 * i),
+                child: _testCard(
+                  Map<String, dynamic>.from(_upcomingTests[i] as Map),
+                ),
               ),
             ),
       ],
     );
   }
 
-  Widget _homeworkCard(Map<String, dynamic> h) {
-    final due = DateTime.tryParse('${h['dueDate']}');
-    final label = due == null ? '' : DateFormat('d MMM').format(due.toLocal());
-    final desc = '${h['description'] ?? ''}';
-    const amber = Color(0xFFF59E0B);
+  /// Countdown to a scheduled test. The "in N days" pill and the accent colour
+  /// both sharpen as the date nears — amber when it's more than a few days off,
+  /// red once it's imminent.
+  Widget _testCard(Map<String, dynamic> t) {
+    final date = DateTime.tryParse('${t['eventDate'] ?? ''}');
+    final now = DateTime.now();
+    final days = date == null
+        ? null
+        : DateTime(
+            date.toLocal().year,
+            date.toLocal().month,
+            date.toLocal().day,
+          ).difference(DateTime(now.year, now.month, now.day)).inDays;
+
+    final soon = days != null && days <= 2;
+    final accent = soon ? const Color(0xFFEF4444) : const Color(0xFFF59E0B);
+    final accentInk = soon ? const Color(0xFFB91C1C) : const Color(0xFFB45309);
+
+    final countdown = days == null
+        ? ''
+        : days <= 0
+        ? 'Today'
+        : days == 1
+        ? 'Tomorrow'
+        : 'In $days days';
+    final dateLabel = date == null
+        ? ''
+        : DateFormat('EEE, d MMM').format(date.toLocal());
+    final body = '${t['body'] ?? ''}';
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: _hPad),
-      padding: const EdgeInsets.all(13),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: amber.withValues(alpha: 0.09),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: amber.withValues(alpha: 0.25)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: accent.withValues(alpha: 0.28)),
+        boxShadow: [
+          BoxShadow(
+            color: accent.withValues(alpha: 0.1),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Calendar-leaf date block.
           Container(
-            height: 40,
-            width: 40,
-            alignment: Alignment.center,
+            height: 50,
+            width: 50,
             decoration: BoxDecoration(
-              color: amber.withValues(alpha: 0.18),
-              borderRadius: BorderRadius.circular(12),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [accent, Color.lerp(accent, Colors.black, 0.16)!],
+              ),
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: accent.withValues(alpha: 0.35),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ],
             ),
-            child: const Icon(Icons.edit_note_rounded, size: 22, color: amber),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  date == null ? '' : DateFormat('MMM').format(date.toLocal()),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                Text(
+                  date == null ? '—' : '${date.toLocal().day}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w800,
+                    height: 1.05,
+                  ),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 13),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  '${h['title'] ?? ''}',
+                  '${t['title'] ?? ''}',
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 14,
+                    fontSize: 14.5,
                     fontWeight: FontWeight.w800,
                     color: _ink,
+                    letterSpacing: -0.2,
                   ),
                 ),
-                if (desc.isNotEmpty) ...[
-                  const SizedBox(height: 3),
+                const SizedBox(height: 3),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.event_rounded,
+                      size: 12,
+                      color: _ink.withValues(alpha: 0.4),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      dateLabel,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: _ink.withValues(alpha: 0.55),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                if (body.isNotEmpty) ...[
+                  const SizedBox(height: 4),
                   Text(
-                    desc,
+                    body,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 12,
-                      color: _ink.withValues(alpha: 0.6),
+                      fontSize: 11.5,
+                      color: _ink.withValues(alpha: 0.55),
                       height: 1.35,
                     ),
                   ),
@@ -857,21 +938,22 @@ class _ParentHomeScreenState extends ConsumerState<ParentHomeScreen> {
             ),
           ),
           const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: amber.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(9),
-            ),
-            child: Text(
-              label,
-              style: const TextStyle(
-                fontSize: 11.5,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFFB45309),
+          if (countdown.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                countdown,
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w800,
+                  color: accentInk,
+                ),
               ),
             ),
-          ),
         ],
       ),
     );
@@ -882,28 +964,22 @@ class _ParentHomeScreenState extends ConsumerState<ParentHomeScreen> {
     final tiles =
         <({IconData icon, Color color, String label, VoidCallback? tap})>[
           (
-            icon: Icons.forum_rounded,
-            color: _accent,
-            label: 'Message\nTeacher',
-            tap: widget.onOpenMessages,
-          ),
-          (
             icon: Icons.assignment_rounded,
             color: AppColors.primary,
             label: 'All\nMarks',
-            tap: () => _snack('Full marks list — coming soon'),
+            tap: () => widget.onOpenTab?.call(1),
           ),
           (
-            icon: Icons.event_note_rounded,
-            color: AppColors.statGreen,
-            label: 'Attendance\nLog',
-            tap: () => _snack('Attendance log — coming soon'),
-          ),
-          (
-            icon: Icons.campaign_rounded,
+            icon: Icons.receipt_long_rounded,
             color: AppColors.statOrange,
-            label: 'School\nNotices',
-            tap: () => _snack('Notices — coming soon'),
+            label: 'Fee\nDetails',
+            tap: () => widget.onOpenTab?.call(2),
+          ),
+          (
+            icon: Icons.forum_rounded,
+            color: _accent,
+            label: 'Message\nTeacher',
+            tap: () => widget.onOpenTab?.call(3),
           ),
         ];
 
@@ -945,28 +1021,36 @@ class _ParentHomeScreenState extends ConsumerState<ParentHomeScreen> {
     );
   }
 
-  void _snack(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: _accent,
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
   // ---------------------------------------------------------------------
   Widget _sectionHeader(String text) => Padding(
     padding: const EdgeInsets.symmetric(horizontal: _hPad),
-    child: Text(
-      text,
-      style: const TextStyle(
-        fontSize: 16,
-        fontWeight: FontWeight.w800,
-        color: _ink,
-        letterSpacing: -0.3,
-      ),
+    child: Row(
+      children: [
+        // A short accent bar anchors every section title to the same left
+        // edge — the small alignment cue that makes the page read as one set.
+        Container(
+          height: 17,
+          width: 4,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [_headerStart, _headerEnd],
+            ),
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 9),
+        Text(
+          text,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+            color: _ink,
+            letterSpacing: -0.3,
+          ),
+        ),
+      ],
     ),
   );
 

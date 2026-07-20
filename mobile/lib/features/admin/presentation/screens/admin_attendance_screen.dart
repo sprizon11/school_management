@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/network/api_client.dart';
+import '../../../../core/widgets/motion.dart';
 
 class AdminAttendanceScreen extends ConsumerStatefulWidget {
   const AdminAttendanceScreen({super.key});
@@ -120,19 +121,34 @@ class _AdminAttendanceScreenState extends ConsumerState<AdminAttendanceScreen> {
                         physics: const AlwaysScrollableScrollPhysics(),
                         padding: EdgeInsets.fromLTRB(16, 4, 16, bottomInset),
                         children: [
-                          _statsRow(),
+                          EntranceFade(child: _statsRow()),
                           const SizedBox(height: 14),
-                          _dateFilterRow(),
+                          EntranceFade(
+                            delay: const Duration(milliseconds: 60),
+                            child: _dateFilterRow(),
+                          ),
                           const SizedBox(height: 14),
-                          _classChips(),
+                          EntranceFade(
+                            delay: const Duration(milliseconds: 110),
+                            child: _classChips(),
+                          ),
                           const SizedBox(height: 14),
-                          _weekSelector(),
+                          EntranceFade(
+                            delay: const Duration(milliseconds: 160),
+                            child: _weekSelector(),
+                          ),
                           const SizedBox(height: 16),
-                          _classOverviewCard(),
+                          EntranceFade(
+                            delay: const Duration(milliseconds: 210),
+                            child: _classOverviewCard(),
+                          ),
                           const SizedBox(height: 20),
                           _studentsHeader(),
                           const SizedBox(height: 10),
-                          _studentsList(),
+                          EntranceFade(
+                            delay: const Duration(milliseconds: 260),
+                            child: _studentsList(),
+                          ),
                         ],
                       ),
                     ),

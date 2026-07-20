@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/network/api_client.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/motion.dart';
 import '../widgets/teacher_ui.dart';
 
 /// Attendance sheet for one class on one day.
@@ -62,8 +63,18 @@ class _TeacherAttendanceScreenState
   String get _dateLabel {
     if (_isToday) return 'Today';
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${_date.day} ${months[_date.month - 1]} ${_date.year}';
   }
@@ -235,7 +246,10 @@ class _TeacherAttendanceScreenState
                             itemCount: _students.length,
                             separatorBuilder: (_, _) =>
                                 const SizedBox(height: 8),
-                            itemBuilder: (_, i) => _studentRow(_students[i]),
+                            itemBuilder: (_, i) => EntranceFadeItem(
+                              index: i,
+                              child: _studentRow(_students[i]),
+                            ),
                           ),
                         ),
                 ),
@@ -288,7 +302,9 @@ class _TeacherAttendanceScreenState
                           vertical: 3,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                          color: const Color(
+                            0xFF10B981,
+                          ).withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: const Text(
@@ -396,8 +412,8 @@ class _TeacherAttendanceScreenState
     final accent = isAbsent
         ? const Color(0xFFEF4444)
         : isLeave
-            ? const Color(0xFFF59E0B)
-            : const Color(0xFF10B981);
+        ? const Color(0xFFF59E0B)
+        : const Color(0xFF10B981);
 
     return Material(
       color: Colors.white,
@@ -455,8 +471,8 @@ class _TeacherAttendanceScreenState
                       isAbsent
                           ? 'Absent'
                           : isLeave
-                              ? 'On leave'
-                              : 'Present',
+                          ? 'On leave'
+                          : 'Present',
                       style: TextStyle(
                         fontSize: 11.5,
                         fontWeight: FontWeight.w600,
@@ -515,11 +531,7 @@ class _TeacherAttendanceScreenState
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.groups_2_rounded,
-              size: 44,
-              color: AppColors.textMuted,
-            ),
+            Icon(Icons.groups_2_rounded, size: 44, color: AppColors.textMuted),
             SizedBox(height: 12),
             Text(
               'No active students in this class yet',

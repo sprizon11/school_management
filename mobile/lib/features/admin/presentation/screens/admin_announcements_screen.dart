@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/network/api_client.dart';
+import '../../../../core/widgets/motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../widgets/admin_sub_page.dart';
 
@@ -130,11 +131,16 @@ class _AdminAnnouncementsScreenState
                     itemCount: _items.length,
                     itemBuilder: (_, i) {
                       final item = _items[i] as Map<String, dynamic>;
-                      return _chatBubble(item);
+                      // Newest messages sit at the bottom; stagger from the
+                      // end so the latest bubbles animate last.
+                      return EntranceFadeItem(
+                        index: (_items.length - 1 - i).clamp(0, 8),
+                        child: _chatBubble(item),
+                      );
                     },
                   ),
           ),
-          _composer(),
+          EntranceFade(child: _composer()),
         ],
       ),
     );

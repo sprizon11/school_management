@@ -175,8 +175,7 @@ class _TeacherReportsScreenState extends ConsumerState<TeacherReportsScreen> {
       SmoothPageRoute(
         page: TeacherAddMarksScreen(
           classId: '${_classInfo!['id']}',
-          classLabel:
-              'Class ${_classInfo!['grade']}${_classInfo!['section']}',
+          classLabel: 'Class ${_classInfo!['grade']}${_classInfo!['section']}',
         ),
       ),
     );

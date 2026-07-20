@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/motion.dart';
 import '../widgets/teacher_ui.dart';
 
 class TeacherClassesScreen extends ConsumerStatefulWidget {
@@ -103,8 +104,11 @@ class _TeacherClassesScreenState extends ConsumerState<TeacherClassesScreen> {
                               physics: const AlwaysScrollableScrollPhysics(),
                               padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
                               itemCount: _classes.length,
-                              itemBuilder: (_, i) => _classCard(
-                                _classes[i] as Map<String, dynamic>,
+                              itemBuilder: (_, i) => EntranceFadeItem(
+                                index: i,
+                                child: _classCard(
+                                  _classes[i] as Map<String, dynamic>,
+                                ),
                               ),
                             ),
                     ),

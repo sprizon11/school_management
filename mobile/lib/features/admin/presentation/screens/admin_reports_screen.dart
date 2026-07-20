@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/network/api_client.dart';
+import '../../../../core/widgets/motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../widgets/admin_sub_page.dart';
 
@@ -53,65 +54,70 @@ class _AdminReportsScreenState extends ConsumerState<AdminReportsScreen> {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  GridView.count(
-                    crossAxisCount: 2,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    mainAxisSpacing: 10,
-                    crossAxisSpacing: 10,
-                    childAspectRatio: 1.35,
-                    children: [
-                      AdminStatTile(
-                        label: 'Total Students',
-                        value: '${students['total'] ?? 0}',
-                        icon: Icons.groups_rounded,
-                        color: const Color(0xFF5B6CFF),
-                      ),
-                      AdminStatTile(
-                        label: 'Total Teachers',
-                        value: '${teachers['total'] ?? 0}',
-                        icon: Icons.school_rounded,
-                        color: const Color(0xFF3DD16E),
-                      ),
-                      AdminStatTile(
-                        label: 'Total Classes',
-                        value: '${classes['totalClasses'] ?? 0}',
-                        icon: Icons.menu_book_rounded,
-                        color: const Color(0xFFF5A623),
-                      ),
-                      AdminStatTile(
-                        label: 'Fee Collected',
-                        value: '₹${_compact(fees['total'])}',
-                        icon: Icons.bar_chart_rounded,
-                        color: const Color(0xFFFF5D6E),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  AdminPremiumCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  EntranceFade(
+                    child: GridView.count(
+                      crossAxisCount: 2,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      mainAxisSpacing: 10,
+                      crossAxisSpacing: 10,
+                      childAspectRatio: 1.35,
                       children: [
-                        const Text(
-                          'Gender Distribution',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 15,
-                          ),
+                        AdminStatTile(
+                          label: 'Total Students',
+                          value: '${students['total'] ?? 0}',
+                          icon: Icons.groups_rounded,
+                          color: const Color(0xFF5B6CFF),
                         ),
-                        const SizedBox(height: 14),
-                        _bar(
-                          'Boys',
-                          students['boysPercent'] ?? 0,
-                          const Color(0xFF3B9EFF),
+                        AdminStatTile(
+                          label: 'Total Teachers',
+                          value: '${teachers['total'] ?? 0}',
+                          icon: Icons.school_rounded,
+                          color: const Color(0xFF3DD16E),
                         ),
-                        const SizedBox(height: 10),
-                        _bar(
-                          'Girls',
-                          students['girlsPercent'] ?? 0,
-                          const Color(0xFFFF6B9D),
+                        AdminStatTile(
+                          label: 'Total Classes',
+                          value: '${classes['totalClasses'] ?? 0}',
+                          icon: Icons.menu_book_rounded,
+                          color: const Color(0xFFF5A623),
+                        ),
+                        AdminStatTile(
+                          label: 'Fee Collected',
+                          value: '₹${_compact(fees['total'])}',
+                          icon: Icons.bar_chart_rounded,
+                          color: const Color(0xFFFF5D6E),
                         ),
                       ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  EntranceFade(
+                    delay: const Duration(milliseconds: 70),
+                    child: AdminPremiumCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Gender Distribution',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 15,
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          _bar(
+                            'Boys',
+                            students['boysPercent'] ?? 0,
+                            const Color(0xFF3B9EFF),
+                          ),
+                          const SizedBox(height: 10),
+                          _bar(
+                            'Girls',
+                            students['girlsPercent'] ?? 0,
+                            const Color(0xFFFF6B9D),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -132,19 +138,25 @@ class _AdminReportsScreenState extends ConsumerState<AdminReportsScreen> {
                       ),
                     )
                   else
-                    ...activities.map((a) {
-                      final m = a as Map<String, dynamic>;
-                      final date = DateTime.tryParse('${m['createdAt']}');
-                      return AdminListTilePremium(
-                        title: '${m['action']}',
-                        subtitle: '${m['actorName']}',
-                        trailing: date != null
-                            ? DateFormat('dd MMM').format(date.toLocal())
-                            : null,
-                        leadingIcon: Icons.history_rounded,
-                        leadingColor: AppColors.primary,
-                      );
-                    }),
+                    for (var i = 0; i < activities.length; i++)
+                      EntranceFadeItem(
+                        index: i,
+                        child: Builder(
+                          builder: (_) {
+                            final m = activities[i] as Map<String, dynamic>;
+                            final date = DateTime.tryParse('${m['createdAt']}');
+                            return AdminListTilePremium(
+                              title: '${m['action']}',
+                              subtitle: '${m['actorName']}',
+                              trailing: date != null
+                                  ? DateFormat('dd MMM').format(date.toLocal())
+                                  : null,
+                              leadingIcon: Icons.history_rounded,
+                              leadingColor: AppColors.primary,
+                            );
+                          },
+                        ),
+                      ),
                 ],
               ),
             ),

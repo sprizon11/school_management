@@ -113,22 +113,29 @@ class CountUpText extends StatelessWidget {
     this.suffix = '',
     this.style,
     this.duration = const Duration(milliseconds: 900),
+    this.format,
     super.key,
   });
 
   final num value;
 
-  /// Trails the number, e.g. "%".
+  /// Trails the number, e.g. "%". Ignored when [format] is set.
   final String suffix;
   final TextStyle? style;
   final Duration duration;
+
+  /// Renders the in-flight value — e.g. currency grouping. Defaults to the
+  /// rounded number plus [suffix].
+  final String Function(int value)? format;
+
+  String _render(double v) => format?.call(v.round()) ?? '${v.round()}$suffix';
 
   @override
   Widget build(BuildContext context) {
     final target = value.toDouble();
 
     if (MediaQuery.of(context).disableAnimations) {
-      return Text('${target.round()}$suffix', style: style);
+      return Text(_render(target), style: style);
     }
 
     return TweenAnimationBuilder<double>(
@@ -137,7 +144,7 @@ class CountUpText extends StatelessWidget {
       tween: Tween<double>(begin: 0, end: target),
       duration: duration,
       curve: Curves.easeOutCubic,
-      builder: (_, v, _) => Text('${v.round()}$suffix', style: style),
+      builder: (_, v, _) => Text(_render(v), style: style),
     );
   }
 }

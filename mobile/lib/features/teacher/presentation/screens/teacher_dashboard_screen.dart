@@ -7,6 +7,7 @@ import '../../../../core/network/api_client.dart';
 import '../../../../core/providers/auth_provider.dart';
 import '../../../../core/services/notification_poller.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/motion.dart';
 import '../providers/teacher_shell_provider.dart';
 import '../widgets/teacher_ui.dart';
 import 'teacher_announcements_screen.dart';
@@ -364,58 +365,100 @@ class _TeacherDashboardScreenState
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
-            SliverToBoxAdapter(child: _buildHeader(context, displayName)),
+            SliverToBoxAdapter(
+              child: EntranceFade(child: _buildHeader(context, displayName)),
+            ),
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(_hPad, 14, _hPad, 96),
               sliver: SliverList(
+                // Sections cascade in top-to-bottom, ~60ms apart — same
+                // sequencing as the admin dashboard and parent home.
                 delegate: SliverChildListDelegate([
-                  _buildScheduleHero(),
+                  EntranceFade(
+                    delay: const Duration(milliseconds: 50),
+                    child: _buildScheduleHero(),
+                  ),
                   const SizedBox(height: 24),
-                  const _SectionTitle('Overview'),
-                  const SizedBox(height: 12),
-                  _buildOverviewGrid(),
+                  EntranceFade(
+                    delay: const Duration(milliseconds: 110),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const _SectionTitle('Overview'),
+                        const SizedBox(height: 12),
+                        _buildOverviewGrid(),
+                      ],
+                    ),
+                  ),
                   const SizedBox(height: 24),
-                  const _SectionTitle('Quick Access'),
-                  const SizedBox(height: 12),
-                  _buildQuickAccess(),
+                  EntranceFade(
+                    delay: const Duration(milliseconds: 170),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const _SectionTitle('Quick Access'),
+                        const SizedBox(height: 12),
+                        _buildQuickAccess(),
+                      ],
+                    ),
+                  ),
                   const SizedBox(height: 24),
-                  KeyedSubtree(
-                    key: _timetableKey,
-                    child: _buildTimetable(today),
+                  EntranceFade(
+                    delay: const Duration(milliseconds: 230),
+                    child: KeyedSubtree(
+                      key: _timetableKey,
+                      child: _buildTimetable(today),
+                    ),
                   ),
                   const SizedBox(height: 28),
-                  _SectionTitle(
-                    'My Classes',
-                    trailing: GestureDetector(
-                      onTap: () => _goToTab(2),
-                      child: const Text(
-                        'View All Students >',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.teacherPrimary,
+                  EntranceFade(
+                    delay: const Duration(milliseconds: 290),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _SectionTitle(
+                          'My Classes',
+                          trailing: GestureDetector(
+                            onTap: () => _goToTab(2),
+                            child: const Text(
+                              'View All Students >',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.teacherPrimary,
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
+                        const SizedBox(height: 12),
+                        ..._classes.take(4).map(_classRow),
+                        if (_classes.isEmpty && !_loading)
+                          _emptyCard('No classes assigned yet.'),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  ..._classes.take(4).map(_classRow),
-                  if (_classes.isEmpty && !_loading)
-                    _emptyCard('No classes assigned yet.'),
                   const SizedBox(height: 28),
-                  _SectionTitle(
-                    'Upcoming Assignments',
-                    trailing: const Text(
-                      'View All',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.teacherPrimary,
-                      ),
+                  EntranceFade(
+                    delay: const Duration(milliseconds: 350),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _SectionTitle(
+                          'Upcoming Assignments',
+                          trailing: const Text(
+                            'View All',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.teacherPrimary,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        _buildHomeworkRow(),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  _buildHomeworkRow(),
                 ]),
               ),
             ),
@@ -727,19 +770,16 @@ class _TeacherDashboardScreenState
   // ---------------------------------------------------------------------
   // Overview — 2×2 stat cards
   // ---------------------------------------------------------------------
-  Widget _buildOverviewGrid() {
-    final students = '${_data?['totalStudents'] ?? 0}';
-    final attendance = '${_data?['attendanceMarkedPercent'] ?? 0}%';
-    final classes = '${_data?['classCount'] ?? _classes.length}';
-    final tasks = '${_data?['tasksCount'] ?? _data?['pendingGrading'] ?? 0}';
+  int _asInt(dynamic v) => v is num ? v.toInt() : int.tryParse('$v') ?? 0;
 
+  Widget _buildOverviewGrid() {
     return Row(
       children: [
         _statCard(
           icon: Icons.groups_rounded,
           color: AppColors.teacherPrimary,
           label: 'Students',
-          value: students,
+          value: _asInt(_data?['totalStudents']),
           onTap: () => _goToTab(2),
         ),
         const SizedBox(width: 10),
@@ -747,7 +787,8 @@ class _TeacherDashboardScreenState
           icon: Icons.fact_check_rounded,
           color: AppColors.statGreen,
           label: 'Attendance',
-          value: attendance,
+          value: _asInt(_data?['attendanceMarkedPercent']),
+          suffix: '%',
           onTap: () => _goToTab(2),
         ),
         const SizedBox(width: 10),
@@ -755,7 +796,7 @@ class _TeacherDashboardScreenState
           icon: Icons.menu_book_rounded,
           color: const Color(0xFF3B82F6),
           label: 'Classes',
-          value: classes,
+          value: _asInt(_data?['classCount'] ?? _classes.length),
           onTap: () => openSmoothPage(context, const TeacherClassesScreen()),
         ),
         const SizedBox(width: 10),
@@ -763,7 +804,7 @@ class _TeacherDashboardScreenState
           icon: Icons.task_alt_rounded,
           color: AppColors.statOrange,
           label: 'Tasks',
-          value: tasks,
+          value: _asInt(_data?['tasksCount'] ?? _data?['pendingGrading']),
           onTap: () => _goToTab(3),
         ),
       ],
@@ -774,12 +815,14 @@ class _TeacherDashboardScreenState
     required IconData icon,
     required Color color,
     required String label,
-    required String value,
+    required int value,
+    String suffix = '',
     VoidCallback? onTap,
   }) {
     return Expanded(
-      child: GestureDetector(
+      child: PressableScale(
         onTap: onTap,
+        pressedScale: 0.94,
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
           decoration: _premiumCard(),
@@ -795,9 +838,9 @@ class _TeacherDashboardScreenState
                 child: Icon(icon, color: color, size: 17),
               ),
               const SizedBox(height: 8),
-              Text(
-                value,
-                maxLines: 1,
+              CountUpText(
+                value: value,
+                suffix: suffix,
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
@@ -1222,8 +1265,9 @@ class _TeacherDashboardScreenState
       ({IconData icon, String label, Color color, VoidCallback onTap}) t,
     ) {
       return Expanded(
-        child: GestureDetector(
+        child: PressableScale(
           onTap: t.onTap,
+          pressedScale: 0.9,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [

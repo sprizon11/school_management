@@ -170,7 +170,9 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
                       EntranceFade(
                         delay: const Duration(milliseconds: 100),
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: _hPad),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: _hPad,
+                          ),
                           child: _classFilterRow(),
                         ),
                       ),
