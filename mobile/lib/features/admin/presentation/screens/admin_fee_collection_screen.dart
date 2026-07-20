@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/network/api_client.dart';
+import '../../../../core/widgets/motion.dart';
 
 class AdminFeeCollectionScreen extends ConsumerStatefulWidget {
   const AdminFeeCollectionScreen({super.key});
@@ -78,9 +79,12 @@ class _AdminFeeCollectionScreenState
                         physics: const AlwaysScrollableScrollPhysics(),
                         padding: EdgeInsets.fromLTRB(16, 4, 16, bottomInset),
                         children: [
-                          _statsRow(),
+                          EntranceFade(child: _statsRow()),
                           const SizedBox(height: 14),
-                          _tabs(),
+                          EntranceFade(
+                            delay: const Duration(milliseconds: 60),
+                            child: _tabs(),
+                          ),
                           const SizedBox(height: 16),
                           if (_tab == 0) ..._overviewTab(),
                           if (_tab == 1) _feeStructuresTab(),
@@ -416,9 +420,15 @@ class _AdminFeeCollectionScreenState
   // ---------------------------------------------------------------------
   List<Widget> _overviewTab() {
     return [
-      _filterPills(),
+      EntranceFade(
+        delay: const Duration(milliseconds: 110),
+        child: _filterPills(),
+      ),
       const SizedBox(height: 16),
-      _collectionCard(),
+      EntranceFade(
+        delay: const Duration(milliseconds: 160),
+        child: _collectionCard(),
+      ),
       const SizedBox(height: 22),
       _sectionHeader(
         'Recent Fee Payments',
@@ -430,7 +440,10 @@ class _AdminFeeCollectionScreenState
       const SizedBox(height: 22),
       _sectionHeader('Fee Due Summary'),
       const SizedBox(height: 10),
-      _dueSummary(),
+      EntranceFade(
+        delay: const Duration(milliseconds: 210),
+        child: _dueSummary(),
+      ),
     ];
   }
 

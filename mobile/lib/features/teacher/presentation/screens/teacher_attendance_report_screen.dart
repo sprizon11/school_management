@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/network/api_client.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/motion.dart';
 import '../widgets/teacher_ui.dart';
 
 /// Per-student attendance report: percentage, present/absent/leave counts,
@@ -147,7 +148,7 @@ class _TeacherAttendanceReportScreenState
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
                 children: [
-                  _summaryCard(),
+                  EntranceFade(child: _summaryCard()),
                   const SizedBox(height: 18),
                   Row(
                     children: [
@@ -171,7 +172,11 @@ class _TeacherAttendanceReportScreenState
                   if (_students.isEmpty)
                     _empty()
                   else
-                    ..._students.map(_studentRow),
+                    for (var i = 0; i < _students.length; i++)
+                      EntranceFadeItem(
+                        index: i,
+                        child: _studentRow(_students[i]),
+                      ),
                 ],
               ),
             ),

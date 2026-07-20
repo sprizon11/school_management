@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/navigation/smooth_page_route.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/motion.dart';
 import '../widgets/teacher_ui.dart';
 import 'chat_thread_screen.dart';
 
@@ -190,7 +191,8 @@ class _TeacherChatScreenState extends ConsumerState<TeacherChatScreen> {
         padding: EdgeInsets.only(left: 78),
         child: Divider(height: 1, color: Color(0xFFEDEFF5)),
       ),
-      itemBuilder: (_, i) => _conversationTile(list[i]),
+      itemBuilder: (_, i) =>
+          EntranceFadeItem(index: i, child: _conversationTile(list[i])),
     );
   }
 

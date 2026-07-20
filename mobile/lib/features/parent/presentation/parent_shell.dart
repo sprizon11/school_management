@@ -6,10 +6,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import 'screens/parent_home_screen.dart';
+import 'screens/parent_marks_screen.dart';
+import 'screens/parent_fees_screen.dart';
 import 'screens/parent_messages_screen.dart';
 
-/// Parent shell. Home draws its own gradient header, so there is no AppBar —
-/// the header runs to the top of the screen and the nav floats over the body.
+/// Parent shell. Each tab draws its own header, so there is no AppBar — the
+/// content runs to the top and the frosted nav floats over it.
 class ParentShell extends ConsumerStatefulWidget {
   const ParentShell({super.key});
 
@@ -18,12 +20,15 @@ class ParentShell extends ConsumerStatefulWidget {
 }
 
 class _ParentShellState extends ConsumerState<ParentShell> {
+  // 0 Home · 1 Marks · 2 Fees · 3 Messages. Log out (index 4) is an action.
   int _index = 0;
 
   @override
   Widget build(BuildContext context) {
     final screens = [
-      ParentHomeScreen(onOpenMessages: () => setState(() => _index = 1)),
+      ParentHomeScreen(onOpenTab: (i) => setState(() => _index = i)),
+      const ParentMarksScreen(),
+      const ParentFeesScreen(),
       const ParentMessagesScreen(),
     ];
 
@@ -34,7 +39,7 @@ class _ParentShellState extends ConsumerState<ParentShell> {
       bottomNavigationBar: _ParentNavBar(
         index: _index,
         onTap: (i) async {
-          if (i == 2) {
+          if (i == 4) {
             await ref.read(authProvider.notifier).logout();
             return;
           }
@@ -54,7 +59,9 @@ class _ParentNavBar extends StatelessWidget {
 
   static const _items = <({IconData icon, String label})>[
     (icon: Icons.home_rounded, label: 'Home'),
-    (icon: Icons.chat_bubble_rounded, label: 'Messages'),
+    (icon: Icons.assignment_rounded, label: 'Marks'),
+    (icon: Icons.receipt_long_rounded, label: 'Fees'),
+    (icon: Icons.chat_bubble_rounded, label: 'Chat'),
     (icon: Icons.logout_rounded, label: 'Log out'),
   ];
 
@@ -63,13 +70,13 @@ class _ParentNavBar extends StatelessWidget {
     final bottomSafe = MediaQuery.paddingOf(context).bottom;
 
     return Padding(
-      padding: EdgeInsets.fromLTRB(16, 0, 16, bottomSafe > 0 ? bottomSafe : 14),
+      padding: EdgeInsets.fromLTRB(12, 0, 12, bottomSafe > 0 ? bottomSafe : 12),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(26),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
           child: Container(
-            height: 64,
+            height: 66,
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.9),
               borderRadius: BorderRadius.circular(26),
@@ -85,11 +92,14 @@ class _ParentNavBar extends StatelessWidget {
                 ),
               ],
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                for (var i = 0; i < _items.length; i++) _item(i),
-              ],
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Row(
+                children: [
+                  for (var i = 0; i < _items.length; i++)
+                    Expanded(child: _item(i)),
+                ],
+              ),
             ),
           ),
         ),
@@ -100,7 +110,9 @@ class _ParentNavBar extends StatelessWidget {
   Widget _item(int i) {
     final selected = i == index;
     // Log out is an action, never a "current tab".
-    final isAction = i == 2;
+    final isAction = i == 4;
+    final active = selected && !isAction;
+    final tint = active ? AppColors.parentPrimary : const Color(0xFF8A8AA3);
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -108,32 +120,27 @@ class _ParentNavBar extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 240),
         curve: Curves.easeOutCubic,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.symmetric(vertical: 6),
         decoration: BoxDecoration(
-          color: selected && !isAction
+          color: active
               ? AppColors.parentPrimary.withValues(alpha: 0.12)
               : null,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(15),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              _items[i].icon,
-              size: 21,
-              color: selected && !isAction
-                  ? AppColors.parentPrimary
-                  : const Color(0xFF8A8AA3),
-            ),
+            Icon(_items[i].icon, size: 20, color: tint),
             const SizedBox(height: 3),
             Text(
               _items[i].label,
+              maxLines: 1,
+              overflow: TextOverflow.visible,
               style: TextStyle(
-                fontSize: 10,
+                fontSize: 9,
                 fontWeight: FontWeight.w700,
-                color: selected && !isAction
-                    ? AppColors.parentPrimary
-                    : const Color(0xFF8A8AA3),
+                color: tint,
               ),
             ),
           ],

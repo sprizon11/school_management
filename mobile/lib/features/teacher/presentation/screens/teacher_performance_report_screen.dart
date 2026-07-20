@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/network/api_client.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/motion.dart';
 import '../widgets/teacher_ui.dart';
 
 /// Combined student performance: rank by an overall score (70% marks + 30%
@@ -159,7 +160,8 @@ class _TeacherPerformanceReportScreenState
                           'Performance ranks appear once marks and attendance are recorded.',
                     )
                   else
-                    ..._filtered.map(_row),
+                    for (var i = 0; i < _filtered.length; i++)
+                      EntranceFadeItem(index: i, child: _row(_filtered[i])),
                 ],
               ),
             ),

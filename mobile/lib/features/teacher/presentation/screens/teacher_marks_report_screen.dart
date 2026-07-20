@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/navigation/smooth_page_route.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/motion.dart';
 import '../widgets/teacher_ui.dart';
 import 'teacher_add_marks_screen.dart';
 
@@ -144,7 +145,11 @@ class _TeacherMarksReportScreenState
                           'Marks appear here once exams are graded for this class.',
                     )
                   else
-                    ..._students.map(_studentCard),
+                    for (var i = 0; i < _students.length; i++)
+                      EntranceFadeItem(
+                        index: i,
+                        child: _studentCard(_students[i]),
+                      ),
                 ],
               ),
             ),

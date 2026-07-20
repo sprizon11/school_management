@@ -6,6 +6,7 @@ import '../../../../core/network/api_client.dart';
 import '../../../../core/navigation/smooth_page_route.dart';
 import '../../../../core/providers/auth_provider.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/motion.dart';
 import '../../../teacher/presentation/screens/chat_thread_screen.dart';
 
 /// Teacher conversations. Lifted out of ParentShell unchanged when the shell
@@ -128,51 +129,54 @@ class _ParentMessagesScreenState extends ConsumerState<ParentMessagesScreen> {
               separatorBuilder: (_, index) => const SizedBox(height: 8),
               itemBuilder: (_, i) {
                 final c = _items[i] as Map<String, dynamic>;
-                return ListTile(
-                  tileColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  leading: CircleAvatar(
-                    backgroundColor: AppColors.parentPrimary.withValues(
-                      alpha: 0.12,
+                return EntranceFadeItem(
+                  index: i,
+                  child: ListTile(
+                    tileColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
                     ),
-                    child: Text(
-                      '${c['teacherName'] ?? 'T'}'[0].toUpperCase(),
-                      style: const TextStyle(
-                        color: AppColors.parentPrimary,
-                        fontWeight: FontWeight.w800,
+                    leading: CircleAvatar(
+                      backgroundColor: AppColors.parentPrimary.withValues(
+                        alpha: 0.12,
                       ),
-                    ),
-                  ),
-                  title: Text(
-                    '${c['teacherName']}',
-                    style: const TextStyle(fontWeight: FontWeight.w800),
-                  ),
-                  subtitle: Text(
-                    '${c['studentName']} · Class ${c['classLabel']}',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                  trailing: c['lastMessageAt'] != null
-                      ? Text(
-                          _timeLabel(c['lastMessageAt']),
-                          style: const TextStyle(fontSize: 10),
-                        )
-                      : null,
-                  onTap: () async {
-                    await Navigator.of(context).push(
-                      SmoothPageRoute(
-                        page: ChatThreadScreen(
-                          conversationId: '${c['id']}',
-                          apiPrefix: '/parent/chat',
-                          title: '${c['teacherName']}',
-                          subtitle:
-                              '${c['studentName']} · ${c['subject'] ?? 'Class teacher'}',
+                      child: Text(
+                        '${c['teacherName'] ?? 'T'}'[0].toUpperCase(),
+                        style: const TextStyle(
+                          color: AppColors.parentPrimary,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
-                    );
-                    _load();
-                  },
+                    ),
+                    title: Text(
+                      '${c['teacherName']}',
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    subtitle: Text(
+                      '${c['studentName']} · Class ${c['classLabel']}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    trailing: c['lastMessageAt'] != null
+                        ? Text(
+                            _timeLabel(c['lastMessageAt']),
+                            style: const TextStyle(fontSize: 10),
+                          )
+                        : null,
+                    onTap: () async {
+                      await Navigator.of(context).push(
+                        SmoothPageRoute(
+                          page: ChatThreadScreen(
+                            conversationId: '${c['id']}',
+                            apiPrefix: '/parent/chat',
+                            title: '${c['teacherName']}',
+                            subtitle:
+                                '${c['studentName']} · ${c['subject'] ?? 'Class teacher'}',
+                          ),
+                        ),
+                      );
+                      _load();
+                    },
+                  ),
                 );
               },
             ),
