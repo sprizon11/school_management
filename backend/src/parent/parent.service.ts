@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { AttendanceStatus } from '@prisma/client';
+import { AttendanceStatus, type Announcement } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -61,6 +61,7 @@ export class ParentService {
       dueThisWeek,
       announcement,
       school,
+      datedNotices,
     ] = await Promise.all([
       this.prisma.attendanceRecord.count({
         where: { studentId: student.id, status: AttendanceStatus.PRESENT },
@@ -107,6 +108,20 @@ export class ParentService {
             select: { name: true },
           })
         : Promise.resolve(null),
+      // Candidate "upcoming test" notices: future-dated parent announcements.
+      // The app has no exam entity, so a test is a dated announcement the
+      // school posts; we keep only the ones whose title reads like one.
+      schoolId
+        ? this.prisma.announcement.findMany({
+            where: {
+              schoolId,
+              audience: 'TEACHERS_AND_PARENTS',
+              eventDate: { gte: ParentService.utcDay() },
+            },
+            orderBy: { eventDate: 'asc' },
+            take: 12,
+          })
+        : Promise.resolve([] as Announcement[]),
     ]);
 
     const marked = present + absent + leave;
@@ -129,6 +144,17 @@ export class ParentService {
           scored.reduce((sum, m) => sum + m.percent, 0) / scored.length,
         )
       : null;
+
+    const testWords = /\b(test|exam|examination|quiz|assessment|unit test)\b/i;
+    const upcomingTests = datedNotices
+      .filter((a) => testWords.test(a.title))
+      .slice(0, 5)
+      .map((a) => ({
+        id: a.id,
+        title: a.title,
+        body: a.body,
+        eventDate: a.eventDate,
+      }));
 
     return {
       child: {
@@ -162,6 +188,7 @@ export class ParentService {
         description: h.description,
         dueDate: h.dueDate,
       })),
+      upcomingTests,
       dueThisWeek,
       announcement: announcement
         ? {
@@ -172,6 +199,48 @@ export class ParentService {
             createdAt: announcement.createdAt,
           }
         : null,
+    };
+  }
+
+  /** Fee summary and installment schedule for the child. */
+  async fees(userId: string) {
+    const student = await this.childFor(userId);
+
+    const installments = await this.prisma.feeInstallment.findMany({
+      where: { assignment: { studentId: student.id } },
+      orderBy: { dueDate: 'asc' },
+      include: {
+        assignment: { include: { feeStructure: true } },
+        payments: { orderBy: { paidAt: 'desc' }, take: 1 },
+      },
+    });
+
+    const sum = (status: 'PAID' | 'PENDING' | 'UPCOMING') =>
+      installments
+        .filter((i) => i.status === status)
+        .reduce((t, i) => t + i.amount, 0);
+
+    const total = installments.reduce((t, i) => t + i.amount, 0);
+    const paid = sum('PAID');
+
+    return {
+      summary: {
+        total,
+        paid,
+        pending: sum('PENDING'),
+        upcoming: sum('UPCOMING'),
+        // What the parent still owes — everything not yet paid.
+        due: total - paid,
+      },
+      installments: installments.map((i) => ({
+        id: i.id,
+        label: i.label,
+        amount: i.amount,
+        dueDate: i.dueDate,
+        status: i.status,
+        term: i.assignment.feeStructure.termLabel,
+        paidAt: i.payments[0]?.paidAt ?? null,
+      })),
     };
   }
 

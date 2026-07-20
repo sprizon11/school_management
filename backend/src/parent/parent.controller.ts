@@ -35,6 +35,11 @@ export class ParentController {
     return this.parent.marks(user.userId);
   }
 
+  @Get('fees')
+  fees(@CurrentUser() user: { userId: string }) {
+    return this.parent.fees(user.userId);
+  }
+
   @Get('chat/conversations')
   conversations(@CurrentUser() user: { userId: string; schoolId: string }) {
     return this.chat.listForParent(user.userId, user.schoolId);
