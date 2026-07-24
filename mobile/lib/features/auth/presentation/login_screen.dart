@@ -6,12 +6,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../core/auth/google_auth.dart';
+import '../../../core/config/api_config.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/cloud_api.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/school_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/motion.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 /// Login uses [assets/images/login_background.png] for branding/header/footer.
 /// User enters email + password; API role routes to admin or teacher home.
@@ -32,6 +35,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _obscure = true;
   bool _remember = true;
   bool _loggingIn = false;
+  bool _googleBusy = false;
   bool _wakingServer = false;
   bool _loadingSchools = true;
   String? _statusMessage;
@@ -271,6 +275,64 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  Future<void> _signInWithGoogle() async {
+    final authNotifier = ref.read(authProvider.notifier);
+    if (!ApiConfig.googleSignInEnabled) {
+      authNotifier.setError('Google sign-in isn\'t set up yet.');
+      return;
+    }
+    final school = ref.read(selectedSchoolProvider);
+    if (school == null || school.id.trim().isEmpty) {
+      authNotifier.setError('Please select your school first.');
+      return;
+    }
+
+    setState(() => _googleBusy = true);
+    try {
+      final idToken = await GoogleAuthService.signInGetIdToken();
+      if (idToken == null) {
+        authNotifier.setError('Google sign-in returned no token.');
+        return;
+      }
+      final dio = ref.read(dioProvider);
+      final res = await dio.post('/auth/google', data: {
+        'schoolId': school.id.trim(),
+        'idToken': idToken,
+      });
+      final data = res.data as Map<String, dynamic>;
+      await authNotifier.saveSession(data['accessToken'] as String, data);
+      if (!mounted) return;
+
+      final user = data['user'] as Map<String, dynamic>;
+      if (user['mustChangePassword'] == true) {
+        context.go('/change-password');
+        return;
+      }
+      final role = user['role'] as String;
+      final route = switch (role) {
+        'ADMIN' => '/admin',
+        'TEACHER' => '/teacher',
+        'PARENT' => '/parent',
+        _ => null,
+      };
+      if (route != null) context.go(route);
+    } on GoogleSignInException catch (e) {
+      if (!mounted) return;
+      // A user cancelling isn't an error worth shouting about.
+      if (e.code != GoogleSignInExceptionCode.canceled) {
+        authNotifier.setError('Google sign-in failed. Try again.');
+      }
+    } on DioException catch (e) {
+      if (!mounted) return;
+      authNotifier.setError(friendlyCloudError(e));
+    } catch (e) {
+      if (!mounted) return;
+      authNotifier.setError('Google sign-in failed: $e');
+    } finally {
+      if (mounted) setState(() => _googleBusy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final authError = ref.watch(authProvider.select((a) => a.error));
@@ -331,7 +393,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           const SizedBox(height: 16),
           const _OrDivider(),
           const SizedBox(height: 14),
-          const _GoogleSignInButton(),
+          _GoogleSignInButton(
+            loading: _googleBusy,
+            onTap: _signInWithGoogle,
+          ),
         ],
       ],
     );
@@ -1106,7 +1171,10 @@ class _OrDivider extends StatelessWidget {
 }
 
 class _GoogleSignInButton extends StatelessWidget {
-  const _GoogleSignInButton();
+  const _GoogleSignInButton({this.onTap, this.loading = false});
+
+  final VoidCallback? onTap;
+  final bool loading;
 
   @override
   Widget build(BuildContext context) {
@@ -1114,7 +1182,7 @@ class _GoogleSignInButton extends StatelessWidget {
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
-        onTap: () {},
+        onTap: loading ? null : onTap,
         borderRadius: BorderRadius.circular(16),
         child: Container(
           width: double.infinity,
@@ -1137,11 +1205,18 @@ class _GoogleSignInButton extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const _GoogleLogo(),
+              if (loading)
+                const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              else
+                const _GoogleLogo(),
               const SizedBox(width: 10),
-              const Text(
-                'Sign in with Google',
-                style: TextStyle(
+              Text(
+                loading ? 'Signing in…' : 'Sign in with Google',
+                style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                   color: Color(0xFF3C4043),

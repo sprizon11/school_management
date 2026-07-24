@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/login_screen.dart';
+import '../../features/auth/presentation/change_password_screen.dart';
 import '../../features/admin/presentation/admin_shell.dart';
 import '../../features/parent/presentation/parent_shell.dart';
 import '../../features/teacher/presentation/teacher_shell.dart';
@@ -30,6 +31,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isPublic = loc == '/login';
 
       if (auth.isLoggedIn) {
+        // An account still on a temporary password can't go anywhere until it
+        // sets a real one.
+        if (auth.user?.mustChangePassword == true) {
+          return loc == '/change-password' ? null : '/change-password';
+        }
         if (isPublic) {
           final role = auth.user?.role;
           if (role == 'ADMIN') return '/admin';
@@ -46,6 +52,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/login',
         builder: (_, __) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: '/change-password',
+        builder: (_, __) => const ChangePasswordScreen(),
       ),
       GoRoute(
         path: '/admin',
