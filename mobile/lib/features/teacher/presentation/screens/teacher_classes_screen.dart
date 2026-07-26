@@ -51,6 +51,7 @@ class _TeacherClassesScreenState extends ConsumerState<TeacherClassesScreen> {
             title: 'My Classes',
             subtitle:
                 '${_classes.length} assigned class${_classes.length == 1 ? '' : 'es'}',
+            showBack: true,
           ),
           Expanded(
             child: Transform.translate(
@@ -119,6 +120,14 @@ class _TeacherClassesScreenState extends ConsumerState<TeacherClassesScreen> {
     );
   }
 
+  /// Rooms come through as either "001" or already-prefixed "Room 001"; avoid
+  /// the "Room Room 001" double-label.
+  String _roomLabel(dynamic room) {
+    final r = '${room ?? ''}'.trim();
+    if (r.isEmpty) return '';
+    return r.toLowerCase().startsWith('room') ? r : 'Room $r';
+  }
+
   Widget _classCard(Map<String, dynamic> c) {
     final colors = [
       const Color(0xFF4F46E5),
@@ -128,74 +137,118 @@ class _TeacherClassesScreenState extends ConsumerState<TeacherClassesScreen> {
     ];
     final color = colors[(c['grade'] as int? ?? 0) % colors.length];
     final count = c['_count']?['students'] ?? 0;
+    final room = _roomLabel(c['room']);
+    final category = '${c['category'] ?? ''}'.trim();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: teacherCardDecoration(),
       child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 52,
-              height: 52,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [color, color.withValues(alpha: 0.75)],
+            Row(
+              children: [
+                Container(
+                  width: 54,
+                  height: 54,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [color, color.withValues(alpha: 0.72)],
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: color.withValues(alpha: 0.30),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Text(
+                    '${c['grade']}${c['section']}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
+                    ),
+                  ),
                 ),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Text(
-                '${c['grade']}${c['section']}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 14,
-                ),
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
                     '${c['name'] ?? 'Class'}',
                     style: const TextStyle(
                       fontWeight: FontWeight.w800,
-                      fontSize: 15,
+                      fontSize: 16,
                       color: Color(0xFF111827),
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '$count students${c['room'] != null ? ' · Room ${c['room']}' : ''}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textMuted,
+                ),
+                if (category.isNotEmpty)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEEF2FF),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      category,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.2,
+                        color: AppColors.teacherPrimary,
+                      ),
                     ),
                   ),
-                ],
-              ),
+              ],
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEEF2FF),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                '${c['category'] ?? 'Class'}',
-                style: const TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.teacherPrimary,
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                _metaChip(
+                  Icons.people_alt_rounded,
+                  '$count student${count == 1 ? '' : 's'}',
                 ),
-              ),
+                if (room.isNotEmpty) ...[
+                  const SizedBox(width: 8),
+                  _metaChip(Icons.meeting_room_rounded, room),
+                ],
+              ],
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _metaChip(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF3F4F6),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: AppColors.textMuted),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF374151),
+            ),
+          ),
+        ],
       ),
     );
   }

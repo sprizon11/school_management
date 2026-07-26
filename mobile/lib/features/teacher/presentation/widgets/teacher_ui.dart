@@ -107,12 +107,17 @@ class TeacherPlainHeader extends StatelessWidget {
     this.subtitle,
     this.trailing,
     this.bottomChild,
+    this.showBack = false,
   });
 
   final String title;
   final String? subtitle;
   final Widget? trailing;
   final Widget? bottomChild;
+
+  /// When true the leading control is a back arrow (pops the route) instead of
+  /// the drawer menu button — for screens pushed on top of a shell tab.
+  final bool showBack;
 
   static const _ink = Color(0xFF1E1B4B);
 
@@ -135,12 +140,20 @@ class TeacherPlainHeader extends StatelessWidget {
                   color: Colors.transparent,
                   borderRadius: BorderRadius.circular(12),
                   child: InkWell(
-                    onTap: () => Scaffold.of(context).openDrawer(),
+                    onTap: showBack
+                        ? () => Navigator.of(context).maybePop()
+                        : () => Scaffold.of(context).openDrawer(),
                     borderRadius: BorderRadius.circular(12),
-                    child: const SizedBox(
+                    child: SizedBox(
                       height: 42,
                       width: 42,
-                      child: Icon(Icons.segment_rounded, color: _ink, size: 24),
+                      child: Icon(
+                        showBack
+                            ? Icons.arrow_back_ios_new_rounded
+                            : Icons.segment_rounded,
+                        color: _ink,
+                        size: showBack ? 20 : 24,
+                      ),
                     ),
                   ),
                 ),
