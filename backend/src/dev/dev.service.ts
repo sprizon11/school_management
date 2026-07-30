@@ -428,12 +428,18 @@ export class DevService {
 
   async clearAllClassesAndTeachers() {
     const removed = await wipeAllClassesAndTeachers(this.prisma);
-    await this.prisma.activityLog.create({
-      data: {
+
+    // Platform-wide action, but the activity feed is per school — record it in
+    // each school's own feed rather than losing the audit trail.
+    const schools = await this.prisma.school.findMany({ select: { id: true } });
+    await this.prisma.activityLog.createMany({
+      data: schools.map((school) => ({
+        schoolId: school.id,
         action: 'Cleared all classes and teachers (dev portal)',
         actorName: 'Dev',
-      },
+      })),
     });
+
     return { removed };
   }
 

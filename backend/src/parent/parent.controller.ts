@@ -1,20 +1,114 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
+import { IsNotEmpty, IsString } from 'class-validator';
 import { UserRole } from '@prisma/client';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { ChatService } from '../chat/chat.service';
+import { ParentService } from './parent.service';
 
+// The global ValidationPipe uses `whitelist: true`, which strips any property
+// without a class-validator decorator — an undecorated DTO arrives empty.
 class SendMessageDto {
+  @IsString()
+  @IsNotEmpty()
   body!: string;
+}
+
+class CreateLeaveDto {
+  @IsString()
+  @IsNotEmpty()
+  fromDate!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  toDate!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  reason!: string;
 }
 
 @Controller('parent')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.PARENT)
 export class ParentController {
-  constructor(private chat: ChatService) {}
+  constructor(
+    private chat: ChatService,
+    private parent: ParentService,
+  ) {}
+
+  @Get('home')
+  home(@CurrentUser() user: { userId: string }) {
+    return this.parent.home(user.userId);
+  }
+
+  @Get('marks')
+  marks(@CurrentUser() user: { userId: string }) {
+    return this.parent.marks(user.userId);
+  }
+
+  @Get('report-cards')
+  reportCards(@CurrentUser() user: { userId: string }) {
+    return this.parent.reportCards(user.userId);
+  }
+
+  @Get('fees')
+  fees(@CurrentUser() user: { userId: string }) {
+    return this.parent.fees(user.userId);
+  }
+
+  @Get('events')
+  events(@CurrentUser() user: { userId: string }) {
+    return this.parent.events(user.userId);
+  }
+
+  @Get('homework')
+  homework(@CurrentUser() user: { userId: string }) {
+    return this.parent.homework(user.userId);
+  }
+
+  @Get('library')
+  library(@CurrentUser() user: { userId: string }) {
+    return this.parent.library(user.userId);
+  }
+
+  @Get('leave')
+  leaves(@CurrentUser() user: { userId: string }) {
+    return this.parent.listLeaves(user.userId);
+  }
+
+  @Post('leave')
+  createLeave(
+    @CurrentUser() user: { userId: string },
+    @Body() dto: CreateLeaveDto,
+  ) {
+    return this.parent.createLeave(user.userId, dto);
+  }
+
+  @Get('notifications')
+  notifications(@CurrentUser() user: { userId: string }) {
+    return this.parent.listNotifications(user.userId);
+  }
+
+  @Get('notifications/unread-count')
+  unreadCount(@CurrentUser() user: { userId: string }) {
+    return this.parent.unreadNotificationCount(user.userId);
+  }
+
+  @Patch('notifications/read-all')
+  readAll(@CurrentUser() user: { userId: string }) {
+    return this.parent.markAllNotificationsRead(user.userId);
+  }
 
   @Get('chat/conversations')
   conversations(@CurrentUser() user: { userId: string; schoolId: string }) {

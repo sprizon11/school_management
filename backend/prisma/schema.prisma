@@ -58,7 +58,11 @@ model School {
   createdAt     DateTime       @default(now())
   classes       Class[]
   users         User[]
+  teachers      Teacher[]
   announcements Announcement[]
+  activityLogs  ActivityLog[]
+  events        Event[]
+  libraryBooks  LibraryBook[]
 }
 
 model User {
@@ -71,20 +75,52 @@ model User {
   fullName     String
   phone        String?
   avatarUrl    String?
+  // Set when the account is provisioned with a temporary password; the app
+  // forces a password change before the user can proceed, and login clears it.
+  mustChangePassword Boolean   @default(false)
+  // Brute-force lockout: consecutive failures, and until when the account is
+  // locked. Reset on any successful login.
+  failedLoginCount   Int       @default(0)
+  lockedUntil        DateTime?
+  // Google sub for "Continue with Google"; linked on first Google login for an
+  // already-provisioned account. Scoped per school (same person can hold
+  // accounts at more than one school under the same Google identity).
+  googleId           String?
   createdAt     DateTime          @default(now())
   teacher       Teacher?
   parent        Parent?
   notifications AppNotification[]
   chatMessages  ChatMessage[]
+  leaveRequests LeaveRequest[]  @relation("LeaveRequestedBy")
+  refreshTokens RefreshToken[]
 
   @@unique([schoolId, email])
+  @@unique([schoolId, googleId])
+}
+
+// One row per issued refresh token (opaque, stored only as a SHA-256 hash).
+// Rotation revokes the old row and writes a new one; logout revokes without
+// re-issuing. A stolen access token is only valid until it expires (~15 min),
+// and revoking here cuts off the ability to mint new ones.
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
 }
 
 model Teacher {
   id           String   @id @default(cuid())
+  schoolId     String
+  school       School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   userId       String   @unique
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  employeeCode String   @unique
+  employeeCode String
   gender       Gender   @default(MALE)
   department   String
   subjects     String[]
@@ -94,6 +130,9 @@ model Teacher {
   homework          Homework[]
   chatConversations ChatConversation[]
   timetableSlots    TimetableSlot[]
+  reviewedLeaves    LeaveRequest[]
+
+  @@unique([schoolId, employeeCode])
 }
 
 model TimetableSlot {
@@ -172,6 +211,8 @@ model Student {
   feeAssignments     FeeAssignment[]
   parent             Parent?
   chatConversations  ChatConversation[]
+  leaveRequests      LeaveRequest[]
+  bookIssues         BookIssue[]
   createdAt          DateTime          @default(now())
 }
 
@@ -278,18 +319,27 @@ model AppNotification {
   body           String
   readAt         DateTime?
   createdAt      DateTime      @default(now())
+  // Idempotency key for automated reminders, so the daily job never
+  // double-sends. Null for one-off notifications (chat, leave, etc.).
+  dedupeKey      String?       @unique
 
   @@index([userId, readAt])
 }
 
 model Event {
-  id        String   @id @default(cuid())
-  title     String
-  startAt   DateTime
-  endAt     DateTime?
-  location  String?
-  color     String?
-  createdAt DateTime @default(now())
+  id          String    @id @default(cuid())
+  schoolId    String
+  school      School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  category    String    @default("General") // Holiday, Exam, Activity, Meeting, Sports
+  startAt     DateTime
+  endAt       DateTime?
+  location    String?
+  color       String?
+  createdAt   DateTime  @default(now())
+
+  @@index([schoolId, startAt])
 }
 
 model FeeStructure {
@@ -334,7 +384,65 @@ model FeePayment {
 
 model ActivityLog {
   id        String   @id @default(cuid())
+  schoolId  String
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   action    String
   actorName String
   createdAt DateTime @default(now())
+
+  @@index([schoolId, createdAt])
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model LeaveRequest {
+  id                  String      @id @default(cuid())
+  studentId           String
+  student             Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  requestedByUserId   String
+  requestedBy         User        @relation("LeaveRequestedBy", fields: [requestedByUserId], references: [id], onDelete: Cascade)
+  fromDate            DateTime    @db.Date
+  toDate              DateTime    @db.Date
+  reason              String
+  status              LeaveStatus @default(PENDING)
+  reviewedByTeacherId String?
+  reviewedBy          Teacher?    @relation(fields: [reviewedByTeacherId], references: [id])
+  reviewNote          String?
+  reviewedAt          DateTime?
+  createdAt           DateTime    @default(now())
+
+  @@index([studentId, createdAt])
+}
+
+model LibraryBook {
+  id              String      @id @default(cuid())
+  schoolId        String
+  school          School      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  title           String
+  author          String?
+  isbn            String?
+  category        String      @default("General")
+  totalCopies     Int         @default(1)
+  availableCopies Int         @default(1)
+  createdAt       DateTime    @default(now())
+  issues          BookIssue[]
+
+  @@index([schoolId])
+}
+
+model BookIssue {
+  id         String       @id @default(cuid())
+  bookId     String
+  book       LibraryBook  @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  studentId  String
+  student    Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  issuedAt   DateTime     @default(now())
+  dueDate    DateTime
+  returnedAt DateTime?
+
+  @@index([studentId, returnedAt])
 }

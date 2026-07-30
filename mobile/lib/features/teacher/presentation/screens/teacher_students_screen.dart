@@ -10,6 +10,7 @@ import '../../../../core/widgets/stat_card.dart';
 import '../../../../core/providers/auth_provider.dart';
 import '../widgets/teacher_ui.dart';
 import 'teacher_add_student_screen.dart';
+import 'teacher_student_detail_screen.dart';
 
 class TeacherStudentsScreen extends ConsumerStatefulWidget {
   const TeacherStudentsScreen({super.key});
@@ -134,9 +135,19 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
     if (added == true && _classId != null) _loadStudents(_classId!);
   }
 
-  String get _classLabel => _classInfo != null
-      ? 'Class ${_classInfo!['grade']} - ${_classInfo!['section']}'
-      : 'No class';
+  Future<void> _openStudent(Map<String, dynamic> s) async {
+    final changed = await Navigator.of(context).push<bool>(
+      SmoothPageRoute(
+        page: TeacherStudentDetailScreen(
+          studentId: '${s['id']}',
+          initial: s,
+        ),
+      ),
+    );
+    // Reload if the teacher edited anything, so the list reflects it.
+    if (changed == true && _classId != null) _loadStudents(_classId!);
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -531,7 +542,7 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () => _showStudentSheet(s),
+          onTap: () => _openStudent(s),
           borderRadius: radius,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(12, 12, 8, 12),
@@ -656,7 +667,7 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
       color: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       onSelected: (v) {
-        if (v == 'view') _showStudentSheet(s);
+        if (v == 'view') _openStudent(s);
       },
       itemBuilder: (_) => const [
         PopupMenuItem(
@@ -724,130 +735,6 @@ class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
       borderRadius: BorderRadius.circular(2),
     ),
   );
-
-  void _showStudentSheet(Map<String, dynamic> s) {
-    final gender = '${s['gender']}';
-    final isFemale = gender == 'FEMALE';
-    final color = isFemale ? const Color(0xFFEC4899) : const Color(0xFF3B82F6);
-    final name = '${s['fullName'] ?? '?'}';
-
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
-      ),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.fromLTRB(
-          20,
-          12,
-          20,
-          20 + MediaQuery.paddingOf(ctx).bottom,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _grabber(),
-            const SizedBox(height: 16),
-            Container(
-              width: 68,
-              height: 68,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  colors: [color, Color.lerp(color, Colors.black, 0.18)!],
-                ),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                name.isNotEmpty ? name[0].toUpperCase() : '?',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 26,
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              name,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: _ink,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              _classLabel,
-              style: TextStyle(
-                fontSize: 13,
-                color: _ink.withValues(alpha: 0.5),
-              ),
-            ),
-            const SizedBox(height: 18),
-            _detailRow(
-              Icons.tag_rounded,
-              'Roll Number',
-              '${s['rollNumber'] ?? '—'}',
-            ),
-            _detailRow(
-              Icons.badge_outlined,
-              'Student Code',
-              '${s['studentCode'] ?? '—'}',
-            ),
-            if ('${s['email'] ?? ''}'.isNotEmpty)
-              _detailRow(Icons.mail_outline_rounded, 'Email', '${s['email']}'),
-            if ('${s['phone'] ?? ''}'.isNotEmpty)
-              _detailRow(Icons.phone_outlined, 'Phone', '${s['phone']}'),
-            if ('${s['fatherName'] ?? ''}'.isNotEmpty)
-              _detailRow(
-                Icons.person_outline_rounded,
-                'Father',
-                '${s['fatherName']}',
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _detailRow(IconData icon, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 7),
-      child: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: _purple.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, size: 17, color: _purple),
-          ),
-          const SizedBox(width: 12),
-          Text(
-            label,
-            style: TextStyle(fontSize: 13, color: _ink.withValues(alpha: 0.5)),
-          ),
-          const Spacer(),
-          Flexible(
-            child: Text(
-              value,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 13.5,
-                fontWeight: FontWeight.w700,
-                color: _ink,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _emptyState() {
     final filtered = _query.trim().isNotEmpty || _genderFilter != null;

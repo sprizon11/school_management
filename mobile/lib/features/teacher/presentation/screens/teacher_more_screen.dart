@@ -8,6 +8,7 @@ import '../../../../core/services/notification_poller.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/motion.dart';
 import 'teacher_announcements_screen.dart';
+import 'teacher_leave_screen.dart';
 import '../widgets/teacher_ui.dart';
 
 class TeacherMoreScreen extends ConsumerWidget {
@@ -145,6 +146,18 @@ class TeacherMoreScreen extends ConsumerWidget {
                             onTap: () => Navigator.of(context).push(
                               SmoothPageRoute(
                                 page: const TeacherAnnouncementsScreen(),
+                              ),
+                            ),
+                          ),
+                          const Divider(height: 1, indent: 68, endIndent: 14),
+                          TeacherMenuTile(
+                            icon: Icons.event_note_rounded,
+                            title: 'Leave Requests',
+                            subtitle: 'Approve or decline parent requests',
+                            trailing: const SizedBox.shrink(),
+                            onTap: () => Navigator.of(context).push(
+                              SmoothPageRoute(
+                                page: const TeacherLeaveScreen(),
                               ),
                             ),
                           ),

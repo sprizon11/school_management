@@ -8,15 +8,17 @@ import '../../../../core/network/api_client.dart';
 import '../../../../core/providers/auth_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/motion.dart';
+import 'parent_notifications_screen.dart';
 
-/// Parent home: who the child is, how they're doing, what's next.
+/// Parent home — a bento dashboard. A compact child header, then an attendance
+/// ring as the hero metric alongside glanceable Marks and Fees tiles, the next
+/// test, and a recent-activity feed.
 ///
-/// Everything here comes from GET /parent/home, scoped server-side to the one
-/// student linked to this account.
+/// All data comes from GET /parent/home, scoped server-side to this student.
 class ParentHomeScreen extends ConsumerStatefulWidget {
   const ParentHomeScreen({super.key, this.onOpenTab});
 
-  /// Lets the quick actions jump to a shell tab (1 Marks, 2 Fees, 3 Messages).
+  /// Jump to a shell tab (1 Marks, 2 Fees, 3 Chat).
   final void Function(int index)? onOpenTab;
 
   @override
@@ -28,9 +30,11 @@ class _ParentHomeScreenState extends ConsumerState<ParentHomeScreen> {
   static const _accent = AppColors.parentPrimary;
   static const _headerInk = Color(0xFF1E1B4B);
   static const _pageBg = Color(0xFFF8F9FE);
-  static const _headerStart = Color(0xFF5B4BD6);
-  static const _headerEnd = Color(0xFF7C6BF0);
   static const _hPad = 16.0;
+
+  static const _green = AppColors.statGreen;
+  static const _amber = Color(0xFFF59E0B);
+  static const _red = Color(0xFFEF4444);
 
   Map<String, dynamic>? _data;
   bool _loading = true;
@@ -67,12 +71,11 @@ class _ParentHomeScreenState extends ConsumerState<ParentHomeScreen> {
       Map<String, dynamic>.from(_data?['attendance'] as Map? ?? {});
   Map<String, dynamic> get _marks =>
       Map<String, dynamic>.from(_data?['marks'] as Map? ?? {});
+  Map<String, dynamic> get _fees =>
+      Map<String, dynamic>.from(_data?['fees'] as Map? ?? {});
   List<dynamic> get _upcomingTests =>
       _data?['upcomingTests'] as List<dynamic>? ?? [];
-  Map<String, dynamic>? get _announcement {
-    final a = _data?['announcement'];
-    return a == null ? null : Map<String, dynamic>.from(a as Map);
-  }
+  List<dynamic> get _activity => _data?['activity'] as List<dynamic>? ?? [];
 
   String get _greeting {
     final h = DateTime.now().hour;
@@ -81,9 +84,22 @@ class _ParentHomeScreenState extends ConsumerState<ParentHomeScreen> {
     return 'Good Evening';
   }
 
+  String _money(dynamic v) {
+    final n = (v is num) ? v.toInt() : int.tryParse('$v') ?? 0;
+    final s = n.toString();
+    if (s.length <= 3) return '₹$s';
+    final head = s.substring(0, s.length - 3);
+    final tail = s.substring(s.length - 3);
+    final grouped = head.replaceAllMapped(
+      RegExp(r'(\d)(?=(\d\d)+$)'),
+      (m) => '${m[1]},',
+    );
+    return '₹$grouped,$tail';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final parentName = ref.watch(authProvider).user?.fullName ?? 'Parent';
+    final top = MediaQuery.paddingOf(context).top;
 
     return Container(
       color: _pageBg,
@@ -92,47 +108,35 @@ class _ParentHomeScreenState extends ConsumerState<ParentHomeScreen> {
         onRefresh: _load,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.zero,
+          padding: EdgeInsets.fromLTRB(_hPad, top + 10, _hPad, 110),
           children: [
-            _header(parentName),
-            if (_error != null) _errorBanner(),
+            _header(),
+            if (_error != null) ...[const SizedBox(height: 12), _errorBanner()],
             if (_loading)
               const Padding(
                 padding: EdgeInsets.only(top: 80),
                 child: Center(child: CircularProgressIndicator(color: _accent)),
               )
             else ...[
-              const SizedBox(height: 14),
-              EntranceFade(child: _childCard()),
+              const SizedBox(height: 16),
+              EntranceFade(child: _studentCard()),
               const SizedBox(height: 14),
               EntranceFade(
-                delay: const Duration(milliseconds: 60),
-                child: _statsRow(),
+                delay: const Duration(milliseconds: 70),
+                child: _bentoRow(),
               ),
-              if (_announcement != null) ...[
-                const SizedBox(height: 18),
+              if (_upcomingTests.isNotEmpty) ...[
+                const SizedBox(height: 12),
                 EntranceFade(
-                  delay: const Duration(milliseconds: 100),
-                  child: _updateBanner(),
+                  delay: const Duration(milliseconds: 120),
+                  child: _nextTestStrip(),
                 ),
               ],
-              const SizedBox(height: 24),
+              const SizedBox(height: 22),
               EntranceFade(
-                delay: const Duration(milliseconds: 140),
-                child: _marksSection(),
+                delay: const Duration(milliseconds: 170),
+                child: _activitySection(),
               ),
-              const SizedBox(height: 24),
-              EntranceFade(
-                delay: const Duration(milliseconds: 180),
-                child: _testsSection(),
-              ),
-              const SizedBox(height: 24),
-              EntranceFade(
-                delay: const Duration(milliseconds: 220),
-                child: _quickActions(),
-              ),
-              // Clears the floating nav bar.
-              const SizedBox(height: 110),
             ],
           ],
         ),
@@ -141,163 +145,60 @@ class _ParentHomeScreenState extends ConsumerState<ParentHomeScreen> {
   }
 
   // ---------------------------------------------------------------------
-  // Light header — same construction as the teacher dashboard: eyebrow
-  // greeting, dark ink name, small status pill, white circular bell.
+  // Compact header
   // ---------------------------------------------------------------------
-  Widget _header(String parentName) {
-    final top = MediaQuery.paddingOf(context).top;
-    final className = '${_child['className'] ?? ''}';
-
-    return Padding(
-      padding: EdgeInsets.fromLTRB(_hPad, top + 10, _hPad, 4),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  '$_greeting, 👋',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: _headerInk.withValues(alpha: 0.5),
-                    height: 1.1,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  parentName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    color: _headerInk,
-                    height: 1.05,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                if (className.isNotEmpty) ...[
-                  const SizedBox(height: 5),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 9,
-                      vertical: 3,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _accent.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.family_restroom_rounded,
-                          size: 11,
-                          color: _accent,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          className,
-                          style: const TextStyle(
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w700,
-                            color: _accent,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          _bell(),
-        ],
-      ),
-    );
-  }
-
-  Widget _bell() {
-    final hasUpdate = _announcement != null;
-    return Stack(
-      clipBehavior: Clip.none,
+  Widget _header() {
+    final parent = ref.watch(authProvider).user?.fullName ?? 'Parent';
+    return Row(
       children: [
-        Container(
-          height: 46,
-          width: 46,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: _accent.withValues(alpha: 0.16),
-                blurRadius: 14,
-                offset: const Offset(0, 6),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '$_greeting 👋',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: _headerInk.withValues(alpha: 0.5),
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                parent,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: _headerInk,
+                  letterSpacing: -0.4,
+                  height: 1.05,
+                ),
               ),
             ],
           ),
-          child: const Icon(
-            Icons.notifications_none_rounded,
-            color: _headerInk,
-            size: 22,
-          ),
         ),
-        if (hasUpdate)
-          Positioned(
-            top: -1,
-            right: -1,
-            child: Container(
-              height: 12,
-              width: 12,
-              decoration: BoxDecoration(
-                color: AppColors.statOrange,
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
-              ),
-            ),
-          ),
+        const SizedBox(width: 10),
+        _bell(),
       ],
     );
   }
 
-  Widget _errorBanner() {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFFEF4444).withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        _error!,
-        style: const TextStyle(fontSize: 12.5, color: Color(0xFFB91C1C)),
-      ),
-    );
-  }
-
-  // ---------------------------------------------------------------------
-  // Child identity card — overlaps the header
-  // ---------------------------------------------------------------------
-  Widget _childCard() {
+  /// The child identity card — the one bold gradient surface on the page.
+  Widget _studentCard() {
     final name = '${_child['fullName'] ?? '—'}';
     final className = '${_child['className'] ?? ''}';
     final roll = _child['rollNumber'];
     final school = '${_child['schoolName'] ?? ''}';
     final avatar = _avatar(_child['avatarUrl'] as String?);
 
-    // The colour moved off the header and onto this card, so the child — not
-    // the greeting — is the first thing the eye lands on.
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: _hPad),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [_headerStart, _headerEnd],
+          colors: [Color(0xFF5B4BD6), Color(0xFF7C6BF0)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -313,10 +214,10 @@ class _ParentHomeScreenState extends ConsumerState<ParentHomeScreen> {
       child: Row(
         children: [
           Container(
-            height: 60,
-            width: 60,
+            height: 58,
+            width: 58,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(17),
               color: Colors.white.withValues(alpha: 0.22),
               border: Border.all(
                 color: Colors.white.withValues(alpha: 0.35),
@@ -332,7 +233,7 @@ class _ParentHomeScreenState extends ConsumerState<ParentHomeScreen> {
                     name.isNotEmpty ? name[0].toUpperCase() : '?',
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 24,
+                      fontSize: 23,
                       fontWeight: FontWeight.w800,
                     ),
                   )
@@ -358,7 +259,7 @@ class _ParentHomeScreenState extends ConsumerState<ParentHomeScreen> {
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    _heroChip(className),
+                    if (className.isNotEmpty) _heroChip(className),
                     if (roll != null) ...[
                       const SizedBox(width: 6),
                       _heroChip('Roll $roll'),
@@ -397,365 +298,121 @@ class _ParentHomeScreenState extends ConsumerState<ParentHomeScreen> {
     );
   }
 
-  Widget _heroChip(String text) {
-    if (text.isEmpty) return const SizedBox.shrink();
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(20),
+  Widget _heroChip(String text) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+    decoration: BoxDecoration(
+      color: Colors.white.withValues(alpha: 0.2),
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: Text(
+      text,
+      style: const TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.w700,
+        color: Colors.white,
       ),
-      child: Text(
-        text,
-        style: const TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          color: Colors.white,
-        ),
-      ),
+    ),
+  );
+
+  int get _unread => (_data?['unreadNotifications'] as int?) ?? 0;
+
+  Future<void> _openNotifications() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const ParentNotificationsScreen()),
     );
+    // Reload so the badge clears after they've been marked read.
+    _load();
   }
 
-  // ---------------------------------------------------------------------
-  // Four stat tiles — horizontally scrollable so nothing is squeezed
-  // ---------------------------------------------------------------------
-  /// Three compact tiles, sized to fit the width — no horizontal scrolling,
-  /// so nothing is hidden off the right edge.
-  Widget _statsRow() {
-    final pct = _attendance['percent'];
-    final absentMonth = _attendance['absentThisMonth'] ?? 0;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: _hPad),
-      // IntrinsicHeight gives the Row a bounded height so the tiles can
-      // stretch to match each other. Without it, `stretch` inside a
-      // vertically-scrolling ListView resolves to an infinite height and the
-      // whole list below this point fails to lay out.
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: _statTile(
-                icon: Icons.event_available_rounded,
-                color: AppColors.statGreen,
-                label: 'Attendance',
-                // Dash, not 0% — nothing marked yet is not zero attendance.
-                intValue: pct as int?,
-                suffix: '%',
-                note: pct == null ? 'Not marked' : _attendanceNote(pct),
-                noteColor: pct == null
-                    ? _ink.withValues(alpha: 0.4)
-                    : AppColors.statGreen,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _statTile(
-                icon: Icons.person_off_rounded,
-                color: AppColors.statPink,
-                label: 'Absences',
-                intValue: absentMonth as int,
-                suffix: '',
-                note: 'This Month',
-                noteColor: AppColors.statPink,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _attendanceNote(int pct) {
-    if (pct >= 90) return 'Excellent';
-    if (pct >= 75) return 'Good';
-    return 'Needs care';
-  }
-
-  Widget _statTile({
-    required IconData icon,
-    required Color color,
-    required String label,
-    required int? intValue,
-    required String suffix,
-    required String note,
-    required Color noteColor,
-  }) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(6, 13, 6, 12),
-      decoration: _cardDecoration(radius: 16),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+  Widget _bell() {
+    return GestureDetector(
+      onTap: _openNotifications,
+      behavior: HitTestBehavior.opaque,
+      child: Stack(
+        clipBehavior: Clip.none,
         children: [
           Container(
-            height: 34,
-            width: 34,
+            height: 44,
+            width: 44,
             decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  color.withValues(alpha: 0.18),
-                  color.withValues(alpha: 0.08),
-                ],
-              ),
-            ),
-            child: Icon(icon, size: 17, color: color),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 10,
-              color: _ink.withValues(alpha: 0.55),
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 2),
-          // scaleDown keeps "100%" from wrapping in the narrow tile.
-          FittedBox(fit: BoxFit.scaleDown, child: _countUp(intValue, suffix)),
-          const SizedBox(height: 2),
-          Text(
-            note,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 9.5,
-              fontWeight: FontWeight.w700,
-              color: noteColor,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// The stat number counts up from zero on entrance — the motion that makes
-  /// the tiles feel alive. A null value (nothing recorded) shows a dash, no
-  /// animation.
-  Widget _countUp(int? value, String suffix) {
-    const style = TextStyle(
-      fontSize: 19,
-      fontWeight: FontWeight.w800,
-      color: _ink,
-      height: 1.1,
-    );
-    if (value == null) return const Text('—', style: style);
-    return CountUpText(value: value, suffix: suffix, style: style);
-  }
-
-  // ---------------------------------------------------------------------
-  Widget _updateBanner() {
-    final a = _announcement!;
-    final date = DateTime.tryParse('${a['eventDate'] ?? a['createdAt']}');
-    final dateLabel = date == null
-        ? ''
-        : DateFormat('EEEE, d MMM').format(date.toLocal());
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: _hPad),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [_headerStart, _headerEnd],
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-        ),
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: _accent.withValues(alpha: 0.28),
-            blurRadius: 16,
-            offset: const Offset(0, 7),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            height: 42,
-            width: 42,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
               color: Colors.white,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: _accent.withValues(alpha: 0.14),
+                  blurRadius: 12,
+                  offset: const Offset(0, 5),
+                ),
+              ],
             ),
             child: const Icon(
-              Icons.campaign_rounded,
-              color: _headerStart,
-              size: 22,
+              Icons.notifications_none_rounded,
+              color: _headerInk,
+              size: 21,
             ),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'School Update',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.82),
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w600,
-                  ),
+          if (_unread > 0)
+            Positioned(
+              top: -3,
+              right: -3,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                constraints: const BoxConstraints(minWidth: 18),
+                decoration: BoxDecoration(
+                  color: AppColors.statOrange,
+                  borderRadius: BorderRadius.circular(9),
+                  border: Border.all(color: Colors.white, width: 1.6),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  '${a['title'] ?? ''}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                child: Text(
+                  _unread > 9 ? '9+' : '$_unread',
+                  textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 14.5,
+                    fontSize: 10,
                     fontWeight: FontWeight.w800,
+                    height: 1.3,
                   ),
                 ),
-                if (dateLabel.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    dateLabel,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.85),
-                      fontSize: 11.5,
-                    ),
-                  ),
-                ],
-              ],
+              ),
             ),
-          ),
         ],
       ),
     );
   }
 
+  Widget _errorBanner() => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    decoration: BoxDecoration(
+      color: _red.withValues(alpha: 0.08),
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Text(
+      _error!,
+      style: const TextStyle(fontSize: 12.5, color: Color(0xFFB91C1C)),
+    ),
+  );
+
   // ---------------------------------------------------------------------
-  Widget _marksSection() {
-    final recent = _marks['recent'] as List<dynamic>? ?? [];
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _sectionHeader('Recent Marks'),
-        const SizedBox(height: 10),
-        if (recent.isEmpty)
-          _emptyCard(
-            Icons.assignment_outlined,
-            'No marks yet',
-            'Results appear here once teachers record them.',
-          )
-        else
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: _hPad),
-            decoration: _cardDecoration(),
-            child: Column(
-              children: [
-                for (var i = 0; i < recent.length; i++)
-                  _markRow(
-                    Map<String, dynamic>.from(recent[i] as Map),
-                    last: i == recent.length - 1,
-                  ),
-              ],
-            ),
-          ),
-      ],
-    );
-  }
-
-  /// Subject glyphs are matched by name so the rows read at a glance.
-  IconData _subjectIcon(String subject) {
-    final s = subject.toLowerCase();
-    if (s.contains('math')) return Icons.calculate_rounded;
-    if (s.contains('science') || s.contains('physic') || s.contains('chem')) {
-      return Icons.science_rounded;
-    }
-    if (s.contains('bio')) return Icons.eco_rounded;
-    if (s.contains('english') || s.contains('lang')) {
-      return Icons.menu_book_rounded;
-    }
-    if (s.contains('social') || s.contains('history') || s.contains('geo')) {
-      return Icons.public_rounded;
-    }
-    if (s.contains('comp') || s.contains('it')) return Icons.computer_rounded;
-    return Icons.school_rounded;
-  }
-
-  Widget _markRow(Map<String, dynamic> m, {required bool last}) {
-    final percent = m['percent'] as int? ?? 0;
-    final color = percent >= 75
-        ? AppColors.statGreen
-        : percent >= 35
-        ? AppColors.primary
-        : const Color(0xFFEF4444);
-    final subject = '${m['subject'] ?? ''}';
-
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: last
-              ? BorderSide.none
-              : const BorderSide(color: Color(0xFFF0F1F6)),
-        ),
-      ),
+  // Bento: attendance ring + marks + fees
+  // ---------------------------------------------------------------------
+  Widget _bentoRow() {
+    // IntrinsicHeight lets the right column size to its two stacked tiles, then
+    // the attendance tile stretches to match — no fixed height to overflow.
+    return IntrinsicHeight(
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            height: 42,
-            width: 42,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(13),
-            ),
-            child: Icon(_subjectIcon(subject), size: 20, color: color),
-          ),
+          Expanded(child: _attendanceTile()),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  subject,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w700,
-                    color: _ink,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${m['termLabel'] ?? ''}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: _ink.withValues(alpha: 0.5),
-                  ),
-                ),
+                _marksTile(),
+                const SizedBox(height: 12),
+                _feesTile(),
               ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(9),
-            ),
-            child: Text(
-              '${m['marks']} / ${m['maxMarks']}',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
-                color: color,
-              ),
             ),
           ),
         ],
@@ -763,41 +420,199 @@ class _ParentHomeScreenState extends ConsumerState<ParentHomeScreen> {
     );
   }
 
-  // ---------------------------------------------------------------------
-  Widget _testsSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _sectionHeader('Upcoming Tests'),
-        const SizedBox(height: 12),
-        if (_upcomingTests.isEmpty)
-          _emptyCard(
-            Icons.fact_check_outlined,
-            'No tests scheduled',
-            'Tests your school announces will show up here.',
-          )
-        else
-          for (var i = 0; i < _upcomingTests.length; i++)
-            Padding(
-              padding: EdgeInsets.only(
-                bottom: i == _upcomingTests.length - 1 ? 0 : 10,
-              ),
-              // Cascade the cards in after the section, each a touch later.
-              child: EntranceFade(
-                delay: Duration(milliseconds: 60 * i),
-                child: _testCard(
-                  Map<String, dynamic>.from(_upcomingTests[i] as Map),
-                ),
-              ),
+  Widget _attendanceTile() {
+    final pct = _attendance['percent'] as int?;
+    final color = pct == null
+        ? _accent
+        : pct >= 75
+            ? _green
+            : pct >= 50
+                ? _amber
+                : _red;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: _cardDecoration(),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _AttendanceRing(percent: pct, color: color),
+          const SizedBox(height: 12),
+          const Text(
+            'Attendance',
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              color: _ink,
             ),
-      ],
+          ),
+          const SizedBox(height: 1),
+          Text(
+            pct == null
+                ? 'Not marked yet'
+                : pct >= 90
+                    ? 'Excellent'
+                    : pct >= 75
+                        ? 'Good'
+                        : 'Needs attention',
+            style: TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+              color: pct == null ? _ink.withValues(alpha: 0.4) : color,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  /// Countdown to a scheduled test. The "in N days" pill and the accent colour
-  /// both sharpen as the date nears — amber when it's more than a few days off,
-  /// red once it's imminent.
-  Widget _testCard(Map<String, dynamic> t) {
+  Widget _marksTile() {
+    final avg = _marks['average'] as int?;
+    return _MiniTile(
+      onTap: () => widget.onOpenTab?.call(1),
+      decoration: _cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              _iconChip(Icons.school_rounded, AppColors.primary),
+              const Spacer(),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 18,
+                color: _ink.withValues(alpha: 0.3),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Avg Marks',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: _ink.withValues(alpha: 0.55),
+                ),
+              ),
+              const SizedBox(height: 1),
+              avg == null
+                  ? const Text(
+                      '—',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: _ink,
+                      ),
+                    )
+                  : CountUpText(
+                      value: avg,
+                      suffix: '%',
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: _ink,
+                        height: 1.05,
+                      ),
+                    ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _feesTile() {
+    final due = (_fees['due'] as num?)?.toInt() ?? 0;
+    final total = (_fees['total'] as num?)?.toInt() ?? 0;
+    final paid = (_fees['paid'] as num?)?.toInt() ?? 0;
+    final pct = total > 0 ? (paid / total).clamp(0.0, 1.0) : 0.0;
+
+    return _MiniTile(
+      onTap: () => widget.onOpenTab?.call(2),
+      decoration: _cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              _iconChip(Icons.receipt_long_rounded, AppColors.statOrange),
+              const Spacer(),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 18,
+                color: _ink.withValues(alpha: 0.3),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                total == 0 ? 'Fees' : 'Balance Due',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: _ink.withValues(alpha: 0.55),
+                ),
+              ),
+              const SizedBox(height: 1),
+              Text(
+                total == 0 ? '—' : _money(due),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: _ink,
+                  height: 1.1,
+                ),
+              ),
+              if (total > 0) ...[
+                const SizedBox(height: 6),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: pct,
+                    minHeight: 5,
+                    backgroundColor: AppColors.statOrange.withValues(
+                      alpha: 0.14,
+                    ),
+                    valueColor: const AlwaysStoppedAnimation(
+                      AppColors.statOrange,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _iconChip(IconData icon, Color color) => Container(
+    height: 30,
+    width: 30,
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: 0.12),
+      borderRadius: BorderRadius.circular(9),
+    ),
+    child: Icon(icon, size: 17, color: color),
+  );
+
+  // ---------------------------------------------------------------------
+  // Next test
+  // ---------------------------------------------------------------------
+  Widget _nextTestStrip() {
+    final t = Map<String, dynamic>.from(_upcomingTests.first as Map);
     final date = DateTime.tryParse('${t['eventDate'] ?? ''}');
     final now = DateTime.now();
     final days = date == null
@@ -807,59 +622,32 @@ class _ParentHomeScreenState extends ConsumerState<ParentHomeScreen> {
             date.toLocal().month,
             date.toLocal().day,
           ).difference(DateTime(now.year, now.month, now.day)).inDays;
-
     final soon = days != null && days <= 2;
-    final accent = soon ? const Color(0xFFEF4444) : const Color(0xFFF59E0B);
+    final accent = soon ? _red : _amber;
     final accentInk = soon ? const Color(0xFFB91C1C) : const Color(0xFFB45309);
-
     final countdown = days == null
         ? ''
         : days <= 0
-        ? 'Today'
-        : days == 1
-        ? 'Tomorrow'
-        : 'In $days days';
-    final dateLabel = date == null
-        ? ''
-        : DateFormat('EEE, d MMM').format(date.toLocal());
-    final body = '${t['body'] ?? ''}';
+            ? 'Today'
+            : days == 1
+                ? 'Tomorrow'
+                : 'In $days days';
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: _hPad),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: accent.withValues(alpha: 0.28)),
-        boxShadow: [
-          BoxShadow(
-            color: accent.withValues(alpha: 0.1),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
+      padding: const EdgeInsets.all(13),
+      decoration: _cardDecoration(),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Calendar-leaf date block.
           Container(
-            height: 50,
-            width: 50,
+            height: 46,
+            width: 46,
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [accent, Color.lerp(accent, Colors.black, 0.16)!],
               ),
-              borderRadius: BorderRadius.circular(14),
-              boxShadow: [
-                BoxShadow(
-                  color: accent.withValues(alpha: 0.35),
-                  blurRadius: 8,
-                  offset: const Offset(0, 3),
-                ),
-              ],
+              borderRadius: BorderRadius.circular(13),
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -868,7 +656,7 @@ class _ParentHomeScreenState extends ConsumerState<ParentHomeScreen> {
                   date == null ? '' : DateFormat('MMM').format(date.toLocal()),
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 9.5,
+                    fontSize: 9,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.5,
                   ),
@@ -877,7 +665,7 @@ class _ParentHomeScreenState extends ConsumerState<ParentHomeScreen> {
                   date == null ? '—' : '${date.toLocal().day}',
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 19,
+                    fontSize: 18,
                     fontWeight: FontWeight.w800,
                     height: 1.05,
                   ),
@@ -885,60 +673,36 @@ class _ParentHomeScreenState extends ConsumerState<ParentHomeScreen> {
               ],
             ),
           ),
-          const SizedBox(width: 13),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
+                  'Next Test',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: accentInk,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
                   '${t['title'] ?? ''}',
-                  maxLines: 2,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 14.5,
                     fontWeight: FontWeight.w800,
                     color: _ink,
-                    letterSpacing: -0.2,
                   ),
                 ),
-                const SizedBox(height: 3),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.event_rounded,
-                      size: 12,
-                      color: _ink.withValues(alpha: 0.4),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      dateLabel,
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        color: _ink.withValues(alpha: 0.55),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-                if (body.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    body,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      color: _ink.withValues(alpha: 0.55),
-                      height: 1.35,
-                    ),
-                  ),
-                ],
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          if (countdown.isNotEmpty)
+          if (countdown.isNotEmpty) ...[
+            const SizedBox(width: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
@@ -954,67 +718,6 @@ class _ParentHomeScreenState extends ConsumerState<ParentHomeScreen> {
                 ),
               ),
             ),
-        ],
-      ),
-    );
-  }
-
-  // ---------------------------------------------------------------------
-  Widget _quickActions() {
-    final tiles =
-        <({IconData icon, Color color, String label, VoidCallback? tap})>[
-          (
-            icon: Icons.assignment_rounded,
-            color: AppColors.primary,
-            label: 'All\nMarks',
-            tap: () => widget.onOpenTab?.call(1),
-          ),
-          (
-            icon: Icons.receipt_long_rounded,
-            color: AppColors.statOrange,
-            label: 'Fee\nDetails',
-            tap: () => widget.onOpenTab?.call(2),
-          ),
-          (
-            icon: Icons.forum_rounded,
-            color: _accent,
-            label: 'Message\nTeacher',
-            tap: () => widget.onOpenTab?.call(3),
-          ),
-        ];
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: _hPad),
-      child: Row(
-        children: [
-          for (var i = 0; i < tiles.length; i++) ...[
-            if (i > 0) const SizedBox(width: 10),
-            Expanded(
-              child: GestureDetector(
-                onTap: tiles[i].tap,
-                behavior: HitTestBehavior.opaque,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  decoration: _cardDecoration(),
-                  child: Column(
-                    children: [
-                      Icon(tiles[i].icon, size: 24, color: tiles[i].color),
-                      const SizedBox(height: 8),
-                      Text(
-                        tiles[i].label,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: _ink,
-                          height: 1.25,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
           ],
         ],
       ),
@@ -1022,41 +725,165 @@ class _ParentHomeScreenState extends ConsumerState<ParentHomeScreen> {
   }
 
   // ---------------------------------------------------------------------
-  Widget _sectionHeader(String text) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: _hPad),
-    child: Row(
+  // Activity feed
+  // ---------------------------------------------------------------------
+  Widget _activitySection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // A short accent bar anchors every section title to the same left
-        // edge — the small alignment cue that makes the page read as one set.
-        Container(
-          height: 17,
-          width: 4,
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [_headerStart, _headerEnd],
+        _sectionHeader('Recent Activity'),
+        const SizedBox(height: 12),
+        if (_activity.isEmpty)
+          _emptyCard(
+            Icons.history_rounded,
+            'Nothing yet',
+            'Attendance and fee updates will appear here.',
+          )
+        else
+          Container(
+            decoration: _cardDecoration(),
+            child: Column(
+              children: [
+                for (var i = 0; i < _activity.length; i++)
+                  _activityRow(
+                    Map<String, dynamic>.from(_activity[i] as Map),
+                    last: i == _activity.length - 1,
+                  ),
+              ],
             ),
-            borderRadius: BorderRadius.circular(2),
           ),
-        ),
-        const SizedBox(width: 9),
-        Text(
-          text,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w800,
-            color: _ink,
-            letterSpacing: -0.3,
-          ),
-        ),
       ],
-    ),
+    );
+  }
+
+  Widget _activityRow(Map<String, dynamic> a, {required bool last}) {
+    final type = '${a['type']}';
+    final date = DateTime.tryParse('${a['date'] ?? ''}');
+    final dateLabel = date == null
+        ? ''
+        : DateFormat('d MMM').format(date.toLocal());
+
+    late final IconData icon;
+    late final Color color;
+    late final String title;
+    late final String subtitle;
+
+    if (type == 'fee') {
+      icon = Icons.check_circle_rounded;
+      color = _green;
+      title = 'Fee paid';
+      subtitle = '${a['label'] ?? ''}';
+    } else {
+      final status = '${a['status']}';
+      subtitle = 'Attendance';
+      if (status == 'ABSENT') {
+        icon = Icons.cancel_rounded;
+        color = _red;
+        title = 'Marked absent';
+      } else if (status == 'LEAVE') {
+        icon = Icons.event_busy_rounded;
+        color = _amber;
+        title = 'On leave';
+      } else {
+        icon = Icons.check_circle_rounded;
+        color = _green;
+        title = 'Marked present';
+      }
+    }
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: last
+              ? BorderSide.none
+              : const BorderSide(color: Color(0xFFF3F3F8)),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            height: 34,
+            width: 34,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, size: 18, color: color),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: _ink,
+                  ),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: _ink.withValues(alpha: 0.5),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            dateLabel,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: _ink.withValues(alpha: 0.4),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------
+  Widget _sectionHeader(String text) => Row(
+    children: [
+      Container(
+        height: 17,
+        width: 4,
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF5B4BD6), Color(0xFF7C6BF0)],
+          ),
+          borderRadius: BorderRadius.circular(2),
+        ),
+      ),
+      const SizedBox(width: 9),
+      Text(
+        text,
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w800,
+          color: _ink,
+          letterSpacing: -0.3,
+        ),
+      ),
+    ],
   );
 
-  BoxDecoration _cardDecoration({double radius = 18}) => BoxDecoration(
+  BoxDecoration _cardDecoration() => BoxDecoration(
     color: Colors.white,
-    borderRadius: BorderRadius.circular(radius),
+    borderRadius: BorderRadius.circular(18),
     border: Border.all(color: const Color(0xFFEFEFF6)),
     boxShadow: [
       BoxShadow(
@@ -1067,34 +894,31 @@ class _ParentHomeScreenState extends ConsumerState<ParentHomeScreen> {
     ],
   );
 
-  Widget _emptyCard(IconData icon, String title, String subtitle) {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.symmetric(horizontal: _hPad),
-      padding: const EdgeInsets.symmetric(vertical: 26, horizontal: 16),
-      decoration: _cardDecoration(),
-      child: Column(
-        children: [
-          Icon(icon, size: 34, color: _accent.withValues(alpha: 0.5)),
-          const SizedBox(height: 10),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w800,
-              color: _ink,
-            ),
+  Widget _emptyCard(IconData icon, String title, String subtitle) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.symmetric(vertical: 26, horizontal: 16),
+    decoration: _cardDecoration(),
+    child: Column(
+      children: [
+        Icon(icon, size: 34, color: _accent.withValues(alpha: 0.5)),
+        const SizedBox(height: 10),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w800,
+            color: _ink,
           ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 12, color: _ink.withValues(alpha: 0.5)),
-          ),
-        ],
-      ),
-    );
-  }
+        ),
+        const SizedBox(height: 4),
+        Text(
+          subtitle,
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 12, color: _ink.withValues(alpha: 0.5)),
+        ),
+      ],
+    ),
+  );
 
   ImageProvider? _avatar(String? url) {
     if (url == null || url.isEmpty) return null;
@@ -1107,5 +931,93 @@ class _ParentHomeScreenState extends ConsumerState<ParentHomeScreen> {
     }
     if (url.startsWith('http')) return NetworkImage(url);
     return null;
+  }
+}
+
+/// Animated circular attendance gauge with the percentage in the center.
+class _AttendanceRing extends StatelessWidget {
+  const _AttendanceRing({required this.percent, required this.color});
+
+  final int? percent;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final reduce = MediaQuery.of(context).disableAnimations;
+    final target = (percent ?? 0) / 100;
+
+    return SizedBox(
+      height: 84,
+      width: 84,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          SizedBox(
+            height: 84,
+            width: 84,
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0, end: target),
+              duration: reduce
+                  ? Duration.zero
+                  : const Duration(milliseconds: 1000),
+              curve: Curves.easeOutCubic,
+              builder: (_, v, _) => CircularProgressIndicator(
+                value: percent == null ? null : v,
+                strokeWidth: 8,
+                strokeCap: StrokeCap.round,
+                backgroundColor: color.withValues(alpha: 0.14),
+                valueColor: AlwaysStoppedAnimation(color),
+              ),
+            ),
+          ),
+          if (percent == null)
+            Text(
+              '—',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                color: color,
+              ),
+            )
+          else
+            CountUpText(
+              value: percent!,
+              suffix: '%',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: const Color(0xFF1A1533),
+                height: 1,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A tappable bento tile with a press squish.
+class _MiniTile extends StatelessWidget {
+  const _MiniTile({
+    required this.child,
+    required this.decoration,
+    this.onTap,
+  });
+
+  final Widget child;
+  final BoxDecoration decoration;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return PressableScale(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(13),
+        decoration: decoration,
+        child: child,
+      ),
+    );
   }
 }

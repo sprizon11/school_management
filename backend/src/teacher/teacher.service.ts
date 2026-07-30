@@ -309,6 +309,149 @@ export class TeacherService {
     return { items, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
+  /**
+   * Normalize an incoming `YYYY-MM-DD` (or today) to UTC midnight so it lands
+   * cleanly in the `@db.Date` column regardless of server timezone.
+   */
+  private static attendanceDate(input?: string): Date {
+    if (input) {
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(input.trim());
+      if (!m) throw new BadRequestException('Invalid date');
+      return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+    }
+    const now = new Date();
+    return new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+  }
+
+  /**
+   * Roster for the attendance sheet. Everyone defaults to PRESENT — the
+   * teacher only marks the exceptions — so a student with no saved record
+   * still comes back PRESENT rather than blank.
+   */
+  async attendanceRoster(classId: string, teacherId: string, date?: string) {
+    await this.assertClassAccess(classId, teacherId);
+    const day = TeacherService.attendanceDate(date);
+
+    const [cls, students, records] = await Promise.all([
+      this.prisma.class.findUnique({
+        where: { id: classId },
+        select: { id: true, name: true },
+      }),
+      this.prisma.student.findMany({
+        where: { classId, status: StudentStatus.ACTIVE },
+        orderBy: { rollNumber: 'asc' },
+        select: {
+          id: true,
+          fullName: true,
+          rollNumber: true,
+          studentCode: true,
+          avatarUrl: true,
+        },
+      }),
+      this.prisma.attendanceRecord.findMany({
+        where: { date: day, student: { classId } },
+        select: { studentId: true, status: true },
+      }),
+    ]);
+
+    const saved = new Map(records.map((r) => [r.studentId, r.status]));
+    return {
+      classId,
+      className: cls?.name ?? '',
+      date: day.toISOString().slice(0, 10),
+      alreadyMarked: records.length > 0,
+      students: students.map((s) => ({
+        ...s,
+        status: saved.get(s.id) ?? AttendanceStatus.PRESENT,
+      })),
+    };
+  }
+
+  /**
+   * Save a day's attendance. The client sends only the exceptions; every other
+   * active student in the class is recorded PRESENT. Re-saving the same day
+   * overwrites it, so a teacher can correct a mistake.
+   */
+  async saveAttendance(
+    teacherId: string,
+    dto: {
+      classId: string;
+      date?: string;
+      absentStudentIds?: string[];
+      leaveStudentIds?: string[];
+    },
+  ) {
+    await this.assertClassAccess(dto.classId, teacherId);
+    const day = TeacherService.attendanceDate(dto.date);
+
+    const students = await this.prisma.student.findMany({
+      where: { classId: dto.classId, status: StudentStatus.ACTIVE },
+      select: { id: true },
+    });
+    if (students.length === 0) {
+      throw new BadRequestException('This class has no active students');
+    }
+
+    const absent = new Set(dto.absentStudentIds ?? []);
+    const leave = new Set(dto.leaveStudentIds ?? []);
+
+    // Prior statuses for this day, so a re-save only alerts on a *new* absence.
+    const prior = new Map(
+      (
+        await this.prisma.attendanceRecord.findMany({
+          where: { date: day, studentId: { in: students.map((s) => s.id) } },
+          select: { studentId: true, status: true },
+        })
+      ).map((r) => [r.studentId, r.status]),
+    );
+
+    // Iterating the roster (not the payload) means ids for students outside
+    // this class are ignored rather than trusted.
+    const rows = students.map((s) => ({
+      studentId: s.id,
+      status: leave.has(s.id)
+        ? AttendanceStatus.LEAVE
+        : absent.has(s.id)
+          ? AttendanceStatus.ABSENT
+          : AttendanceStatus.PRESENT,
+    }));
+
+    await this.prisma.$transaction(
+      rows.map((r) =>
+        this.prisma.attendanceRecord.upsert({
+          where: { studentId_date: { studentId: r.studentId, date: day } },
+          update: { status: r.status },
+          create: { studentId: r.studentId, date: day, status: r.status },
+        }),
+      ),
+    );
+
+    // Auto-alert parents of students newly marked absent — zero extra teacher
+    // effort, since they were marking attendance anyway.
+    const newlyAbsent = rows
+      .filter(
+        (r) =>
+          r.status === AttendanceStatus.ABSENT &&
+          prior.get(r.studentId) !== AttendanceStatus.ABSENT,
+      )
+      .map((r) => r.studentId);
+    const dayLabel = day.toISOString().slice(0, 10);
+    await this.notifyParentsOfStudents(newlyAbsent, (name) => ({
+      title: `${name} was marked absent`,
+      body: `${name} was recorded absent on ${dayLabel}. Please contact the school if this is unexpected.`,
+    }));
+
+    const tally = (s: AttendanceStatus) =>
+      rows.filter((r) => r.status === s).length;
+    return {
+      date: day.toISOString().slice(0, 10),
+      total: rows.length,
+      present: tally(AttendanceStatus.PRESENT),
+      absent: tally(AttendanceStatus.ABSENT),
+      leave: tally(AttendanceStatus.LEAVE),
+    };
+  }
+
   /** Subject names this teacher can record marks for in a given class. */
   async subjectOptionsForClass(classId: string, teacherId: string) {
     await this.assertClassAccess(classId, teacherId);
@@ -408,6 +551,7 @@ export class TeacherService {
     );
 
     let saved = 0;
+    const newlyGraded: string[] = [];
     for (const entry of dto.entries) {
       if (!classStudentIds.has(entry.studentId)) continue;
       const marks = Math.max(0, Math.min(maxMarks, Math.round(entry.marks)));
@@ -439,11 +583,41 @@ export class TeacherService {
             remarks: entry.remarks?.trim() || null,
           },
         });
+        newlyGraded.push(entry.studentId);
       }
       saved++;
     }
 
+    // Auto-alert parents when new results are published (not on edits).
+    await this.notifyParentsOfStudents(newlyGraded, (name) => ({
+      title: `New results for ${name}`,
+      body: `${subjectName} marks for "${termLabel}" have been published.`,
+    }));
+
     return { saved, subject: subjectName, termLabel };
+  }
+
+  /**
+   * Create an AppNotification for the parent of each given student. Used by the
+   * auto-alerts that ride on attendance and marks, so the teacher does no extra
+   * work.
+   */
+  private async notifyParentsOfStudents(
+    studentIds: string[],
+    build: (studentName: string) => { title: string; body: string },
+  ) {
+    if (studentIds.length === 0) return;
+    const parents = await this.prisma.parent.findMany({
+      where: { studentId: { in: studentIds } },
+      include: { student: { select: { fullName: true } } },
+    });
+    if (parents.length === 0) return;
+    await this.prisma.appNotification.createMany({
+      data: parents.map((p) => {
+        const { title, body } = build(p.student.fullName);
+        return { userId: p.userId, title, body };
+      }),
+    });
   }
 
   async reportsOverview(classId: string, teacherId: string) {
@@ -732,6 +906,123 @@ export class TeacherService {
     });
   }
 
+  /** Full student record — only if the student is in one of the teacher's classes. */
+  async studentDetail(teacherId: string, studentId: string) {
+    const student = await this.prisma.student.findUnique({
+      where: { id: studentId },
+      include: { class: true },
+    });
+    if (!student) throw new NotFoundException('Student not found');
+    await this.assertClassAccess(student.classId, teacherId);
+    return student;
+  }
+
+  /**
+   * Edit a student's details (including photo). The teacher can only touch
+   * students in their own classes, and cannot move a student to another class.
+   */
+  async updateStudentDetails(
+    teacherId: string,
+    studentId: string,
+    dto: Record<string, unknown>,
+  ) {
+    const existing = await this.prisma.student.findUnique({
+      where: { id: studentId },
+      select: { classId: true },
+    });
+    if (!existing) throw new NotFoundException('Student not found');
+    await this.assertClassAccess(existing.classId, teacherId);
+
+    // classId is intentionally dropped — a teacher edits within their class.
+    const {
+      classId: _ignoredClassId,
+      dateOfBirth,
+      ...rest
+    } = dto as { classId?: string; dateOfBirth?: string } & Record<
+      string,
+      unknown
+    >;
+
+    return this.prisma.student.update({
+      where: { id: studentId },
+      data: {
+        ...rest,
+        ...(dateOfBirth ? { dateOfBirth: new Date(dateOfBirth) } : {}),
+      },
+    });
+  }
+
+  // ---- Leave requests (from parents of the teacher's classes) ----
+
+  async listLeaves(teacherId: string) {
+    const classIds = await this.classIdsForTeacher(teacherId);
+    if (classIds.length === 0) return [];
+    const leaves = await this.prisma.leaveRequest.findMany({
+      where: { student: { classId: { in: classIds } } },
+      orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
+      include: { student: { include: { class: true } } },
+      take: 60,
+    });
+    return leaves.map((l) => ({
+      id: l.id,
+      studentName: l.student.fullName,
+      className: l.student.class?.name ?? '',
+      fromDate: l.fromDate,
+      toDate: l.toDate,
+      reason: l.reason,
+      status: l.status,
+      reviewNote: l.reviewNote,
+      createdAt: l.createdAt,
+    }));
+  }
+
+  async reviewLeave(
+    teacherId: string,
+    id: string,
+    approve: boolean,
+    note?: string,
+  ) {
+    const leave = await this.prisma.leaveRequest.findUnique({
+      where: { id },
+      include: { student: { include: { parent: true } } },
+    });
+    if (!leave) throw new NotFoundException('Leave request not found');
+
+    // The reviewing teacher must own the student's class.
+    const classIds = await this.classIdsForTeacher(teacherId);
+    const student = await this.prisma.student.findUnique({
+      where: { id: leave.studentId },
+      select: { classId: true, fullName: true },
+    });
+    if (!student || !classIds.includes(student.classId)) {
+      throw new ForbiddenException('Not your student');
+    }
+
+    const updated = await this.prisma.leaveRequest.update({
+      where: { id },
+      data: {
+        status: approve ? 'APPROVED' : 'REJECTED',
+        reviewedByTeacherId: teacherId,
+        reviewNote: note?.trim() || null,
+        reviewedAt: new Date(),
+      },
+    });
+
+    // Notify the parent of the decision.
+    const parentUserId = leave.student.parent?.userId;
+    if (parentUserId) {
+      await this.prisma.appNotification.create({
+        data: {
+          userId: parentUserId,
+          title: `Leave ${approve ? 'approved' : 'declined'} for ${student.fullName}`,
+          body: note?.trim() || (approve ? 'Your leave request was approved.' : 'Your leave request was declined.'),
+        },
+      });
+    }
+
+    return updated;
+  }
+
   async listNotifications(userId: string) {
     return this.prisma.appNotification.findMany({
       where: { userId },
@@ -804,7 +1095,11 @@ export class TeacherService {
       include: { class: true },
     });
 
-    await ensureParentAccount(this.prisma, schoolId, student);
+    const { tempPassword } = await ensureParentAccount(
+      this.prisma,
+      schoolId,
+      student,
+    );
 
     return {
       id: student.id,
@@ -812,6 +1107,12 @@ export class TeacherService {
       studentCode: student.studentCode,
       rollNumber: student.rollNumber,
       className: student.class.name,
+      parentLogin: tempPassword
+        ? {
+            email: `parent.${student.studentCode.toLowerCase()}@school.parent`,
+            tempPassword,
+          }
+        : null,
     };
   }
 }

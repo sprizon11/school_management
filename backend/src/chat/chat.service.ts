@@ -190,12 +190,55 @@ export class ChatService {
       },
     });
 
+    // Notify the other party. A teacher's message reaches the parent (and
+    // vice versa) as an AppNotification, so the bell lights up even when the
+    // chat isn't open.
+    await this.notifyRecipient(conversationId, userId, role, text);
+
     return {
       id: message.id,
       body: message.body,
       createdAt: message.createdAt,
       isMine: true,
     };
+  }
+
+  private async notifyRecipient(
+    conversationId: string,
+    senderUserId: string,
+    senderRole: UserRole,
+    text: string,
+  ) {
+    const conversation = await this.prisma.chatConversation.findUnique({
+      where: { id: conversationId },
+      include: {
+        teacher: { include: { user: true } },
+        student: { include: { parent: { include: { user: true } } } },
+      },
+    });
+    if (!conversation) return;
+
+    const preview = text.length > 140 ? `${text.slice(0, 137)}…` : text;
+
+    // Teacher → parent, or parent → teacher.
+    const recipientUserId =
+      senderRole === UserRole.TEACHER
+        ? conversation.student.parent?.userId
+        : conversation.teacher.userId;
+    const senderName =
+      senderRole === UserRole.TEACHER
+        ? conversation.teacher.user.fullName
+        : (conversation.student.parent?.user.fullName ?? 'Parent');
+
+    if (!recipientUserId || recipientUserId === senderUserId) return;
+
+    await this.prisma.appNotification.create({
+      data: {
+        userId: recipientUserId,
+        title: `New message from ${senderName}`,
+        body: preview,
+      },
+    });
   }
 
   private async assertAccess(

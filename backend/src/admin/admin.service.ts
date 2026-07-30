@@ -12,6 +12,7 @@ import {
 } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { ensureParentAccount } from '../common/parent-account';
+import { generateTempPassword } from '../auth/password.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateClassDto } from './dto/create-class.dto';
 import { CreateStudentDto } from './dto/create-student.dto';
@@ -81,6 +82,7 @@ export class AdminService {
           take: 5,
         }),
         this.prisma.activityLog.findMany({
+          where: { schoolId },
           orderBy: { createdAt: 'desc' },
           take: 10,
         }),
@@ -267,20 +269,18 @@ export class AdminService {
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const data: { day: string; percent: number }[] = [];
     for (let i = 0; i < 6; i++) {
-      const d = new Date();
-      d.setDate(d.getDate() - (5 - i));
-      const start = new Date(d.setHours(0, 0, 0, 0));
-      const end = new Date(d.setHours(23, 59, 59, 999));
+      // One exact day, not a straddling range — see utcDay().
+      const day = AdminService.utcDay(-(5 - i));
       const [present, total] = await Promise.all([
         this.prisma.attendanceRecord.count({
           where: {
-            date: { gte: start, lte: end },
+            date: day,
             status: 'PRESENT',
             student: { class: { schoolId } },
           },
         }),
         this.prisma.attendanceRecord.count({
-          where: { date: { gte: start, lte: end }, student: { class: { schoolId } } },
+          where: { date: day, student: { class: { schoolId } } },
         }),
       ]);
       data.push({
@@ -461,6 +461,7 @@ export class AdminService {
 
     await this.prisma.activityLog.create({
       data: {
+        schoolId,
         action: `Updated student ${dto.fullName ?? existing.fullName}`,
         actorName: 'Admin',
       },
@@ -621,6 +622,7 @@ export class AdminService {
 
     await this.prisma.activityLog.create({
       data: {
+        schoolId,
         action: `Deleted teacher ${teacher.user.fullName}`,
         actorName: 'Admin',
       },
@@ -814,10 +816,15 @@ export class AdminService {
       include: { class: true },
     });
 
-    await ensureParentAccount(this.prisma, cls.schoolId, student);
+    const { tempPassword } = await ensureParentAccount(
+      this.prisma,
+      cls.schoolId,
+      student,
+    );
 
     await this.prisma.activityLog.create({
       data: {
+        schoolId: cls.schoolId,
         action: `Added student ${student.fullName}`,
         actorName: 'Admin',
       },
@@ -829,7 +836,31 @@ export class AdminService {
       studentCode: student.studentCode,
       rollNumber: student.rollNumber,
       className: student.class.name,
+      // Shown to the admin once so they can hand the parent their first login.
+      parentLogin: tempPassword
+        ? {
+            email: `parent.${student.studentCode.toLowerCase()}@school.parent`,
+            tempPassword,
+          }
+        : null,
     };
+  }
+
+  // Codes run per school (TCH0001 upwards). Derived from the highest code in
+  // use rather than a head count, so deleting a teacher can't hand the next
+  // hire a code that already belongs to someone.
+  private async nextEmployeeCode(schoolId: string) {
+    const teachers = await this.prisma.teacher.findMany({
+      where: { schoolId },
+      select: { employeeCode: true },
+    });
+
+    const highest = teachers.reduce((max, { employeeCode }) => {
+      const suffix = Number(employeeCode.replace(/\D/g, ''));
+      return Number.isFinite(suffix) && suffix > max ? suffix : max;
+    }, 0);
+
+    return `TCH${String(highest + 1).padStart(4, '0')}`;
   }
 
   async createTeacher(schoolId: string, dto: CreateTeacherDto) {
@@ -839,33 +870,42 @@ export class AdminService {
     });
     if (existing) throw new ConflictException('Email already registered');
 
-    const count = await this.prisma.teacher.count({
-      where: { user: { schoolId } },
-    });
-    const employeeCode = `TCH${String(count + 1).padStart(4, '0')}`;
-    const passwordHash = await bcrypt.hash(dto.password ?? 'Admin@123', 10);
+    const employeeCode = await this.nextEmployeeCode(schoolId);
+    // If the admin didn't set a password, mint a random one-time password and
+    // force a change on first login — never a shared, guessable default.
+    const providedPassword = dto.password?.trim();
+    const tempPassword = providedPassword ? null : generateTempPassword();
+    const passwordHash = await bcrypt.hash(providedPassword || tempPassword!, 10);
 
-    const user = await this.prisma.user.create({
-      data: {
-        schoolId,
-        email,
-        passwordHash,
-        role: UserRole.TEACHER,
-        fullName: dto.fullName.trim(),
-        phone: dto.phone?.trim(),
-        avatarUrl: dto.avatarUrl,
-      },
-    });
+    // User and Teacher are created together: a half-written teacher would leave
+    // the email taken and block the admin from retrying.
+    const { user, teacher } = await this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          schoolId,
+          email,
+          passwordHash,
+          role: UserRole.TEACHER,
+          fullName: dto.fullName.trim(),
+          phone: dto.phone?.trim(),
+          avatarUrl: dto.avatarUrl,
+          mustChangePassword: !providedPassword,
+        },
+      });
 
-    const teacher = await this.prisma.teacher.create({
-      data: {
-        userId: user.id,
-        employeeCode,
-        gender: dto.gender ?? 'MALE',
-        department:
-          dto.department?.trim() || dto.subjects[0]?.trim() || 'General',
-        subjects: dto.subjects,
-      },
+      const teacher = await tx.teacher.create({
+        data: {
+          schoolId,
+          userId: user.id,
+          employeeCode,
+          gender: dto.gender ?? 'MALE',
+          department:
+            dto.department?.trim() || dto.subjects[0]?.trim() || 'General',
+          subjects: dto.subjects,
+        },
+      });
+
+      return { user, teacher };
     });
 
     if (dto.classTeacherClassId) {
@@ -918,6 +958,7 @@ export class AdminService {
 
     await this.prisma.activityLog.create({
       data: {
+        schoolId,
         action: `Added teacher ${user.fullName}`,
         actorName: 'Admin',
       },
@@ -930,6 +971,8 @@ export class AdminService {
       employeeCode,
       department: teacher.department,
       classTeacherClassId: dto.classTeacherClassId ?? null,
+      // One-time password to hand the teacher, when the admin didn't set one.
+      tempPassword,
     };
   }
 
@@ -1001,6 +1044,7 @@ export class AdminService {
 
     await this.prisma.activityLog.create({
       data: {
+        schoolId,
         action: `Added class ${cls.name}`,
         actorName: 'Admin',
       },
@@ -1015,11 +1059,25 @@ export class AdminService {
     };
   }
 
+  /**
+   * UTC midnight for the calendar day `offsetDays` from today.
+   *
+   * `AttendanceRecord.date` is a `@db.Date`, so Postgres compares the bound as
+   * a bare date. Building it from local midnight shifts the boundary back a day
+   * in positive-offset zones (IST etc.) and silently drops today's rows — so
+   * take the local calendar date and pin it to UTC, matching how
+   * `TeacherService` writes attendance.
+   */
+  private static utcDay(offsetDays = 0): Date {
+    const now = new Date();
+    return new Date(
+      Date.UTC(now.getFullYear(), now.getMonth(), now.getDate() + offsetDays),
+    );
+  }
+
   async attendanceOverview(schoolId: string) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const today = AdminService.utcDay();
+    const tomorrow = AdminService.utcDay(1);
 
     const [present, absent, leave, totalStudents] = await Promise.all([
       this.prisma.attendanceRecord.count({
@@ -1215,6 +1273,185 @@ export class AdminService {
     };
   }
 
+  // ---- Calendar / events ----
+
+  async listEvents(schoolId: string) {
+    return this.prisma.event.findMany({
+      where: { schoolId },
+      orderBy: { startAt: 'asc' },
+    });
+  }
+
+  async createEvent(
+    schoolId: string,
+    dto: {
+      title: string;
+      description?: string;
+      category?: string;
+      startAt: string;
+      endAt?: string;
+      location?: string;
+    },
+  ) {
+    const title = dto.title?.trim();
+    if (!title) throw new BadRequestException('Title is required');
+    const startAt = new Date(dto.startAt);
+    if (Number.isNaN(startAt.getTime())) {
+      throw new BadRequestException('Invalid start date');
+    }
+    const endAt = dto.endAt ? new Date(dto.endAt) : null;
+
+    // A stable colour per category so the calendar reads at a glance.
+    const palette: Record<string, string> = {
+      Holiday: '#EF4444',
+      Exam: '#F59E0B',
+      Activity: '#22C55E',
+      Meeting: '#6366F1',
+      Sports: '#3B82F6',
+      General: '#8B5CF6',
+    };
+    const category = dto.category?.trim() || 'General';
+
+    return this.prisma.event.create({
+      data: {
+        schoolId,
+        title,
+        description: dto.description?.trim() || null,
+        category,
+        startAt,
+        endAt: endAt && !Number.isNaN(endAt.getTime()) ? endAt : null,
+        location: dto.location?.trim() || null,
+        color: palette[category] ?? palette.General,
+      },
+    });
+  }
+
+  async deleteEvent(schoolId: string, id: string) {
+    const event = await this.prisma.event.findFirst({
+      where: { id, schoolId },
+    });
+    if (!event) throw new NotFoundException('Event not found');
+    await this.prisma.event.delete({ where: { id } });
+    return { ok: true };
+  }
+
+  // ---- Library ----
+
+  async listBooks(schoolId: string) {
+    return this.prisma.libraryBook.findMany({
+      where: { schoolId },
+      orderBy: { title: 'asc' },
+    });
+  }
+
+  async createBook(
+    schoolId: string,
+    dto: {
+      title: string;
+      author?: string;
+      isbn?: string;
+      category?: string;
+      totalCopies?: number;
+    },
+  ) {
+    const title = dto.title?.trim();
+    if (!title) throw new BadRequestException('Title is required');
+    const copies = dto.totalCopies && dto.totalCopies > 0 ? dto.totalCopies : 1;
+    return this.prisma.libraryBook.create({
+      data: {
+        schoolId,
+        title,
+        author: dto.author?.trim() || null,
+        isbn: dto.isbn?.trim() || null,
+        category: dto.category?.trim() || 'General',
+        totalCopies: copies,
+        availableCopies: copies,
+      },
+    });
+  }
+
+  async listIssues(schoolId: string) {
+    const issues = await this.prisma.bookIssue.findMany({
+      where: { book: { schoolId } },
+      orderBy: [{ returnedAt: 'asc' }, { dueDate: 'asc' }],
+      include: {
+        book: true,
+        student: { include: { class: true } },
+      },
+      take: 100,
+    });
+    return issues.map((i) => ({
+      id: i.id,
+      bookTitle: i.book.title,
+      studentName: i.student.fullName,
+      className: i.student.class?.name ?? '',
+      issuedAt: i.issuedAt,
+      dueDate: i.dueDate,
+      returnedAt: i.returnedAt,
+    }));
+  }
+
+  async issueBook(
+    schoolId: string,
+    dto: { bookId: string; studentId: string; dueDate?: string },
+  ) {
+    const book = await this.prisma.libraryBook.findFirst({
+      where: { id: dto.bookId, schoolId },
+    });
+    if (!book) throw new NotFoundException('Book not found');
+    if (book.availableCopies < 1) {
+      throw new BadRequestException('No copies available');
+    }
+    const student = await this.prisma.student.findFirst({
+      where: { id: dto.studentId, class: { schoolId } },
+    });
+    if (!student) throw new NotFoundException('Student not found');
+
+    const due = dto.dueDate
+      ? new Date(dto.dueDate)
+      : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+
+    return this.prisma.$transaction(async (tx) => {
+      // Conditional decrement: only lands while a copy is actually free, so two
+      // simultaneous issues can't drive availableCopies below zero.
+      const claimed = await tx.libraryBook.updateMany({
+        where: { id: book.id, availableCopies: { gt: 0 } },
+        data: { availableCopies: { decrement: 1 } },
+      });
+      if (claimed.count === 0) {
+        throw new BadRequestException('No copies available');
+      }
+      return tx.bookIssue.create({
+        data: { bookId: book.id, studentId: student.id, dueDate: due },
+      });
+    });
+  }
+
+  async returnBook(schoolId: string, issueId: string) {
+    const issue = await this.prisma.bookIssue.findFirst({
+      where: { id: issueId, book: { schoolId } },
+      include: { book: { select: { totalCopies: true } } },
+    });
+    if (!issue) throw new NotFoundException('Issue not found');
+    if (issue.returnedAt) return { ok: true };
+
+    await this.prisma.$transaction(async (tx) => {
+      // Guard on returnedAt still being null so two racing returns of the same
+      // issue can't both flip it and double-increment availableCopies.
+      const marked = await tx.bookIssue.updateMany({
+        where: { id: issueId, returnedAt: null },
+        data: { returnedAt: new Date() },
+      });
+      if (marked.count === 0) return; // already returned by a concurrent call
+      // Cap at totalCopies as a belt-and-braces bound against drift.
+      await tx.libraryBook.updateMany({
+        where: { id: issue.bookId, availableCopies: { lt: issue.book.totalCopies } },
+        data: { availableCopies: { increment: 1 } },
+      });
+    });
+    return { ok: true };
+  }
+
   async getProfile(schoolId: string, userId: string) {
     const [school, user] = await Promise.all([
       this.prisma.school.findUnique({
@@ -1350,6 +1587,7 @@ export class AdminService {
 
     await this.prisma.activityLog.create({
       data: {
+        schoolId,
         action: `Published announcement (${dto.audience === AnnouncementAudience.TEACHERS ? 'teachers' : 'teachers & parents'})`,
         actorName: postedBy,
       },
@@ -1364,7 +1602,11 @@ export class AdminService {
         this.studentStats(schoolId),
         this.teacherStats(schoolId),
         this.classStats(schoolId),
-        this.prisma.activityLog.findMany({ orderBy: { createdAt: 'desc' }, take: 6 }),
+        this.prisma.activityLog.findMany({
+          where: { schoolId },
+          orderBy: { createdAt: 'desc' },
+          take: 6,
+        }),
         this.feeChart(schoolId),
       ]);
 

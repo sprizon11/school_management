@@ -3,12 +3,12 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/providers/auth_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import 'screens/parent_home_screen.dart';
 import 'screens/parent_marks_screen.dart';
 import 'screens/parent_fees_screen.dart';
 import 'screens/parent_messages_screen.dart';
+import 'screens/parent_more_screen.dart';
 
 /// Parent shell. Each tab draws its own header, so there is no AppBar — the
 /// content runs to the top and the frosted nav floats over it.
@@ -20,7 +20,8 @@ class ParentShell extends ConsumerStatefulWidget {
 }
 
 class _ParentShellState extends ConsumerState<ParentShell> {
-  // 0 Home · 1 Marks · 2 Fees · 3 Messages. Log out (index 4) is an action.
+  // 0 Home · 1 Marks · 2 Fees · 3 Chat · 4 More (hub: calendar, homework,
+  // notifications, log out).
   int _index = 0;
 
   @override
@@ -30,6 +31,7 @@ class _ParentShellState extends ConsumerState<ParentShell> {
       const ParentMarksScreen(),
       const ParentFeesScreen(),
       const ParentMessagesScreen(),
+      const ParentMoreScreen(),
     ];
 
     return Scaffold(
@@ -38,13 +40,7 @@ class _ParentShellState extends ConsumerState<ParentShell> {
       body: IndexedStack(index: _index, children: screens),
       bottomNavigationBar: _ParentNavBar(
         index: _index,
-        onTap: (i) async {
-          if (i == 4) {
-            await ref.read(authProvider.notifier).logout();
-            return;
-          }
-          setState(() => _index = i);
-        },
+        onTap: (i) => setState(() => _index = i),
       ),
     );
   }
@@ -62,7 +58,7 @@ class _ParentNavBar extends StatelessWidget {
     (icon: Icons.assignment_rounded, label: 'Marks'),
     (icon: Icons.receipt_long_rounded, label: 'Fees'),
     (icon: Icons.chat_bubble_rounded, label: 'Chat'),
-    (icon: Icons.logout_rounded, label: 'Log out'),
+    (icon: Icons.grid_view_rounded, label: 'More'),
   ];
 
   @override
@@ -108,10 +104,7 @@ class _ParentNavBar extends StatelessWidget {
   }
 
   Widget _item(int i) {
-    final selected = i == index;
-    // Log out is an action, never a "current tab".
-    final isAction = i == 4;
-    final active = selected && !isAction;
+    final active = i == index;
     final tint = active ? AppColors.parentPrimary : const Color(0xFF8A8AA3);
 
     return GestureDetector(

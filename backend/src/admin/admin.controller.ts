@@ -5,8 +5,11 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { AdminService } from './admin.service';
+import { AutomationService } from '../automation/automation.service';
 import { CreateAnnouncementDto } from './dto/create-announcement.dto';
 import { CreateClassDto } from './dto/create-class.dto';
+import { CreateEventDto } from './dto/create-event.dto';
+import { CreateBookDto, IssueBookDto } from './dto/library.dto';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { CreateTeacherDto } from './dto/create-teacher.dto';
 import { UpdateSchoolProfileDto } from './dto/update-school-profile.dto';
@@ -16,7 +19,16 @@ import { UpdateStudentDto } from './dto/update-student.dto';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.ADMIN)
 export class AdminController {
-  constructor(private admin: AdminService) {}
+  constructor(
+    private admin: AdminService,
+    private automation: AutomationService,
+  ) {}
+
+  /** Run all automated reminders now (also runs daily at 7 AM on its own). */
+  @Post('automation/run')
+  runAutomation() {
+    return this.automation.runDaily();
+  }
 
   @Get('dashboard/summary')
   dashboardSummary(@CurrentUser() user: { schoolId: string }) {
@@ -210,5 +222,60 @@ export class AdminController {
   @Get('reports/overview')
   reportsOverview(@CurrentUser() user: { schoolId: string }) {
     return this.admin.reportsOverview(user.schoolId);
+  }
+
+  @Get('events')
+  events(@CurrentUser() user: { schoolId: string }) {
+    return this.admin.listEvents(user.schoolId);
+  }
+
+  @Post('events')
+  createEvent(
+    @CurrentUser() user: { schoolId: string },
+    @Body() dto: CreateEventDto,
+  ) {
+    return this.admin.createEvent(user.schoolId, dto);
+  }
+
+  @Delete('events/:id')
+  deleteEvent(
+    @CurrentUser() user: { schoolId: string },
+    @Param('id') id: string,
+  ) {
+    return this.admin.deleteEvent(user.schoolId, id);
+  }
+
+  @Get('library/books')
+  books(@CurrentUser() user: { schoolId: string }) {
+    return this.admin.listBooks(user.schoolId);
+  }
+
+  @Post('library/books')
+  createBook(
+    @CurrentUser() user: { schoolId: string },
+    @Body() dto: CreateBookDto,
+  ) {
+    return this.admin.createBook(user.schoolId, dto);
+  }
+
+  @Get('library/issues')
+  bookIssues(@CurrentUser() user: { schoolId: string }) {
+    return this.admin.listIssues(user.schoolId);
+  }
+
+  @Post('library/issue')
+  issueBook(
+    @CurrentUser() user: { schoolId: string },
+    @Body() dto: IssueBookDto,
+  ) {
+    return this.admin.issueBook(user.schoolId, dto);
+  }
+
+  @Patch('library/issue/:id/return')
+  returnBook(
+    @CurrentUser() user: { schoolId: string },
+    @Param('id') id: string,
+  ) {
+    return this.admin.returnBook(user.schoolId, id);
   }
 }

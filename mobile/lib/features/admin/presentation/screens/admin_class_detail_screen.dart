@@ -219,7 +219,9 @@ class _AdminClassDetailScreenState
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      'Room ${c['room']}',
+                      // Room values may already include the "Room " prefix
+                      // (seed default is "Room 1xx"); don't double it up.
+                      '${'${c['room']}'.toLowerCase().startsWith('room') ? '' : 'Room '}${c['room']}',
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.95),
                         fontSize: 12,

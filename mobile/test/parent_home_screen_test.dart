@@ -55,10 +55,18 @@ const _homeJson = '''
     }]
   },
   "homework": [],
+  "fees": {"total": 48000, "paid": 24000, "due": 24000},
+  "activity": [
+    {"id": "act1", "type": "attendance", "status": "ABSENT", "label": null,
+     "date": "2026-07-21T00:00:00.000Z"},
+    {"id": "act2", "type": "fee", "status": null, "label": "Term 2",
+     "date": "2025-09-15T00:00:00.000Z"}
+  ],
   "upcomingTests": [{
     "id": "t1", "title": "Maths Unit Test 2",
     "body": "Chapters 4-6", "eventDate": "2030-07-25T00:00:00.000Z"
   }],
+  "unreadNotifications": 2,
   "dueThisWeek": 1,
   "announcement": {
     "id": "a1", "title": "PTM this Saturday", "body": "Main hall",
@@ -106,14 +114,18 @@ void main() {
     // A layout exception (e.g. an unbounded-height Row) surfaces here.
     expect(tester.takeException(), isNull);
 
+    // Bento dashboard: header, attendance ring, marks + fees tiles, next
+    // test, and the activity feed all present.
     expect(find.text('Arjun Menon'), findsOneWidget);
-    expect(find.text('Attendance'), findsOneWidget);
-    expect(find.text('Absences'), findsOneWidget);
-    // Avg Marks tile was removed; it must not reappear.
-    expect(find.text('Avg Marks'), findsNothing);
-    expect(find.text('Recent Marks'), findsOneWidget);
-    expect(find.text('Upcoming Tests'), findsOneWidget);
+    // "Attendance" appears on the ring tile and again as an activity subtitle.
+    expect(find.text('Attendance'), findsWidgets);
+    expect(find.text('Avg Marks'), findsOneWidget);
+    expect(find.text('Balance Due'), findsOneWidget);
+    expect(find.text('Next Test'), findsOneWidget);
     expect(find.text('Maths Unit Test 2'), findsOneWidget);
+    expect(find.text('Recent Activity'), findsOneWidget);
+    expect(find.text('Marked absent'), findsOneWidget);
+    expect(find.text('Fee paid'), findsOneWidget);
   });
 
   testWidgets('parent marks screen groups by term', (tester) async {
@@ -122,9 +134,14 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('Marks'), findsOneWidget);
+    expect(find.text('By Subject'), findsOneWidget);
+    expect(find.text('By Exam'), findsOneWidget);
+    expect(find.text('Strongest'), findsOneWidget);
+    expect(find.text('Needs work'), findsOneWidget);
     expect(find.text('Unit Test 1'), findsOneWidget); // term header
-    expect(find.text('English'), findsOneWidget);
-    expect(find.text('Maths'), findsOneWidget);
+    // "English"/"Maths" now appear in both the summary card and the rows.
+    expect(find.text('English'), findsWidgets);
+    expect(find.text('Maths'), findsWidgets);
     expect(find.text('80 / 100'), findsOneWidget);
   });
 
