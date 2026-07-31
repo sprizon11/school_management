@@ -764,68 +764,48 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       shrinkWrap: true,
       padding: EdgeInsets.zero,
       physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 11,
-      mainAxisSpacing: 11,
-      childAspectRatio: 0.82,
-      children: [for (final it in items) _quickAccessCard(it)],
+      crossAxisSpacing: 6,
+      mainAxisSpacing: 18,
+      childAspectRatio: 0.86,
+      children: [for (final it in items) _quickAccessItem(it)],
     );
   }
 
-  Widget _quickAccessCard(
+  Widget _quickAccessItem(
     ({IconData icon, String label, Color color, VoidCallback onTap}) it,
   ) {
     return PressableScale(
       onTap: it.onTap,
-      child: Material(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        child: InkWell(
-          onTap: it.onTap,
-          borderRadius: BorderRadius.circular(18),
-          splashColor: it.color.withValues(alpha: 0.1),
-          child: Ink(
-            decoration: BoxDecoration(
-              color: Colors.white,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Material(
+            color: it.color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(18),
+            child: InkWell(
+              onTap: it.onTap,
               borderRadius: BorderRadius.circular(18),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withValues(alpha: 0.06),
-                  blurRadius: 14,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: it.color.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(13),
-                  ),
-                  child: Icon(it.icon, color: it.color, size: 21),
-                ),
-                const SizedBox(height: 8),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: Text(
-                    it.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF475569),
-                    ),
-                  ),
-                ),
-              ],
+              splashColor: it.color.withValues(alpha: 0.16),
+              child: SizedBox(
+                width: 54,
+                height: 54,
+                child: Icon(it.icon, color: it.color, size: 25),
+              ),
             ),
           ),
-        ),
+          const SizedBox(height: 8),
+          Text(
+            it.label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF475569),
+            ),
+          ),
+        ],
       ),
     );
   }
